@@ -2,7 +2,7 @@
 
 > Kendi bilgisayarında çalışan, kayıt / reklam / bekleme / dosya yükleme sınırı olmayan PDF araç seti.
 > Dosyalar hiçbir zaman internete çıkmaz.
-> Tarih: 2026-10-31 · Durum: Faz 0 tamamlandı, 4 motor da hazır
+> Tarih: 2026-10-31 · Durum: Faz 0 ve Faz 1 tamamlandı
 
 ---
 
@@ -121,6 +121,7 @@ pdf-atolye/
 ├─ pyproject.toml · uv.lock · config.example.toml · baslat.bat · README.md
 ├─ src/pdfatolye/
 │  ├─ core/
+│  │  ├─ pdfio.py        # açma (şifre/bozuk dosya), güvenli yazma, dosya adı yardımcıları
 │  │  ├─ pages.py        # manifest uygulama: birleştir/böl/sırala/sil/döndür/ekle/boş sayfa
 │  │  ├─ ranges.py       # "1-3,5,8-" ayrıştırıcı (tek yerde, testli)
 │  │  ├─ geometry.py     # ekran ↔ PDF koordinat dönüşümü (rotation, CropBox)
@@ -129,7 +130,7 @@ pdf-atolye/
 │  │  ├─ compress.py
 │  │  ├─ ocr.py
 │  │  ├─ security.py     # şifrele, şifre kaldır, meta temizle, onar
-│  │  └─ inspect.py      # sayfa sayısı, boyutlar, şifreli mi, metin var mı, fontlar
+│  │  └─ info.py         # sayfa sayısı, boyutlar, şifreli mi, metin var mı, fontlar
 │  ├─ convert/
 │  │  ├─ markdown/  parser.py · obsidian.py · render.py · themes/{ders,rapor,sade}.css
 │  │  ├─ office.py

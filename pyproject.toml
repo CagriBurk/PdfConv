@@ -12,6 +12,8 @@ dependencies = [
     "pymupdf>=1.25",
     "pikepdf>=9.4",
     "psutil>=6.1",
+    "pillow>=13.0.0",
+    "pillow-heif>=1.8.1",
 ]
 
 [project.scripts]
@@ -33,6 +35,7 @@ packages = ["src/pdfatolye"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 addopts = "-q"
 
 [tool.ruff]
