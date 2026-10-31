@@ -109,8 +109,19 @@ class MdToPdfRequest(_Base):
         return self
 
 
+class OfficeToPdfRequest(_Base):
+    """Office / HTML / düz metin dosyalarını PDF'e çevirir. Bozuk bir dosya diğerlerini
+    durdurmaz; uyarı olarak bildirilir. `merge` ise başarılı çıktılar tek PDF'te birleştirilir."""
+
+    type: Literal["office_to_pdf"]
+    files: list[FileId] = Field(min_length=1, max_length=500)
+    pdfa: bool = False
+    merge: bool = False
+    name: str | None = None
+
+
 JobRequest = Annotated[
     ComposeRequest | MergeRequest | SplitRequest | ImagesToPdfRequest | PdfToImagesRequest
-    | MdToPdfRequest,
+    | MdToPdfRequest | OfficeToPdfRequest,
     Field(discriminator="type"),
 ]

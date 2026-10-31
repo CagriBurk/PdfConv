@@ -73,6 +73,18 @@ uv run python -m pdfatolye resme not.pdf --dpi 200 --bicim jpg
 uv run python -m pdfatolye resimleri-cikar not.pdf
 ```
 
+### Office / HTML / metin → PDF
+
+```
+uv run python -m pdfatolye cevir rapor.docx                 # rapor.pdf
+uv run python -m pdfatolye cevir *.docx *.pptx -o pdfler    # her biri ayrı
+uv run python -m pdfatolye cevir a.docx b.xlsx --birlestir  # tek PDF, dosya başına yer imi
+uv run python -m pdfatolye cevir tez.docx --pdfa            # arşiv için PDF/A-2b
+```
+
+Word, Excel, PowerPoint, ODT/ODS/ODP, RTF, CSV LibreOffice ile; HTML ve TXT Edge ile çevrilir.
+Bozuk bir dosya diğerlerini durdurmaz. Bilgisayarda olmayan fontlar (ör. Aptos) uyarılır.
+
 ### Markdown → PDF
 
 ```

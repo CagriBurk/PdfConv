@@ -53,7 +53,6 @@ class Settings:
     @property
     def logs_dir(self) -> Path:
         return self.data_dir / "logs"
-
     def ensure_dirs(self) -> None:
         for d in (self.files_dir, self.jobs_dir, self.logs_dir):
             d.mkdir(parents=True, exist_ok=True)

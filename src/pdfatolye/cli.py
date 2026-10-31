@@ -380,6 +380,66 @@ def md(
         raise typer.Exit(2)
 
 
+@app.command()
+@friendly_errors
+def cevir(
+    dosyalar: Annotated[list[Path], typer.Argument(
+        help="Word, Excel, PowerPoint, ODT, RTF, HTML veya TXT dosyaları", exists=True,
+        dir_okay=False)],
+    cikti: Annotated[Path | None, typer.Option(
+        "-o", "--cikti", help="Çıktı PDF (tek dosya / --birlestir) veya klasör")] = None,
+    pdfa: Annotated[bool, typer.Option("--pdfa", help="Arşiv için PDF/A-2b (Office)")] = False,
+    birlestir: Annotated[bool, typer.Option(
+        "--birlestir", help="Hepsini tek PDF'te birleştir")] = False,
+    config: ConfigOpt = None,
+) -> None:
+    """Office / HTML / metin dosyalarını PDF'e çevirir. Bozuk dosya diğerlerini durdurmaz."""
+    from pdfatolye.convert.html import print_html, print_text
+    from pdfatolye.convert.office import OFFICE_EXTS, convert_office
+    from pdfatolye.core.pages import merge
+    from pdfatolye.core.pdfio import unique_path
+
+    settings = load_settings(config)
+    settings.ensure_dirs()
+    soffice = engines.detect_libreoffice(settings).path
+    browser = engines.detect_browser(settings).path
+    produced: list[Path] = []
+    failed = 0
+    for src in dosyalar:
+        ext = src.suffix.lower()
+        if birlestir or len(dosyalar) > 1:
+            folder = cikti if (cikti and not birlestir) else src.parent
+            out = unique_path(folder / f"{src.stem}.pdf")
+        else:
+            out = cikti or unique_path(src.with_suffix(".pdf"))
+        try:
+            if ext in OFFICE_EXTS:
+                result = convert_office(src, out, soffice=soffice, pdfa=pdfa)
+            elif ext in (".html", ".htm"):
+                result = print_html(src, out, browser_path=browser)
+            elif ext in (".txt", ".text", ".log", ".md"):
+                result = print_text(src, out, browser_path=browser)
+            else:
+                raise ValueError(f"'{src.name}' desteklenmeyen bir dosya türü.")
+        except (PdfAtolyeError, ValueError) as e:
+            failed += 1
+            typer.secho(f"Hata: {e}", fg="red", err=True)
+            continue
+        produced.append(result.output)
+        typer.echo(f"Yazıldı: {result.output} ({result.page_count} sayfa)")
+        for w in result.warnings:
+            typer.secho(f"  uyarı: {w}", fg="yellow")
+    if birlestir and len(produced) > 1:
+        target = cikti or unique_path(dosyalar[0].with_name(f"{dosyalar[0].stem}_birlesik.pdf"))
+        merge(produced, target, bookmark_per_file=True,
+              bookmark_titles=[p.stem for p in produced])
+        for p in produced:
+            p.unlink(missing_ok=True)
+        typer.echo(f"Birleştirildi: {target}")
+    if failed:
+        raise typer.Exit(2)
+
+
 @app.command("resimleri-cikar")
 @friendly_errors
 def resimleri_cikar(pdf: InPdf, klasor: DirOpt = None, sifre: PwOpt = None) -> None:

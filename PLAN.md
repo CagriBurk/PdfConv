@@ -2,7 +2,7 @@
 
 > Kendi bilgisayarında çalışan, kayıt / reklam / bekleme / dosya yükleme sınırı olmayan PDF araç seti.
 > Dosyalar hiçbir zaman internete çıkmaz.
-> Tarih: 2026-10-31 · Durum: Faz 0, 1, 2 ve 3 tamamlandı
+> Tarih: 2026-10-31 · Durum: Faz 0–4 tamamlandı
 
 ---
 
@@ -356,6 +356,10 @@ Tarayıcıda açık başka bir web sitesi, `localhost`'taki sunucuna istek atmay
 | 23 | **Windows Akıllı Uygulama Denetimi uv'nin ürettiği `pdfatolye.exe`'yi engelliyor** | `baslat.bat` ve belgeler `uv run python -m pdfatolye` kullanır (imzalı python.exe) |
 | 24 | Kum havuzlu (sandbox) önizleme iframe'i localhost'tan KaTeX yükleyemiyor | iframe aynı kökende, ama içerik güvenlik politikası (nonce) ile: yalnızca KaTeX betikleri çalışır, notun içindeki betikler/ağ istekleri engellenir |
 | 25 | Arayüzden gelen CRLF metin Windows'ta `write_text` ile `\r\r\n` oluyor, uyarı satır numaraları ikiye katlanıyordu | Yazarken `newline=""` + satır sonu normalleştirme; arayüz de metni yüklerken `\n`'e çevirir |
+
+| 26 | **LibreOffice 26.8 bir kez kullanılmış profille (kopyasıyla bile) ikinci çağrıda takılıyor**; öldürülen soffice.com'un açtığı soffice.bin arkada kalıyordu | Her çağrıda taze profil (~4 sn); toplu dönüşüm tek çağrıda, çıkmayan dosya tek başına yeniden denenir; profil yolunu taşıyan tüm soffice süreçleri her çağrıdan sonra öldürülür. Planlanan "kalıcı profil" yaklaşımı bu yüzden bırakıldı |
+
+**Faz 4 notları**: `cevir` komutu ve "Office → PDF" ekranı Word/Excel/PowerPoint/ODT/RTF'yi LibreOffice ile, HTML ve TXT'yi tarayıcıyla çevirir. Eksik font kontrolü: belgede istenen ama hem PDF'e gömülmemiş hem de Windows'ta kurulu olmayan fontlar uyarılır (ör. yeni Office varsayılanı Aptos). HTML dosyasının göreli resimleri arayüzden yüklenince bulunamaz (tek dosya yüklenir); kendine yeten HTML önerilir.
 
 **Faz 3 notları**: Arayüz dosya yolu görmez/göndermez; her şey depo kimliğiyle (32 hex) gider. Şifreler yalnızca sekmenin belleğinde tutulur ve iş kaydına yazılmaz. Sayfa düzenleyicide geri/ileri tarayıcıda, "Kaydet" sunucuda yeni sürüm oluşturur; "Önceki sürüme dön" sunucudaki sürümü geri alır.
 

@@ -125,3 +125,55 @@ def labels(path: Path, password: str | None = None) -> list[str]:
             m = _LABEL.search(page.get_text())
             out.append(m.group(0) if m else "")
         return out
+
+
+# --- Office belgeleri (elle kurulan en küçük geçerli dosyalar) ---------------------------
+
+_DOCX_TYPES = (
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+    '<Default Extension="rels" '
+    'ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+    '<Default Extension="xml" ContentType="application/xml"/>'
+    '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-'
+    'officedocument.wordprocessingml.document.main+xml"/></Types>'
+)
+_DOCX_RELS = (
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/'
+    'relationships/officeDocument" Target="word/document.xml"/></Relationships>'
+)
+
+
+def docx(path: Path, paragraphs: list[str], *, font: str | None = None,
+         page_breaks: bool = False) -> Path:
+    """Paragrafları (isteğe bağlı fontla) içeren .docx; page_breaks=True her paragraf ayrı sayfa."""
+    from xml.sax.saxutils import escape
+
+    rpr = f'<w:rPr><w:rFonts w:ascii="{font}" w:hAnsi="{font}"/></w:rPr>' if font else ""
+    body = []
+    for i, text in enumerate(paragraphs):
+        if page_breaks and i:
+            body.append('<w:p><w:r><w:br w:type="page"/></w:r></w:p>')
+        body.append(f'<w:p><w:r>{rpr}<w:t xml:space="preserve">{escape(text)}</w:t></w:r></w:p>')
+    document = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+        f'<w:body>{"".join(body)}<w:sectPr/></w:body></w:document>'
+    )
+    import zipfile
+
+    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("[Content_Types].xml", _DOCX_TYPES)
+        zf.writestr("_rels/.rels", _DOCX_RELS)
+        zf.writestr("word/document.xml", document)
+    return path
+
+
+def rtf(path: Path, text: str) -> Path:
+    """Türkçe karakterleri \\uN? kaçışlarıyla yazılmış RTF."""
+    body = "".join(c if ord(c) < 128 else f"\\u{ord(c)}?" for c in text)
+    path.write_text("{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0 Arial;}}\\f0\\fs24 " + body + "\\par}",
+                    encoding="ascii")
+    return path

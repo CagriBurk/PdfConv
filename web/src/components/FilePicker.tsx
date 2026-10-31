@@ -7,7 +7,7 @@ import PasswordDialog from "./PasswordDialog";
 
 interface Props {
   accept: string;
-  kind: FileMeta["kind"];
+  kind: FileMeta["kind"] | FileMeta["kind"][];
   multiple?: boolean;
   title: string;
   onAdd: (files: FileMeta[]) => void;
@@ -36,8 +36,9 @@ export default function FilePicker({ accept, kind, multiple = true, title, onAdd
 
   const onFiles = async (files: File[]) => {
     const metas = await upload(files);
-    const good = metas.filter((m) => m.kind === kind);
-    const bad = metas.filter((m) => m.kind !== kind);
+    const kinds = Array.isArray(kind) ? kind : [kind];
+    const good = metas.filter((m) => kinds.includes(m.kind));
+    const bad = metas.filter((m) => !kinds.includes(m.kind));
     if (bad.length) setError(`Bu araç için uygun olmayan dosyalar atlandı: ${bad.map((b) => b.name).join(", ")}`);
     next(good, []);
   };

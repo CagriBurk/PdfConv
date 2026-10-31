@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from pdfatolye import engines
+from pdfatolye.convert.markdown.render import BrowserNotFoundError
 from pdfatolye.core import images, pages
 from pdfatolye.core.pdfio import safe_filename
 from pdfatolye.errors import EncryptedPdfError, PdfAtolyeError, UnsupportedFileError
@@ -51,6 +52,7 @@ def run(manager, req, report: Report, job_id: str) -> WorkResult:
         "images_to_pdf": images_to_pdf,
         "pdf_to_images": pdf_to_images,
         "md_to_pdf": md_to_pdf,
+        "office_to_pdf": office_to_pdf,
     }[req.type]
     with tempfile.TemporaryDirectory(prefix="pa-is-") as tmp:
         try:
@@ -177,3 +179,62 @@ def md_to_pdf(store, settings, req, report, tmp: Path, job_id) -> WorkResult:
                                  MdOptions(**req.options.model_dump()))
     meta = store.add_file(result.output, Path(md_name).stem + ".pdf", job_id=job_id)
     return WorkResult([meta], result.warnings)
+
+
+def office_to_pdf(store, settings, req, report, tmp: Path, job_id) -> WorkResult:
+    """Office dosyaları tek LibreOffice çağrısında, HTML/metin tarayıcıyla çevrilir. Tek dosyanın
+    hatası işi durdurmaz; motor eksikse durdurur (devam etmenin anlamı yok)."""
+    from pdfatolye.convert.html import print_html, print_text
+    from pdfatolye.convert.office import OfficeItem, convert_office_many
+
+    metas = [store.get(fid) for fid in req.files]
+    for m in metas:
+        if m.kind not in ("office", "html", "text", "markdown"):
+            raise UnsupportedFileError(Path(m.name), "Office, HTML ya da metin")
+    outs = [tmp / f"{i:04d}.pdf" for i in range(len(metas))]
+    results: dict[int, list[str] | PdfAtolyeError] = {}
+    total = len(metas)
+
+    office_idx = [i for i, m in enumerate(metas) if m.kind == "office"]
+    if office_idx:
+        report(0.05, f"LibreOffice: {len(office_idx)} belge")
+        items = [OfficeItem(store.path(metas[i].id), outs[i], metas[i].name) for i in office_idx]
+        soffice = engines.detect_libreoffice(settings).path
+        done = convert_office_many(
+            items, soffice=soffice, pdfa=req.pdfa,
+            on_progress=lambda n, t: report(0.05 + 0.8 * n / total, f"{n}/{total} belge"),
+        )
+        for i, r in zip(office_idx, done, strict=True):
+            results[i] = r if isinstance(r, PdfAtolyeError) else r.warnings
+
+    browser = engines.detect_browser(settings).path
+    for i, m in enumerate(metas):
+        if m.kind == "office":
+            continue
+        report(len(results) / total, f"{len(results) + 1}/{total}: {m.name}")
+        printer = print_html if m.kind == "html" else print_text
+        try:
+            results[i] = printer(store.path(m.id), outs[i], browser_path=browser,
+                                 display_name=m.name).warnings
+        except BrowserNotFoundError:
+            raise
+        except PdfAtolyeError as e:
+            results[i] = e
+
+    converted = [(metas[i], outs[i]) for i in range(total) if isinstance(results[i], list)]
+    errors = [str(with_display_name(r, store)) for r in results.values()
+              if isinstance(r, PdfAtolyeError)]
+    warnings = [w for i in range(total) if isinstance(results[i], list) for w in results[i]]
+    if not converted:
+        raise PdfAtolyeError(errors[0] if len(errors) == 1 else
+                             "Hiçbir dosya dönüştürülemedi:\n" + "\n".join(errors))
+    if req.merge and len(converted) > 1:
+        report(0.95, "Birleştiriliyor")
+        merged = tmp / "birlesik.pdf"
+        pages.merge([p for _, p in converted], merged, bookmark_per_file=True,
+                    bookmark_titles=[_stem(m) for m, _ in converted])
+        name = _out_name(req.name, f"{_stem(converted[0][0])}_birlesik")
+        outputs = [store.add_file(merged, name, job_id=job_id)]
+    else:
+        outputs = [store.add_file(p, _stem(m) + ".pdf", job_id=job_id) for m, p in converted]
+    return WorkResult(outputs, errors + warnings)

@@ -4,6 +4,7 @@ import Home from "./pages/Home";
 import Jobs from "./pages/Jobs";
 import Markdown from "./pages/Markdown";
 import Merge from "./pages/Merge";
+import Office from "./pages/Office";
 import { ImagesToPdf, PdfToImages } from "./pages/Images";
 import Settings from "./pages/Settings";
 import Split from "./pages/Split";
@@ -63,6 +64,7 @@ export default function App() {
   else if (section === "birlestir") content = <Merge route={route} />;
   else if (section === "bol") content = <Split route={route} />;
   else if (section === "md") content = <Markdown route={route} engines={engines} />;
+  else if (section === "office") content = <Office route={route} engines={engines} />;
   else if (section === "resimden") content = <ImagesToPdf route={route} />;
   else if (section === "resme") content = <PdfToImages route={route} />;
   else if (section === "isler") content = <Jobs />;

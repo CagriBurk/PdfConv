@@ -273,6 +273,24 @@ def test_md_to_pdf_job_with_edited_text(client, tmp_path):
         assert abs(doc[0].rect.width - 420) < 2
 
 
+@pytest.mark.skipif(not engines.detect_libreoffice(Settings()).path, reason="LibreOffice yok")
+def test_office_job_merges_and_reports_broken(client, tmp_path):
+    a = fx.docx(tmp_path / "a.docx", ["Birinci belge"])
+    bad = tmp_path / "bozuk.docx"
+    bad.write_bytes(b"PK\x03\x04 bozuk")
+    txt = tmp_path / "not.txt"
+    txt.write_text("düz metin satırı", encoding="utf-8")
+    files = upload(client, a, bad, txt, names={a: "Rapor Ödevi.docx"})
+    job = run_job(client, {"type": "office_to_pdf", "files": [f["id"] for f in files],
+                           "merge": True})
+    assert job["status"] == "bitti", job
+    [out] = job["files"]
+    assert out["name"] == "Rapor Ödevi_birlesik.pdf" and out["page_count"] == 2
+    assert any("'bozuk.docx' dönüştürülemedi" in w for w in job["warnings"])
+    with pymupdf.open(client.app.state.store.path(out["id"])) as doc:
+        assert doc.get_toc() == [[1, "Rapor Ödevi", 1], [1, "not", 2]]
+
+
 def test_job_events_stream(client, tmp_path):
     [a] = upload(client, fx.numbered(tmp_path / "a.pdf", 2, with_toc=False))
     r = client.post("/api/jobs", json={"type": "split", "file": a["id"]})

@@ -8,7 +8,7 @@ import { GROUPS, TOOLS } from "../tools";
 /** Bırakılan dosyaların türüne göre en uygun araca yönlendirir. */
 function routeFor(files: FileMeta[]): string | null {
   const ids = (k: FileMeta["kind"]) => files.filter((f) => f.kind === k).map((f) => f.id);
-  const md = files.find((f) => f.kind === "markdown" || f.kind === "text");
+  const md = files.find((f) => f.kind === "markdown");
   if (md) {
     const ek = files.filter((f) => f.id !== md.id).map((f) => f.id);
     navigate("md", ek.length ? { dosya: md.id, ek } : { dosya: md.id });
@@ -24,7 +24,11 @@ function routeFor(files: FileMeta[]): string | null {
     navigate("resimden", { dosya: imgs });
     return null;
   }
-  if (files.some((f) => f.kind === "office")) return "Office dosyalarının PDF'e çevrilmesi Faz 4'te gelecek.";
+  const docs = files.filter((f) => f.kind === "office" || f.kind === "html" || f.kind === "text");
+  if (docs.length === files.length) {
+    navigate("office", { dosya: docs.map((f) => f.id) });
+    return null;
+  }
   return "Bu dosya türleri birlikte işlenemiyor. PDF, resim ya da Markdown bırak.";
 }
 
@@ -47,7 +51,7 @@ export default function Home({ engines }: { engines: EnginesResponse | null }) {
         onFiles={onFiles}
         disabled={uploading}
         title={uploading ? `Yükleniyor… %${Math.round((progress ?? 0) * 100)}` : "Dosyayı buraya bırak"}
-        hint="PDF → sayfa düzenleyici · birden çok PDF → birleştir · resimler → PDF · Markdown (+ resimleri) → PDF"
+        hint="PDF → sayfa düzenleyici · birden çok PDF → birleştir · resimler → PDF · Markdown (+ resimleri) → PDF · Word/Excel/PowerPoint → PDF"
       />
       {(error || notice) && (
         <div className="banner error" role="alert">
