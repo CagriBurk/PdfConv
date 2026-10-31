@@ -332,6 +332,9 @@ export default function Organizer({ fileId }: { fileId?: string }) {
                 Önceki sürüme dön
               </button>
             )}
+            <button type="button" className="link-button" onClick={() => navigate(`editor/${base.id}`)} disabled={dirty}>
+              İçerik ekle
+            </button>
           </span>
         )}
       </PageHeader>

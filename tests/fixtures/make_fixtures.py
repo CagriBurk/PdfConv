@@ -56,6 +56,31 @@ def rotated(path: Path) -> Path:
     return path
 
 
+def cropped(path: Path) -> Path:
+    """2 sayfa, ikisinde de CropBox kaydırılmış (50, 100)-(550, 700); 2. sayfa 90° döndürülmüş."""
+    doc = pymupdf.open()
+    for i, angle in enumerate((0, 90), start=1):
+        page = doc.new_page(width=600, height=800)
+        page.set_cropbox(pymupdf.Rect(50, 100, 550, 700))
+        _write_label(page, f"Sayfa {i}")
+        page.set_rotation(angle)
+    doc.save(path)
+    doc.close()
+    return path
+
+
+def signature_jpeg(path: Path) -> Path:
+    """Beyaz kâğıt üstünde koyu mavi bir 'imza' (opak, saydamlığı yok)."""
+    from PIL import ImageDraw
+
+    img = Image.new("RGB", (600, 300), (250, 250, 248))
+    draw = ImageDraw.Draw(img)
+    draw.line([(100, 200), (200, 100), (300, 210), (420, 90), (500, 180)], fill=(20, 30, 120),
+              width=8)
+    img.save(path, "JPEG", quality=92)
+    return path
+
+
 def mixed_sizes(path: Path) -> Path:
     """A4 dikey, A4 yatay, Letter."""
     doc = pymupdf.open()

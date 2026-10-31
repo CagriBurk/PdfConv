@@ -227,6 +227,70 @@ def test_invalid_payloads(client, payload, fragment):
     assert fragment in r.json()["detail"]
 
 
+# --- içerik editörü ---------------------------------------------------------------------
+
+
+def test_signature_then_apply_as_version(client, tmp_path):
+    [pdf] = upload(client, fx.rotated(tmp_path / "r.pdf"))
+    sig_src = fx.signature_jpeg(tmp_path / "imza.jpg")
+    r = client.post("/api/signatures", files={"file": ("imza.jpg", sig_src.read_bytes())})
+    assert r.status_code == 200, r.text
+    sig = r.json()
+    assert sig["pinned"] and sig["tag"] == "signature" and sig["name"].endswith(".png")
+    assert [s["id"] for s in client.get("/api/signatures").json()] == [sig["id"]]
+
+    job = run_job(client, {"type": "apply", "file": pdf["id"], "ops": [
+        {"type": "text", "page": 1, "rect": [100, 450, 400, 480], "text": "Onaylandı – Çağrı"},
+        {"type": "image", "page": 1, "rect": [100, 500, 250, 560], "asset": sig["id"]},
+        {"type": "page_numbers", "format": "{n} / {N}"},
+    ]})
+    assert job["status"] == "bitti", job
+    assert job["outputs"] == [pdf["id"]]
+    meta = client.get(f"/api/files/{pdf['id']}").json()
+    assert meta["version"] == 2 and meta["versions"][-1]["note"] == "İçerik düzenleme"
+    with pymupdf.open(client.app.state.store.path(pdf["id"])) as doc:
+        assert "Onaylandı – Çağrı" in doc[1].get_text()
+        assert doc[1].get_images()
+        assert "4 / 4" in doc[3].get_text()
+
+
+def test_apply_watermark_as_new_file(client, tmp_path):
+    [pdf] = upload(client, fx.numbered(tmp_path / "rapor.pdf", 2, with_toc=False))
+    job = run_job(client, {"type": "apply", "file": pdf["id"], "target": "new",
+                           "ops": [{"type": "watermark", "text": "GİZLİ"}]})
+    assert job["status"] == "bitti", job
+    out = job["files"][0]
+    assert out["name"] == "rapor_duzenlenmis.pdf" and out["id"] != pdf["id"]
+    assert client.get(f"/api/files/{pdf['id']}").json()["version"] == 1
+
+
+def test_apply_errors(client, tmp_path):
+    [pdf] = upload(client, fx.numbered(tmp_path / "a.pdf", 1, with_toc=False))
+    job = run_job(client, {"type": "apply", "file": pdf["id"], "ops": [
+        {"type": "redact", "page": 3, "rect": [0, 0, 50, 50]}]})
+    assert job["status"] == "hata" and "4. sayfa yok" in job["error"]
+    r = client.post("/api/jobs", json={"type": "apply", "file": pdf["id"], "ops": [
+        {"type": "image", "page": 0, "rect": [0, 0, 50, 50], "asset": "../x"}]})
+    assert r.status_code == 422
+    r = client.post("/api/jobs", json={"type": "apply", "file": pdf["id"], "ops": [
+        {"type": "text", "page": 0, "rect": [0, 0, 50, 50], "text": "x", "color": "kırmızı"}]})
+    assert r.status_code == 422 and "color" in r.json()["detail"]
+
+
+def test_blank_signature_rejected(client, tmp_path):
+    blank = tmp_path / "bos.png"
+    from PIL import Image
+
+    Image.new("RGB", (100, 50), "white").save(blank)
+    r = client.post("/api/signatures", files={"file": ("bos.png", blank.read_bytes())})
+    assert r.status_code == 400 and "imza bulunamadı" in r.json()["detail"]
+
+
+def test_fonts_endpoint(client):
+    keys = [f["key"] for f in client.get("/api/fonts").json()]
+    assert "segoe" in keys
+
+
 # --- Markdown ---------------------------------------------------------------------------
 
 

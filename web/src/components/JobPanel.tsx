@@ -66,9 +66,14 @@ export default function JobPanel({ job, error, zipName }: Props) {
                 </span>
                 <span className="actions">
                   {f.kind === "pdf" && (
-                    <button type="button" className="link-button" onClick={() => navigate(`duzenle/${f.id}`)}>
-                      Düzenle
-                    </button>
+                    <>
+                      <button type="button" className="link-button" onClick={() => navigate(`duzenle/${f.id}`)}>
+                        Düzenle
+                      </button>
+                      <button type="button" className="link-button" onClick={() => navigate(`editor/${f.id}`)}>
+                        İçerik ekle
+                      </button>
+                    </>
                   )}
                   <a className="button primary small" href={api.downloadUrl(f.id)}>
                     İndir

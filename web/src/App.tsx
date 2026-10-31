@@ -12,6 +12,9 @@ import { useRoute } from "./router";
 
 // pdf.js büyük; yalnızca düzenleyici açılınca yüklensin.
 const Organizer = lazy(() => import("./pages/Organizer"));
+const Editor = lazy(() => import("./pages/Editor"));
+const Watermark = lazy(() => import("./pages/Watermark"));
+const PageNumbers = lazy(() => import("./pages/PageNumbers"));
 
 const NAV = [
   { route: "araclar", label: "Araçlar" },
@@ -61,6 +64,24 @@ export default function App() {
         <Organizer key={id ?? "yeni"} fileId={id} />
       </Suspense>
     );
+  else if (section === "editor")
+    content = (
+      <Suspense fallback={<p className="muted">Editör yükleniyor…</p>}>
+        <Editor key={id ?? "yeni"} fileId={id} />
+      </Suspense>
+    );
+  else if (section === "filigran")
+    content = (
+      <Suspense fallback={null}>
+        <Watermark route={route} />
+      </Suspense>
+    );
+  else if (section === "sayfa-no")
+    content = (
+      <Suspense fallback={null}>
+        <PageNumbers route={route} />
+      </Suspense>
+    );
   else if (section === "birlestir") content = <Merge route={route} />;
   else if (section === "bol") content = <Split route={route} />;
   else if (section === "md") content = <Markdown route={route} engines={engines} />;
@@ -73,7 +94,7 @@ export default function App() {
   else content = <Home engines={engines} />;
 
   return (
-    <div className={`shell${section === "duzenle" || section === "md" ? " wide" : ""}`}>
+    <div className={`shell${["duzenle", "md", "editor"].includes(section) ? " wide" : ""}`}>
       <header className="topbar">
         <a className="brand" href="#/araclar">
           <span className="brand-mark" aria-hidden="true" />

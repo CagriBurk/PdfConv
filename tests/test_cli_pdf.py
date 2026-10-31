@@ -63,3 +63,19 @@ def test_images_roundtrip(tmp_path):
     r = runner.invoke(app, ["resme", str(pdf), "--dpi", "72"])
     assert r.exit_code == 0, r.output
     assert (tmp_path / "foto_resimler_resimler" / "foto_resimler_1.png").exists()
+
+
+def test_watermark_and_page_numbers(tmp_path):
+    import pymupdf
+
+    a = fx.numbered(tmp_path / "a.pdf", 3, with_toc=False)
+    r = runner.invoke(app, ["filigran", str(a), "--yazi", "GİZLİ", "--sayfalar", "2"])
+    assert r.exit_code == 0, r.output
+    r = runner.invoke(app, ["sayfa-no", str(tmp_path / "a_filigranli.pdf"), "--bicim",
+                            "Sayfa {n} / {N}", "--kapak", "-o", str(tmp_path / "s.pdf")])
+    assert r.exit_code == 0, r.output
+    with pymupdf.open(tmp_path / "s.pdf") as doc:
+        assert "GİZLİ" in doc[1].get_text() and "GİZLİ" not in doc[0].get_text()
+        assert "Sayfa 2 / 2" in doc[2].get_text()
+    r = runner.invoke(app, ["sayfa-no", str(a), "--bicim", "numara"])
+    assert r.exit_code == 2 and "{n}" in r.output

@@ -45,6 +45,7 @@ export interface FileMeta {
   pinned: boolean;
   encrypted: boolean;
   job_id: string | null;
+  tag: string | null;
 }
 
 export type JobStatus = "bekliyor" | "calisiyor" | "bitti" | "hata" | "iptal";
@@ -70,6 +71,12 @@ export interface MdPreview {
   warnings: string[];
   title: string | null;
   options: { theme: string; paper: string; toc: boolean; cover: boolean; landscape: boolean };
+}
+
+export interface FontInfo {
+  key: string;
+  name: string;
+  bold: boolean;
 }
 
 export class ApiError extends Error {
@@ -150,6 +157,14 @@ export const api = {
 
   mdPreview: (text: string, attachments: string[], options: Record<string, unknown>) =>
     request<MdPreview>("/api/md/preview", json({ text, attachments, options })),
+
+  fonts: () => request<FontInfo[]>("/api/fonts"),
+  signatures: () => request<FileMeta[]>("/api/signatures"),
+  addSignature: (file: Blob, name: string) => {
+    const form = new FormData();
+    form.append("file", file, name);
+    return request<FileMeta>("/api/signatures", { method: "POST", body: form });
+  },
 };
 
 /** İşi canlı izler (SSE). Bağlantı koparsa yoklamaya düşer. Dönen fonksiyon izlemeyi durdurur. */

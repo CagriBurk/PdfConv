@@ -13,7 +13,7 @@ from pathlib import Path
 
 from pdfatolye import engines
 from pdfatolye.convert.markdown.render import BrowserNotFoundError
-from pdfatolye.core import images, pages
+from pdfatolye.core import content, images, pages
 from pdfatolye.core.pdfio import safe_filename
 from pdfatolye.errors import EncryptedPdfError, PdfAtolyeError, UnsupportedFileError
 from pdfatolye.storage import FileMeta
@@ -53,6 +53,7 @@ def run(manager, req, report: Report, job_id: str) -> WorkResult:
         "pdf_to_images": pdf_to_images,
         "md_to_pdf": md_to_pdf,
         "office_to_pdf": office_to_pdf,
+        "apply": apply,
     }[req.type]
     with tempfile.TemporaryDirectory(prefix="pa-is-") as tmp:
         try:
@@ -238,3 +239,24 @@ def office_to_pdf(store, settings, req, report, tmp: Path, job_id) -> WorkResult
     else:
         outputs = [store.add_file(p, _stem(m) + ".pdf", job_id=job_id) for m, p in converted]
     return WorkResult(outputs, errors + warnings)
+
+_APPLY_NOTES = {"watermark": "Filigran", "page_numbers": "Sayfa numarası"}
+
+
+def apply(store, settings, req, report, tmp: Path, job_id) -> WorkResult:
+    meta, path = _require(store, req.file, "pdf")
+    assets = {}
+    for key in dict.fromkeys(op.asset for op in req.ops if getattr(op, "asset", None)):
+        assets[key] = _require(store, key, "image")[1]
+    report(0.2, "Değişiklikler uygulanıyor")
+    out = tmp / "cikti.pdf"
+    result = content.apply_ops(path, out, req.ops, password=req.passwords.get(req.file),
+                               assets=assets)
+    report(0.9, "Kaydediliyor")
+    kinds = {op.type for op in req.ops}
+    note = _APPLY_NOTES.get(next(iter(kinds)), "") if len(kinds) == 1 else ""
+    if req.target == "version":
+        return WorkResult([store.new_version(req.file, out, note or "İçerik düzenleme")],
+                          result.warnings)
+    name = _out_name(req.name, f"{_stem(meta)}_duzenlenmis")
+    return WorkResult([store.add_file(out, name, job_id=job_id)], result.warnings)

@@ -1073,3 +1073,281 @@ article.tool-card {
     gap: 0.6rem;
   }
 }
+
+/* --- Faz 5: içerik editörü, filigran, sayfa numarası --- */
+
+.banner.warn {
+  display: block;
+  background: var(--warn-soft);
+  color: var(--text);
+  border: 1px solid color-mix(in srgb, var(--warn) 40%, transparent);
+}
+
+button.danger {
+  color: var(--bad);
+  border-color: color-mix(in srgb, var(--bad) 45%, var(--border));
+}
+
+.tool-button.on,
+.segmented button.on,
+.tabs button.on,
+.position-grid button.on {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.tool-button.danger.on {
+  background: var(--bad-soft);
+  border-color: var(--bad);
+  color: var(--bad);
+}
+
+.editor-layout {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr) 280px;
+  gap: 1rem;
+  align-items: start;
+  margin-top: 1rem;
+}
+
+.editor-pages {
+  display: grid;
+  gap: 0.5rem;
+  max-height: calc(100vh - 9rem);
+  overflow-y: auto;
+  position: sticky;
+  top: 4.5rem;
+  padding-right: 0.25rem;
+}
+
+.editor-thumb {
+  display: block;
+  padding: 0.35rem;
+  background: var(--surface-2);
+  border: 2px solid transparent;
+  border-radius: var(--radius);
+}
+
+.editor-thumb.on {
+  border-color: var(--accent);
+}
+
+.badge {
+  display: inline-block;
+  margin-left: 0.35rem;
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.72rem;
+}
+
+.editor-main {
+  min-width: 0;
+  display: grid;
+  justify-items: center;
+  gap: 0.6rem;
+  overflow-x: auto;
+  padding-bottom: 2rem;
+}
+
+.page-nav {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.editor-page {
+  position: relative;
+  background: #fff;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.18), 0 0 0 1px var(--border);
+}
+
+.editor-page.loading {
+  width: 595px;
+  height: 842px;
+  max-width: 100%;
+}
+
+.editor-page > canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.editor-stage {
+  position: absolute;
+  inset: 0;
+}
+
+.editor-page:not(.tool-select) {
+  cursor: crosshair;
+}
+
+.editor-props {
+  top: 4.5rem;
+}
+
+.props {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.props textarea {
+  resize: vertical;
+  font: inherit;
+}
+
+.field-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 0.9rem;
+  align-items: end;
+}
+
+.field-row .check {
+  padding-bottom: 0.45rem;
+}
+
+input[type="color"] {
+  width: 3rem;
+  height: 2rem;
+  padding: 0.1rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.segmented,
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.tabs {
+  margin-bottom: 1rem;
+}
+
+.field.plain {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.field.plain legend {
+  padding: 0;
+  margin-bottom: 0.3rem;
+}
+
+.signature-grid {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 0.75rem;
+}
+
+.signature-grid li {
+  display: grid;
+  gap: 0.25rem;
+  justify-items: center;
+}
+
+.signature-tile {
+  width: 100%;
+  height: 90px;
+  padding: 0.5rem;
+  background: #fff;
+}
+
+.signature-tile img {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.signature-pad {
+  display: block;
+  width: 100%;
+  height: 220px;
+  background: #fff;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  touch-action: none;
+}
+
+.modal-actions.spread {
+  justify-content: space-between;
+  align-items: center;
+}
+
+.preview-wrap {
+  margin-top: 1rem;
+  display: grid;
+  justify-items: center;
+}
+
+.page-preview {
+  position: relative;
+  background: #fff;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.18);
+  overflow: hidden;
+}
+
+.page-preview img {
+  display: block;
+}
+
+.page-preview-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.wm-preview {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.pn-preview {
+  position: absolute;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.position-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.3rem;
+}
+
+.position-grid button {
+  font-size: 0.82rem;
+  padding: 0.35rem 0.3rem;
+}
+
+@media (max-width: 1100px) {
+  .editor-layout {
+    grid-template-columns: 110px minmax(0, 1fr);
+  }
+
+  .editor-props {
+    grid-column: 1 / -1;
+    position: static;
+  }
+}
+
+@media (max-width: 700px) {
+  .editor-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .editor-pages {
+    display: none;
+  }
+}

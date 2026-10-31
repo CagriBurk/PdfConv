@@ -6,6 +6,8 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from pdfatolye.core.content import MAX_OPS, Op
+
 FileId = Annotated[str, Field(pattern=r"^[0-9a-f]{32}$")]
 Passwords = dict[FileId, str]
 
@@ -120,8 +122,27 @@ class OfficeToPdfRequest(_Base):
     name: str | None = None
 
 
+class ApplyRequest(_Base):
+    """Editör, filigran ve sayfa numarası: işlem listesi (bkz. core/content.py). Resim ve
+    imzaların `asset` alanı depodaki resim dosyasının kimliğidir."""
+
+    type: Literal["apply"]
+    file: FileId
+    ops: list[Op] = Field(min_length=1, max_length=MAX_OPS)
+    target: Literal["version", "new"] = "version"
+    name: str | None = None
+
+    @model_validator(mode="after")
+    def _check(self) -> ApplyRequest:
+        for op in self.ops:
+            asset = getattr(op, "asset", None)
+            if asset is not None and not all(c in "0123456789abcdef" for c in asset):
+                raise ValueError(f"Geçersiz resim kimliği: {asset}")
+        return self
+
+
 JobRequest = Annotated[
     ComposeRequest | MergeRequest | SplitRequest | ImagesToPdfRequest | PdfToImagesRequest
-    | MdToPdfRequest | OfficeToPdfRequest,
+    | MdToPdfRequest | OfficeToPdfRequest | ApplyRequest,
     Field(discriminator="type"),
 ]

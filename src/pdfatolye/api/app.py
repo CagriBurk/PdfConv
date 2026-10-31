@@ -16,7 +16,7 @@ from pydantic import ValidationError
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from pdfatolye import __version__, engines
-from pdfatolye.api import routes_files, routes_jobs, routes_md
+from pdfatolye.api import routes_content, routes_files, routes_jobs, routes_md
 from pdfatolye.api.security import COOKIE, SessionGuard, new_token
 from pdfatolye.convert.markdown.document import ASSETS as MD_ASSETS
 from pdfatolye.errors import PdfAtolyeError
@@ -143,6 +143,7 @@ def create_app(settings: Settings, *, start_background: bool = True) -> FastAPI:
     app.include_router(routes_files.router)
     app.include_router(routes_jobs.router)
     app.include_router(routes_md.router)
+    app.include_router(routes_content.router)
     app.mount("/api/md/katex", StaticFiles(directory=MD_ASSETS / "katex"), name="katex")
     _mount_ui(app, WEB_DIST, token)
     return app

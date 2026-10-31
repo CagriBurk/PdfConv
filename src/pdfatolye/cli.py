@@ -452,3 +452,57 @@ def resimleri_cikar(pdf: InPdf, klasor: DirOpt = None, sifre: PwOpt = None) -> N
         typer.echo("Bu PDF'te çıkarılacak resim yok.")
         return
     typer.echo(f"{len(outputs)} resim çıkarıldı: {outputs[0].parent}")
+
+
+@app.command()
+@friendly_errors
+def filigran(
+    pdf: InPdf,
+    yazi: Annotated[str | None, typer.Option(help="Filigran yazısı, ör. TASLAK")] = None,
+    resim: Annotated[Path | None, typer.Option(help="Filigran resmi (PNG önerilir)",
+                                               exists=True, dir_okay=False)] = None,
+    aci: Annotated[float, typer.Option(help="Derece, saat yönünün tersine")] = 45,
+    opaklik: Annotated[float, typer.Option(min=0, max=1)] = 0.2,
+    boyut: Annotated[float, typer.Option(help="Yazı boyutu (pt)")] = 72,
+    renk: Annotated[str, typer.Option(help="#rrggbb")] = "#888888",
+    arkada: Annotated[bool, typer.Option("--arkada", help="İçeriğin arkasına koy")] = False,
+    sayfalar: Annotated[str, typer.Option(help="Yalnızca bu sayfalar (boş = hepsi)")] = "",
+    cikti: OutOpt = None,
+    sifre: PwOpt = None,
+) -> None:
+    """Yazı ya da resim filigranı ekler."""
+    from pdfatolye.core.content import WatermarkOp, apply_ops
+
+    op = WatermarkOp(type="watermark", text=yazi, asset="resim" if resim else None, angle=aci,
+                     opacity=opaklik, size=boyut, color=renk, pages=sayfalar,
+                     layer="back" if arkada else "front")
+    out = cikti or _default_output(pdf, "filigranli")
+    result = apply_ops(pdf, out, [op], password=sifre, assets={"resim": resim} if resim else {})
+    for w in result.warnings:
+        typer.secho(f"Uyarı: {w}", fg="yellow")
+    _done(result.output)
+
+
+@app.command("sayfa-no")
+@friendly_errors
+def sayfa_no(
+    pdf: InPdf,
+    bicim: Annotated[str, typer.Option(help="{n} = sayfa, {N} = toplam")] = "{n}",
+    konum: Annotated[str, typer.Option(
+        help="top-left, top-center, top-right, bottom-left, bottom-center, bottom-right")]
+    = "bottom-center",
+    baslangic: Annotated[int, typer.Option(help="İlk numara")] = 1,
+    kapak: Annotated[bool, typer.Option("--kapak",
+                                        help="İlk sayfaya numara koyma (kapak)")] = False,
+    sayfalar: Annotated[str, typer.Option(help="Yalnızca bu sayfalar (boş = hepsi)")] = "",
+    boyut: Annotated[float, typer.Option(help="Yazı boyutu (pt)")] = 11,
+    cikti: OutOpt = None,
+    sifre: PwOpt = None,
+) -> None:
+    """Sayfa numarası ekler: --bicim "Sayfa {n} / {N}"."""
+    from pdfatolye.core.content import PageNumbersOp, apply_ops
+
+    op = PageNumbersOp(type="page_numbers", format=bicim, position=konum, start=baslangic,
+                       skip_first=kapak, pages=sayfalar, size=boyut)
+    out = cikti or _default_output(pdf, "numarali")
+    _done(apply_ops(pdf, out, [op], password=sifre).output)

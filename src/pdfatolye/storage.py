@@ -62,6 +62,7 @@ class FileMeta:
     pinned: bool = False
     encrypted: bool = False
     job_id: str | None = None
+    tag: str | None = None  # "signature": İmzalarım listesinde
 
     @property
     def current(self) -> Version:
@@ -158,8 +159,10 @@ class FileStore:
         return meta
 
     def add_file(self, src: Path, name: str, *, source: str = "job", job_id: str | None = None,
-                 note: str = "Oluşturuldu") -> FileMeta:
+                 note: str = "Oluşturuldu", pinned: bool = False,
+                 tag: str | None = None) -> FileMeta:
         meta, path = self._new(name, source, job_id)
+        meta.pinned, meta.tag = pinned, tag
         shutil.copyfile(src, path)
         self._finish_version(meta, path, 1, note)
         return meta
