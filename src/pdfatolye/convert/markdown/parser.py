@@ -11,6 +11,7 @@ import html
 import os
 import re
 import unicodedata
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import unquote, urlparse
@@ -63,9 +64,12 @@ class ParsedMarkdown:
 class AssetResolver:
     """Resim yollarını çözer: önce not klasörüne göre, sonra Obsidian kasasında dosya adıyla."""
 
-    def __init__(self, base_dir: Path, vault: Path | None = None) -> None:
+    def __init__(self, base_dir: Path, vault: Path | None = None,
+                 attachments: dict[str, Path] | None = None) -> None:
         self.base_dir = base_dir
         self.vault = vault
+        # Arayüzden notla birlikte yüklenen dosyalar: ad (küçük harf) → yol
+        self.attachments = {k.lower(): v for k, v in (attachments or {}).items()}
         self._index: dict[str, Path] | None = None
 
     def _vault_index(self) -> dict[str, Path]:
@@ -82,6 +86,8 @@ class AssetResolver:
         name = unquote(name.strip())
         if not name:
             return None
+        if attached := self.attachments.get(Path(name).name.lower()):
+            return attached
         candidates = [self.base_dir / name]
         if self.vault:
             candidates.append(self.vault / name)
@@ -117,7 +123,8 @@ def _render_embed(target: str, alias: str | None, env: dict) -> str:
             return f'<span class="missing">Resim bulunamadı: {html.escape(name)}</span>'
         style, alt = _size_style(alias)
         style_attr = f' style="{style}"' if style else ""
-        return (f'<img src="{path.as_uri()}" alt="{html.escape(alt or Path(name).stem)}"'
+        src = html.escape(env["url_for"](path))
+        return (f'<img src="{src}" alt="{html.escape(alt or Path(name).stem)}"'
                 f"{style_attr}>")
     env["warnings"].append(f"Not/dosya gömme henüz desteklenmiyor: ![[{target}]]")
     return f'<span class="embed-note">Gömülü: {html.escape(alias or target)}</span>'
@@ -131,7 +138,7 @@ def _render_image(self, tokens, idx, options, env) -> str:
         if path is None:
             env["warnings"].append(f"Resim bulunamadı: {src}")
             return f'<span class="missing">Resim bulunamadı: {html.escape(src)}</span>'
-        tok.attrSet("src", path.as_uri())
+        tok.attrSet("src", env["url_for"](path))
     tok.attrs["alt"] = self.renderInlineAsText(tok.children or [], options, env)
     return self.renderToken(tokens, idx, options, env)
 
@@ -217,11 +224,22 @@ def _plain_text(children) -> str:
 
 
 def parse_markdown(
-    text: str, *, base_dir: Path, vault: Path | None = None, breaks: bool = True
+    text: str,
+    *,
+    base_dir: Path,
+    vault: Path | None = None,
+    breaks: bool = True,
+    url_for: Callable[[Path], str] | None = None,
+    attachments: dict[str, Path] | None = None,
 ) -> ParsedMarkdown:
-    """`breaks=True` Obsidian varsayılanıdır: tek satır sonu da satır kırar."""
+    """`breaks=True` Obsidian varsayılanıdır: tek satır sonu da satır kırar.
+
+    `url_for` yerel resim yolunu HTML'de kullanılacak adrese çevirir. Baskıda file:// adresi,
+    tarayıcı önizlemesinde sunucunun verdiği geçici adres kullanılır.
+    """
     md = build_markdown(breaks)
-    env: dict = {"warnings": [], "resolver": AssetResolver(base_dir, vault)}
+    env: dict = {"warnings": [], "resolver": AssetResolver(base_dir, vault, attachments),
+                 "url_for": url_for or (lambda p: p.as_uri())}
     # Windows (CRLF) ve eski Mac (CR) satır sonları: satır sonu düzenli ifadeleri \n bekler.
     text = text.lstrip("﻿").replace("\r\n", "\n").replace("\r", "\n")
     tokens = md.parse(preprocess(text), env)

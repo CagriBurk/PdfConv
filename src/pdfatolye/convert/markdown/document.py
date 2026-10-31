@@ -216,8 +216,36 @@ KATEX_SCRIPT = r"""
 """
 
 
-def build_html(parsed: ParsedMarkdown, opts: MdOptions, katex_dir: str = "katex") -> str:
-    """Tek dosyalık HTML. KaTeX dosyaları `katex_dir` göreli yolundan yüklenir."""
+# Ekranda önizleme: kağıt görünümü, sayfa sonları kesik çizgi. Baskıda kullanılmaz.
+PREVIEW_CSS = """
+html { background: #e7e5e4; }
+body { max-width: 210mm; margin: 16px auto; padding: 18mm; box-sizing: border-box;
+       box-shadow: 0 1px 4px rgb(0 0 0 / 0.18); }
+body.yatay { max-width: 297mm; }
+.page-break, .cover, .toc { border-bottom: 2px dashed #a8a29e; padding-bottom: 1em;
+       margin-bottom: 1.5em; }
+.cover { padding-top: 6em; }
+.toc .toc-page { visibility: hidden; }  /* numaralar yalnızca PDF'te hesaplanır */
+@media (max-width: 700px) { body { padding: 16px; margin: 0; box-shadow: none; } }
+"""
+
+
+def preview_csp(nonce: str, katex_url: str) -> str:
+    """Önizleme için içerik güvenlik politikası: yalnızca bizim betiklerimiz (nonce) ve KaTeX
+    dosyaları çalışır. Notun içindeki <script>, onclick=... gibi şeyler çalışmaz, ağa çıkılmaz."""
+    return (
+        f"default-src 'none'; script-src 'nonce-{nonce}' {katex_url}; "
+        f"style-src 'unsafe-inline' {katex_url}; font-src {katex_url}; img-src 'self' data:; "
+        "base-uri 'none'; form-action 'none'; frame-src 'none'; connect-src 'none'"
+    )
+
+
+def build_html(parsed: ParsedMarkdown, opts: MdOptions, katex_dir: str = "katex",
+               preview: bool = False, csp: str | None = None, nonce: str | None = None) -> str:
+    """Tek dosyalık HTML. KaTeX dosyaları `katex_dir` göreli yolundan yüklenir.
+
+    `csp` ve `nonce` verilirse sayfaya içerik güvenlik politikası eklenir (tarayıcı önizlemesi).
+    """
     themes = ASSETS / "themes"
     css = "\n".join([
         (themes / "base.css").read_text(encoding="utf-8"),
@@ -226,27 +254,33 @@ def build_html(parsed: ParsedMarkdown, opts: MdOptions, katex_dir: str = "katex"
     ])
     if opts.font_size_pt:
         css += f"\n:root {{ --font-size: {opts.font_size_pt}pt; }}"
+    if preview:
+        css += PREVIEW_CSS
     title = html.escape(parsed.title or "Belge")
     toc = toc_html(parsed.headings, opts.toc_depth) if opts.toc else ""
     macros = json.dumps(opts.macros, ensure_ascii=False).replace("</", "<\\/")
+    n = f' nonce="{html.escape(nonce)}"' if nonce else ""
+    csp_meta = (f'<meta http-equiv="Content-Security-Policy" content="{html.escape(csp)}">'
+                if csp else "")
     return f"""<!doctype html>
 <html lang="tr">
 <head>
 <meta charset="utf-8">
+{csp_meta}
 <title>{title}</title>
 <link rel="stylesheet" href="{katex_dir}/katex.min.css">
 <style>{css}</style>
-<script src="{katex_dir}/katex.min.js"></script>
-<script src="{katex_dir}/contrib/mhchem.min.js"></script>
+<script{n} src="{katex_dir}/katex.min.js"></script>
+<script{n} src="{katex_dir}/contrib/mhchem.min.js"></script>
 <script type="application/json" id="katex-macros">{macros}</script>
 </head>
-<body>
+<body class="{'yatay' if opts.landscape else ''}">
 {_title_block(parsed, opts)}
 {toc}
 <main class="content">
 {parsed.body_html}
 </main>
-<script>{KATEX_SCRIPT}</script>
+<script{n}>{KATEX_SCRIPT}</script>
 </body>
 </html>
 """

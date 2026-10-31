@@ -111,7 +111,7 @@ def _port_in_use(host: str, port: int) -> bool:
 def _is_our_server(url: str) -> bool:
     try:
         with urllib.request.urlopen(f"{url}/api/health", timeout=2) as resp:
-            return json.load(resp).get("status") == "ok"
+            return json.load(resp).get("app") == "pdfatolye"
     except (OSError, ValueError):
         return False
 

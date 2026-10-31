@@ -2,7 +2,7 @@
 # Yazmadığın her ayar varsayılan değeriyle kalır.
 
 # host = "127.0.0.1"        # 0.0.0.0 yapma; telefon modu Faz 7'de belirteçle gelecek
-# port = 8765
+# port = 8790
 # data_dir = "%LOCALAPPDATA%\\PdfAtolye"
 # retention_hours = 24      # bu süreden eski, sabitlenmemiş dosyalar silinir
 # max_upload_mb = 1024

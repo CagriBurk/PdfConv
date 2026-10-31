@@ -201,15 +201,17 @@ def merge(
     *,
     passwords: Sequence[str | None] | None = None,
     bookmark_per_file: bool = False,
+    bookmark_titles: Sequence[str] | None = None,
 ) -> Path:
-    """PDF'leri verilen sırayla arka arkaya ekler."""
+    """PDF'leri verilen sırayla arka arkaya ekler. Dosya başına yer iminin adı
+    `bookmark_titles`'tan, yoksa dosya adından gelir."""
     items: list[ManifestItem] = []
     passwords = list(passwords or [None] * len(inputs))
     for s, (path, pw) in enumerate(zip(inputs, passwords, strict=True)):
         with opened(Path(path), pw) as doc:
             items.extend(PageRef(s, p) for p in range(doc.page_count))
     return compose(inputs, items, output, passwords=passwords,
-                   bookmark_per_file=bookmark_per_file)
+                   bookmark_per_file=bookmark_per_file, bookmark_titles=bookmark_titles)
 
 
 def select(input: Path, spec: str, output: Path, *, password: str | None = None) -> Path:
@@ -312,7 +314,7 @@ def _split_groups(doc: pymupdf.Document, mode: str, every: int, spec: str
         top.sort(key=lambda t: t[1])
         out: list[tuple[str, list[int]]] = []
         if top[0][1] > 0:  # ilk yer iminden önceki sayfalar (kapak vb.)
-            out.append(("baslangic", list(range(0, top[0][1]))))
+            out.append(("Başlangıç", list(range(0, top[0][1]))))
         for i, (title, start) in enumerate(top):
             end = top[i + 1][1] if i + 1 < len(top) else total
             if end > start:  # aynı sayfayı gösteren yer imleri boş parça üretmesin
@@ -332,8 +334,10 @@ def split(
     every: int = 1,
     spec: str = "",
     password: str | None = None,
+    name_stem: str | None = None,
 ) -> list[Path]:
-    """PDF'i parçalara ayırır. Dosya adları: '<ad>_<parça>.pdf'.
+    """PDF'i parçalara ayırır. Dosya adları: '<ad>_<parça>.pdf' (<ad> = `name_stem` ya da
+    girdinin adı).
 
     mode: 'her' (her sayfa ayrı), 'n' (her `every` sayfada bir),
           'aralik' (`spec` içindeki her parça ayrı dosya), 'yer-imi' (üst seviye yer imleri).
@@ -344,6 +348,7 @@ def split(
     with opened(input, password) as doc:
         groups = _split_groups(doc, mode, every, spec)
 
+    stem = name_stem or input.stem
     outputs: list[Path] = []
     used: set[str] = set()
     width = len(str(len(groups)))
@@ -351,9 +356,9 @@ def split(
         name = safe_filename(label, fallback=f"parca-{i}")
         if mode == "yer-imi":
             name = f"{i:0{width}d} {name}"
-        filename = f"{input.stem}_{name}.pdf"
+        filename = f"{stem}_{name}.pdf"
         while filename.lower() in used:  # aynı adlı yer imleri
-            filename = f"{input.stem}_{name}_{i}.pdf"
+            filename = f"{stem}_{name}_{i}.pdf"
         used.add(filename.lower())
         outputs.append(
             compose([input], [PageRef(0, p) for p in pages], output_dir / filename,

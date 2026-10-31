@@ -2,7 +2,7 @@
 
 > Kendi bilgisayarında çalışan, kayıt / reklam / bekleme / dosya yükleme sınırı olmayan PDF araç seti.
 > Dosyalar hiçbir zaman internete çıkmaz.
-> Tarih: 2026-10-31 · Durum: Faz 0, 1 ve 2 tamamlandı
+> Tarih: 2026-10-31 · Durum: Faz 0, 1, 2 ve 3 tamamlandı
 
 ---
 
@@ -15,7 +15,7 @@
 4. **İçerik ekleme**: yazı, resim, imza, vurgu, şekil, filigran, sayfa numarası, gerçek karartma (redaction).
 5. **Sıkıştırma ve resim**: PDF küçültme, resim → PDF, PDF → resim.
 6. **OCR ve güvenlik**: taranmış PDF'i aranabilir yapma (Türkçe + İngilizce), şifre koyma/kaldırma, meta veri temizleme, bozuk PDF onarma.
-7. **Tek tıkla açılış**: `baslat.bat` → tarayıcıda `http://127.0.0.1:8765` açılır.
+7. **Tek tıkla açılış**: `baslat.bat` → tarayıcıda `http://127.0.0.1:8790` açılır.
 
 ### 1.2 Tasarım ilkeleri
 - **Çevrimdışı**: tüm kütüphaneler, fontlar, KaTeX dahil her şey yerelde. İnternet gerekmez.
@@ -96,7 +96,7 @@ Elle kurulanlar:
 └───────────────▲───────────────────────┬───────────────┘
                 │ REST + SSE (ilerleme)  │ yükleme / indirme
 ┌───────────────┴───────────────────────▼───────────────┐
-│ FastAPI (127.0.0.1:8765)                               │
+│ FastAPI (127.0.0.1:8790)                               │
 │  api/  → doğrulama (Pydantic), güvenlik (token, Host)  │
 │  jobs/ → iş kuyruğu, ilerleme, iptal, zaman aşımı      │
 │  storage → dosya deposu, sürümler, otomatik temizlik   │
@@ -352,6 +352,13 @@ Tarayıcıda açık başka bir web sitesi, `localhost`'taki sunucuna istek atmay
 | 20 | KaTeX `align` ortamını numaralar, Obsidian (MathJax) numaralamaz | Baskıda `align` → `align*` (equation, gather vb. de); elle numara için `$$ ... $$ (1)` |
 | 21 | İçindekilerde sayfa numarası Chromium'da CSS ile yapılamıyor | İki geçiş: ilk baskının yer imlerinden başlık sayfaları okunur, `000` yer tutucuları doldurulup yeniden basılır (aynı genişlik → yerleşim değişmez) |
 
+| 22 | **Port 8765'i başka bir yerel proje kullanıyordu** ve "zaten çalışıyor" kontrolü onu bizim sunucumuz sandı | Varsayılan port 8790; `/api/health` artık `"app": "pdfatolye"` döndürür, kontrol buna bakar |
+| 23 | **Windows Akıllı Uygulama Denetimi uv'nin ürettiği `pdfatolye.exe`'yi engelliyor** | `baslat.bat` ve belgeler `uv run python -m pdfatolye` kullanır (imzalı python.exe) |
+| 24 | Kum havuzlu (sandbox) önizleme iframe'i localhost'tan KaTeX yükleyemiyor | iframe aynı kökende, ama içerik güvenlik politikası (nonce) ile: yalnızca KaTeX betikleri çalışır, notun içindeki betikler/ağ istekleri engellenir |
+| 25 | Arayüzden gelen CRLF metin Windows'ta `write_text` ile `\r\r\n` oluyor, uyarı satır numaraları ikiye katlanıyordu | Yazarken `newline=""` + satır sonu normalleştirme; arayüz de metni yüklerken `\n`'e çevirir |
+
+**Faz 3 notları**: Arayüz dosya yolu görmez/göndermez; her şey depo kimliğiyle (32 hex) gider. Şifreler yalnızca sekmenin belleğinde tutulur ve iş kaydına yazılmaz. Sayfa düzenleyicide geri/ileri tarayıcıda, "Kaydet" sunucuda yeni sürüm oluşturur; "Önceki sürüme dön" sunucudaki sürümü geri alır.
+
 **Faz 2 notları**: Not gömme (`![[Başka not]]`) henüz yok, uyarı verir. Sayfa numarası kapak sayfasında da görünür (Chromium sınırı).
 
 ---
@@ -430,4 +437,4 @@ PDF → Word (`pdf2docx`), form doldurma, iki PDF'i karşılaştırma, not gömm
 ## 12. Çalışma düzeni
 - Her faz ayrı bir git dalında, sonunda `main`'e birleştirilir; her faz için kısa bir "ne yapıldı" notu.
 - Önce çekirdek + test, sonra API, en son arayüz.
-- `config.toml` ile tüm ayarlar (port 8765, veri klasörü, saklama 24 saat, maks. yükleme 1 GB, motor yolları, kasa yolu).
+- `config.toml` ile tüm ayarlar (port 8790, veri klasörü, saklama 24 saat, maks. yükleme 1 GB, motor yolları, kasa yolu).

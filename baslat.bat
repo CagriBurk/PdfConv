@@ -36,5 +36,5 @@ if errorlevel 1 (
   )
 )
 
-uv run pdfatolye serve %*
+uv run python -m pdfatolye serve %*
 if errorlevel 1 pause

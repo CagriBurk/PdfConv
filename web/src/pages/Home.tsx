@@ -1,20 +1,59 @@
-import type { EnginesResponse } from "../api";
+import { useState } from "react";
+import type { EnginesResponse, FileMeta } from "../api";
+import DropZone from "../components/DropZone";
+import { useUpload } from "../hooks";
+import { navigate } from "../router";
 import { GROUPS, TOOLS } from "../tools";
 
+/** Bırakılan dosyaların türüne göre en uygun araca yönlendirir. */
+function routeFor(files: FileMeta[]): string | null {
+  const ids = (k: FileMeta["kind"]) => files.filter((f) => f.kind === k).map((f) => f.id);
+  const md = files.find((f) => f.kind === "markdown" || f.kind === "text");
+  if (md) {
+    const ek = files.filter((f) => f.id !== md.id).map((f) => f.id);
+    navigate("md", ek.length ? { dosya: md.id, ek } : { dosya: md.id });
+    return null;
+  }
+  const pdfs = ids("pdf");
+  if (pdfs.length === files.length) {
+    navigate(pdfs.length === 1 ? `duzenle/${pdfs[0]}` : "birlestir", pdfs.length > 1 ? { dosya: pdfs } : undefined);
+    return null;
+  }
+  const imgs = ids("image");
+  if (imgs.length === files.length) {
+    navigate("resimden", { dosya: imgs });
+    return null;
+  }
+  if (files.some((f) => f.kind === "office")) return "Office dosyalarının PDF'e çevrilmesi Faz 4'te gelecek.";
+  return "Bu dosya türleri birlikte işlenemiyor. PDF, resim ya da Markdown bırak.";
+}
+
 export default function Home({ engines }: { engines: EnginesResponse | null }) {
+  const { upload, uploading, progress, error } = useUpload();
+  const [notice, setNotice] = useState<string | null>(null);
+
   const missing = (keys: string[] = []) =>
-    engines
-      ? engines.engines.filter((e) => keys.includes(e.key) && !e.ok).map((e) => e.name)
-      : [];
+    engines ? engines.engines.filter((e) => keys.includes(e.key) && !e.ok).map((e) => e.name) : [];
+
+  const onFiles = async (files: File[]) => {
+    setNotice(null);
+    const metas = await upload(files);
+    if (metas.length) setNotice(routeFor(metas));
+  };
 
   return (
     <>
-      <section className="dropzone" aria-disabled="true">
-        <p className="dropzone-title">Dosyayı buraya bırak</p>
-        <p className="muted">
-          PDF, Word, Excel, PowerPoint, Markdown veya resim. Yükleme Faz 3'te açılacak.
-        </p>
-      </section>
+      <DropZone
+        onFiles={onFiles}
+        disabled={uploading}
+        title={uploading ? `Yükleniyor… %${Math.round((progress ?? 0) * 100)}` : "Dosyayı buraya bırak"}
+        hint="PDF → sayfa düzenleyici · birden çok PDF → birleştir · resimler → PDF · Markdown (+ resimleri) → PDF"
+      />
+      {(error || notice) && (
+        <div className="banner error" role="alert">
+          {error ?? notice}
+        </div>
+      )}
 
       {GROUPS.map((group) => (
         <section key={group} className="tool-group">
@@ -22,16 +61,23 @@ export default function Home({ engines }: { engines: EnginesResponse | null }) {
           <div className="tool-grid">
             {TOOLS.filter((t) => t.group === group).map((t) => {
               const lacking = missing(t.needs);
-              return (
-                <article key={t.id} className="tool-card" aria-disabled="true">
+              const body = (
+                <>
                   <div className="tool-card-head">
                     <h3>{t.title}</h3>
-                    <span className="phase">Faz {t.phase}</span>
+                    {!t.route && <span className="phase">Faz {t.phase}</span>}
                   </div>
                   <p>{t.description}</p>
-                  {lacking.length > 0 && (
-                    <p className="warn-line">Eksik: {lacking.join(", ")}</p>
-                  )}
+                  {lacking.length > 0 && <p className="warn-line">Eksik: {lacking.join(", ")}</p>}
+                </>
+              );
+              return t.route ? (
+                <a key={t.id} className="tool-card active" href={`#/${t.route}`}>
+                  {body}
+                </a>
+              ) : (
+                <article key={t.id} className="tool-card" aria-disabled="true">
+                  {body}
                 </article>
               );
             })}

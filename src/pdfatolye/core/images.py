@@ -137,6 +137,7 @@ def pdf_to_images(
     spec: str = "",
     jpg_quality: int = 90,
     password: str | None = None,
+    name_stem: str | None = None,
 ) -> list[Path]:
     """Sayfaları resim dosyası olarak kaydeder: '<ad>_<sayfa>.png'."""
     fmt = fmt.lower().replace("jpeg", "jpg")
@@ -160,7 +161,7 @@ def pdf_to_images(
                     f"{p + 1}. sayfa {dpi} DPI'da çok büyük bir resim olur; daha düşük DPI seç."
                 )
             pix = page.get_pixmap(dpi=dpi, alpha=False)
-            target = output_dir / f"{input.stem}_{p + 1:0{width}d}.{fmt}"
+            target = output_dir / f"{name_stem or input.stem}_{p + 1:0{width}d}.{fmt}"
             if fmt == "png":
                 pix.save(target)
             else:

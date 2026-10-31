@@ -4,8 +4,8 @@
     {
       "name": "pdfatolye",
       "runtimeExecutable": "uv",
-      "runtimeArgs": ["run", "pdfatolye", "serve", "--no-browser"],
-      "port": 8765
+      "runtimeArgs": ["run", "python", "-m", "pdfatolye", "serve", "--no-browser"],
+      "port": 8790
     }
   ]
 }

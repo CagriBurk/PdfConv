@@ -13,7 +13,7 @@ def write(path: Path, text: str) -> Path:
 def test_defaults_are_local_only():
     s = Settings()
     assert s.host == "127.0.0.1"
-    assert s.port == 8765
+    assert s.port == 8790
     assert "0.0.0.0" not in s.allowed_hosts
 
 

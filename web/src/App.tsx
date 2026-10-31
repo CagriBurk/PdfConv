@@ -1,33 +1,29 @@
-import { useEffect, useState } from "react";
-import { api, type EnginesResponse } from "./api";
+import { lazy, Suspense, useEffect, useState } from "react";
+import { api, errorMessage, type EnginesResponse } from "./api";
 import Home from "./pages/Home";
 import Jobs from "./pages/Jobs";
+import Markdown from "./pages/Markdown";
+import Merge from "./pages/Merge";
+import { ImagesToPdf, PdfToImages } from "./pages/Images";
 import Settings from "./pages/Settings";
+import Split from "./pages/Split";
+import { useRoute } from "./router";
 
-type Route = "araclar" | "isler" | "ayarlar";
+// pdf.js büyük; yalnızca düzenleyici açılınca yüklensin.
+const Organizer = lazy(() => import("./pages/Organizer"));
 
-const NAV: { route: Route; label: string }[] = [
+const NAV = [
   { route: "araclar", label: "Araçlar" },
-  { route: "isler", label: "İşler" },
+  { route: "isler", label: "İşler ve dosyalar" },
   { route: "ayarlar", label: "Ayarlar" },
 ];
 
-function currentRoute(): Route {
-  const hash = window.location.hash.replace(/^#\/?/, "");
-  return NAV.some((n) => n.route === hash) ? (hash as Route) : "araclar";
-}
-
 export default function App() {
-  const [route, setRoute] = useState<Route>(currentRoute);
+  const route = useRoute();
+  const [ready, setReady] = useState(false);
   const [engines, setEngines] = useState<EnginesResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-
-  useEffect(() => {
-    const onHash = () => setRoute(currentRoute());
-    window.addEventListener("hashchange", onHash);
-    return () => window.removeEventListener("hashchange", onHash);
-  }, []);
 
   const loadEngines = async (refresh = false) => {
     setRefreshing(true);
@@ -35,18 +31,47 @@ export default function App() {
       setEngines(await api.engines(refresh));
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(errorMessage(e));
     } finally {
       setRefreshing(false);
     }
   };
 
   useEffect(() => {
-    void loadEngines();
+    // Oturum çerezi alınmadan API çağrıları reddedilir.
+    api
+      .session()
+      .then(() => {
+        setReady(true);
+        return loadEngines();
+      })
+      .catch((e) => setError(`Sunucuya ulaşılamadı: ${errorMessage(e)}`));
   }, []);
 
+  const [page, id] = route.path;
+  const section = page ?? "araclar";
+  const current = NAV.some((n) => n.route === section) ? section : "araclar";
+
+  let content;
+  if (!ready) content = null;
+  else if (section === "duzenle")
+    content = (
+      <Suspense fallback={<p className="muted">Düzenleyici yükleniyor…</p>}>
+        <Organizer key={id ?? "yeni"} fileId={id} />
+      </Suspense>
+    );
+  else if (section === "birlestir") content = <Merge route={route} />;
+  else if (section === "bol") content = <Split route={route} />;
+  else if (section === "md") content = <Markdown route={route} engines={engines} />;
+  else if (section === "resimden") content = <ImagesToPdf route={route} />;
+  else if (section === "resme") content = <PdfToImages route={route} />;
+  else if (section === "isler") content = <Jobs />;
+  else if (section === "ayarlar")
+    content = <Settings data={engines} refreshing={refreshing} onRefresh={() => loadEngines(true)} />;
+  else content = <Home engines={engines} />;
+
   return (
-    <div className="shell">
+    <div className={`shell${section === "duzenle" || section === "md" ? " wide" : ""}`}>
       <header className="topbar">
         <a className="brand" href="#/araclar">
           <span className="brand-mark" aria-hidden="true" />
@@ -57,8 +82,7 @@ export default function App() {
             <a
               key={n.route}
               href={`#/${n.route}`}
-              className={route === n.route ? "active" : undefined}
-              aria-current={route === n.route ? "page" : undefined}
+              className={current === n.route && NAV.some((x) => x.route === section) ? "active" : undefined}
             >
               {n.label}
             </a>
@@ -68,18 +92,13 @@ export default function App() {
           Çevrimdışı
         </span>
       </header>
-
       <main>
         {error && (
           <div className="banner error" role="alert">
-            Sunucuya ulaşılamadı: {error}
+            {error}
           </div>
         )}
-        {route === "araclar" && <Home engines={engines} />}
-        {route === "isler" && <Jobs />}
-        {route === "ayarlar" && (
-          <Settings data={engines} refreshing={refreshing} onRefresh={() => loadEngines(true)} />
-        )}
+        {content}
       </main>
     </div>
   );

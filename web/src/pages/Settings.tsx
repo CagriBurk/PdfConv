@@ -75,6 +75,16 @@ export default function Settings({ data, refreshing, onRefresh }: Props) {
               <dt>Ayar dosyası</dt>
               <dd className="mono">{data.config_file ?? "yok (varsayılanlar kullanılıyor)"}</dd>
             </div>
+            <div>
+              <dt>Obsidian kasası</dt>
+              <dd className="mono">
+                {data.vault_path ?? "tanımlı değil (config.toml → vault_path; ![[resim]] aramak için)"}
+              </dd>
+            </div>
+            <div>
+              <dt>Otomatik silme</dt>
+              <dd>{data.retention_hours} saatten eski, sabitlenmemiş dosyalar</dd>
+            </div>
           </dl>
         </>
       )}

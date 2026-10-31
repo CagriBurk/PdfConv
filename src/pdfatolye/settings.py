@@ -32,7 +32,7 @@ class EnginePaths:
 @dataclass
 class Settings:
     host: str = "127.0.0.1"
-    port: int = 8765
+    port: int = 8790
     data_dir: Path = field(default_factory=default_data_dir)
     retention_hours: int = 24
     max_upload_mb: int = 1024
