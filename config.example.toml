@@ -1,0 +1,17 @@
+# PDF Atölyesi ayarları. Bu dosyayı config.toml olarak kopyala.
+# Yazmadığın her ayar varsayılan değeriyle kalır.
+
+# host = "127.0.0.1"        # 0.0.0.0 yapma; telefon modu Faz 7'de belirteçle gelecek
+# port = 8765
+# data_dir = "%LOCALAPPDATA%\\PdfAtolye"
+# retention_hours = 24      # bu süreden eski, sabitlenmemiş dosyalar silinir
+# max_upload_mb = 1024
+# vault_path = "C:\\Users\\ben\\Documents\\ObsidianKasam"   # MD → PDF'te ![[resim]] için
+# open_browser = true
+
+[engines]
+# Boş bırakılırsa otomatik bulunur.
+# libreoffice = "C:\\Program Files\\LibreOffice\\program\\soffice.com"
+# tesseract   = "C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
+# ghostscript = "C:\\Program Files\\gs\\gs10.05.1\\bin\\gswin64c.exe"
+# browser     = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe"
