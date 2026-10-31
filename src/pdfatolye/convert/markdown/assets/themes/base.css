@@ -1,0 +1,162 @@
+/* Tüm temalarda ortak baskı kuralları. Temalar yalnızca değişkenleri ve birkaç ayrıntıyı değiştirir. */
+
+html {
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+body {
+  margin: 0;
+  color: var(--text);
+  background: #fff;
+  font-family: var(--body-font);
+  font-size: var(--font-size);
+  line-height: var(--line-height);
+  orphans: 3;
+  widows: 3;
+  overflow-wrap: break-word;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--heading-font);
+  color: var(--heading);
+  line-height: 1.25;
+  break-after: avoid-page;
+  break-inside: avoid;
+  margin: 1.3em 0 0.5em;
+}
+h1 { font-size: 1.8em; }
+h2 { font-size: 1.4em; }
+h3 { font-size: 1.18em; }
+h4 { font-size: 1.05em; }
+h5, h6 { font-size: 1em; }
+body > :first-child, .content > :first-child { margin-top: 0; }
+
+p { margin: 0 0 0.7em; }
+ul, ol { margin: 0 0 0.8em; padding-left: 1.6em; }
+li > p { margin-bottom: 0.3em; }
+a { color: var(--accent); text-decoration: none; }
+
+img { max-width: 100%; height: auto; break-inside: avoid; }
+p > img:only-child { display: block; margin: 0.6em auto; }
+
+code {
+  font-family: var(--mono-font);
+  font-size: 0.86em;
+  background: var(--code-bg);
+  padding: 0.05em 0.3em;
+  border-radius: 3px;
+}
+pre.code {
+  font-family: var(--mono-font);
+  font-size: 0.8em;
+  line-height: 1.45;
+  background: var(--code-bg);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 0.6em 0.8em;
+  margin: 0.6em 0 1em;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  break-inside: avoid;
+}
+pre.code code { background: none; padding: 0; font-size: inherit; }
+
+table {
+  border-collapse: collapse;
+  margin: 0.6em 0 1em;
+  font-size: 0.92em;
+  max-width: 100%;
+}
+thead { display: table-header-group; }
+tr { break-inside: avoid; }
+th, td { border: 1px solid var(--rule); padding: 0.3em 0.55em; vertical-align: top; }
+th { background: var(--code-bg); text-align: left; font-weight: 600; }
+
+blockquote {
+  margin: 0.8em 0;
+  padding: 0.1em 1em;
+  border-left: 3px solid var(--rule);
+  color: var(--muted);
+}
+blockquote > :last-child { margin-bottom: 0.3em; }
+
+hr { border: 0; border-top: 1px solid var(--rule); margin: 1.4em 0; }
+mark { background: #fff1a8; color: inherit; padding: 0 0.1em; border-radius: 2px; }
+del { color: var(--muted); }
+
+/* Formüller */
+.math-display { display: block; margin: 0.7em 0; text-align: center; break-inside: avoid; }
+.katex-display { margin: 0; }
+.katex { font-size: 1.08em; }
+.equation { display: flex; align-items: center; break-inside: avoid; }
+.equation .math-display { flex: 1; }
+.eqno { margin-left: 1em; white-space: nowrap; }
+.math-error {
+  color: #b91c1c;
+  font-family: var(--mono-font);
+  font-size: 0.85em;
+  background: #fde8e8;
+  padding: 0 0.25em;
+  white-space: pre-wrap;
+}
+
+/* Obsidian */
+.callout {
+  --c: #2563eb;
+  --c-bg: #eff5ff;
+  color: var(--text);
+  border-left: 4px solid var(--c);
+  background: var(--c-bg);
+  border-radius: 4px;
+  padding: 0.55em 0.9em;
+  margin: 0.9em 0;
+  break-inside: avoid;
+}
+.callout-title { font-weight: 650; color: var(--c); margin-bottom: 0.3em; font-family: var(--heading-font); }
+.callout > :last-child { margin-bottom: 0; }
+.callout-cyan { --c: #0e7490; --c-bg: #ecfafd; }
+.callout-teal { --c: #0f766e; --c-bg: #ecfdf8; }
+.callout-green { --c: #15803d; --c-bg: #effcf2; }
+.callout-yellow { --c: #a16207; --c-bg: #fefbe8; }
+.callout-orange { --c: #c2410c; --c-bg: #fff4ec; }
+.callout-red { --c: #b91c1c; --c-bg: #fef0f0; }
+.callout-purple { --c: #7e22ce; --c-bg: #f8f1fe; }
+.callout-gray { --c: #57534e; --c-bg: #f5f5f4; }
+
+.wikilink { color: var(--accent); }
+.tag { color: var(--accent); font-size: 0.88em; }
+.missing, .embed-note {
+  color: #b91c1c;
+  border: 1px dashed #b91c1c;
+  padding: 0 0.3em;
+  font-size: 0.85em;
+}
+.task-list-item { list-style: none; }
+.task-list-item-checkbox { margin: 0 0.45em 0 -1.4em; vertical-align: middle; }
+.footnotes { font-size: 0.85em; border-top: 1px solid var(--rule); margin-top: 2em; }
+.footnotes-sep { display: none; }
+
+.page-break { break-after: page; height: 0; }
+
+/* Başlık bloğu, kapak, içindekiler */
+.doc-title { margin-bottom: 1.5em; padding-bottom: 0.6em; border-bottom: 2px solid var(--accent); }
+.doc-title .title { font-family: var(--heading-font); font-size: 2em; font-weight: 700; color: var(--heading); line-height: 1.2; }
+.doc-title .meta { color: var(--muted); margin-top: 0.3em; }
+
+.cover { break-after: page; padding-top: 32vh; }
+.cover .title { font-family: var(--heading-font); font-size: 2.6em; font-weight: 700; color: var(--heading); line-height: 1.15; }
+.cover .subtitle { font-size: 1.25em; color: var(--muted); margin-top: 0.4em; }
+.cover .meta { margin-top: 2.5em; border-top: 2px solid var(--accent); padding-top: 0.8em; color: var(--muted); }
+
+.toc { break-after: page; }
+.toc .toc-heading { font-family: var(--heading-font); font-size: 1.5em; font-weight: 700; color: var(--heading); margin-bottom: 0.8em; }
+.toc ol { list-style: none; margin: 0; padding-left: 1.3em; }
+.toc > ol { padding-left: 0; }
+.toc li { margin: 0.22em 0; font-weight: 400; }
+.toc li.toc-l1 { margin-top: 0.5em; }
+.toc li.toc-l1 > a { font-weight: 600; }
+.toc .tag { display: none; }
+.toc a { display: flex; align-items: baseline; color: var(--text); }
+.toc .toc-dots { flex: 1; border-bottom: 1px dotted var(--muted); margin: 0 0.4em; min-width: 1em; transform: translateY(-0.25em); }
+.toc .toc-page { min-width: 2.2em; text-align: right; font-variant-numeric: tabular-nums; }

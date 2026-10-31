@@ -56,6 +56,43 @@ uv run pdfatolye resme not.pdf --dpi 200 --bicim jpg
 uv run pdfatolye resimleri-cikar not.pdf
 ```
 
+### Markdown → PDF
+
+```
+uv run pdfatolye md not.md                        # not.pdf (varsa üstüne yazar)
+uv run pdfatolye md not.md --tema rapor --icindekiler --kapak
+uv run pdfatolye md *.md -o pdfler                # her biri ayrı PDF
+uv run pdfatolye md not.md --kasa "C:\...\ObsidianKasam"   # ![[resim.png]] için
+```
+
+Desteklenenler: `$...$`, `$$...$$ (1)`, `\begin{align}`, `\ce{H2O}`; Obsidian callout'ları
+(`> [!note]`, `[!warning]-` ...), `[[Not|takma ad]]`, `![[resim.png|300]]`, `==vurgu==`,
+`%%yorum%%`, `#etiket`; kod renklendirme; tablo, dipnot, görev listesi; `\newpage`.
+Hatalı formül baskıyı durdurmaz, satır numarasıyla uyarı verir. İnternete hiç bağlanmaz.
+
+Ayarlar notun ön bilgisinde de verilebilir (komut satırı önceliklidir):
+
+```yaml
+---
+title: Devre Analizi
+author: Ad Soyad
+date: 2026-10-31
+pdf:
+  tema: ders          # ders | rapor | sade
+  kagit: A4           # A4 A5 A3 Letter Legal
+  yatay: false
+  kenar: 18           # mm
+  icindekiler: true
+  kapak: true
+  sayfa_no: true
+  yazi_boyutu: 11
+  makrolar:
+    \R: \mathbb{R}
+---
+```
+
+Örnek: [ornekler/ders-notu.md](ornekler/ders-notu.md).
+
 Şifreli PDF'ler için `--sifre` ekle. Her komutun ayrıntısı: `uv run pdfatolye <komut> --help`.
 
 ## Geliştirme

@@ -1,0 +1,16 @@
+/* Sade: tek yazı ailesi, renk yok denecek kadar az; çıktı yazıcı dostu. */
+:root {
+  --body-font: "Georgia", "Cambria", serif;
+  --heading-font: "Georgia", "Cambria", serif;
+  --mono-font: "Consolas", monospace;
+  --font-size: 11pt;
+  --line-height: 1.5;
+  --text: #111;
+  --heading: #111;
+  --muted: #555;
+  --accent: #333;
+  --rule: #ccc;
+  --code-bg: #f6f6f6;
+}
+h1, h2, h3 { font-weight: 600; }
+.callout { background: none; }

@@ -322,6 +322,64 @@ def resme(
     typer.echo(f"{len(outputs)} resim yazıldı: {outputs[0].parent}")
 
 
+@app.command()
+@friendly_errors
+def md(
+    dosyalar: Annotated[list[Path], typer.Argument(help="Markdown dosyaları", exists=True,
+                                                   dir_okay=False)],
+    cikti: Annotated[Path | None, typer.Option(
+        "-o", "--cikti", help="Çıktı PDF (tek dosyada) veya klasör (çok dosyada)")] = None,
+    tema: Annotated[str | None, typer.Option(help="ders | rapor | sade")] = None,
+    kagit: Annotated[str | None, typer.Option(help="A4, A5, A3, Letter, Legal")] = None,
+    yatay: Annotated[bool | None, typer.Option("--yatay/--dikey")] = None,
+    kenar: Annotated[float | None, typer.Option(help="Kenar boşluğu (mm)")] = None,
+    icindekiler: Annotated[bool | None, typer.Option(
+        "--icindekiler/--icindekiler-yok", help="Sayfa numaralı içindekiler")] = None,
+    derinlik: Annotated[int | None, typer.Option(help="İçindekiler başlık derinliği")] = None,
+    kapak: Annotated[bool | None, typer.Option("--kapak/--kapak-yok")] = None,
+    sayfa_no: Annotated[bool | None, typer.Option("--sayfa-no/--sayfa-no-yok")] = None,
+    yazi_boyutu: Annotated[float | None, typer.Option(help="Gövde yazı boyutu (pt)")] = None,
+    kasa: Annotated[Path | None, typer.Option(
+        help="Obsidian kasası (![[resim]] aramak için); yoksa config.toml'daki vault_path")
+    ] = None,
+    html: Annotated[bool, typer.Option("--html", help="Hata ayıklama için HTML de kaydet")
+                    ] = False,
+    config: ConfigOpt = None,
+) -> None:
+    """Markdown'ı PDF yapar: LaTeX formüller, Obsidian callout/[[bağlantı]]/![[resim]], kod."""
+    from pdfatolye.convert.markdown import MarkdownPrinter, MdOptions
+
+    settings = load_settings(config)
+    browser = engines.detect_browser(settings)
+    options = MdOptions(theme=tema, paper=kagit, landscape=yatay, margin_mm=kenar,
+                        toc=icindekiler, toc_depth=derinlik, cover=kapak, page_numbers=sayfa_no,
+                        font_size_pt=yazi_boyutu)
+    multi = len(dosyalar) > 1
+    if multi and cikti and cikti.suffix.lower() == ".pdf":
+        raise ValueError("Birden çok dosyada -o bir klasör olmalı.")
+
+    failed = 0
+    with MarkdownPrinter(browser.path, kasa or settings.vault_path) as printer:
+        for src in dosyalar:
+            # Not.md → Not.pdf: dışa aktarımı yenilemek için var olan PDF'in üstüne yazılır.
+            if multi:
+                out = cikti / f"{src.stem}.pdf" if cikti else src.with_suffix(".pdf")
+            else:
+                out = cikti or src.with_suffix(".pdf")
+            try:
+                result = printer.convert(src, out, options,
+                                         html_out=out.with_suffix(".html") if html else None)
+            except PdfAtolyeError as e:
+                failed += 1
+                typer.secho(f"Hata ({src.name}): {e}", fg="red", err=True)
+                continue
+            typer.echo(f"Yazıldı: {result.output} ({result.page_count} sayfa)")
+            for w in result.warnings:
+                typer.secho(f"  uyarı: {w}", fg="yellow")
+    if failed:
+        raise typer.Exit(2)
+
+
 @app.command("resimleri-cikar")
 @friendly_errors
 def resimleri_cikar(pdf: InPdf, klasor: DirOpt = None, sifre: PwOpt = None) -> None:

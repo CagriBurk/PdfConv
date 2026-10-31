@@ -2,7 +2,7 @@
 
 > Kendi bilgisayarında çalışan, kayıt / reklam / bekleme / dosya yükleme sınırı olmayan PDF araç seti.
 > Dosyalar hiçbir zaman internete çıkmaz.
-> Tarih: 2026-10-31 · Durum: Faz 0 ve Faz 1 tamamlandı
+> Tarih: 2026-10-31 · Durum: Faz 0, 1 ve 2 tamamlandı
 
 ---
 
@@ -348,6 +348,11 @@ Tarayıcıda açık başka bir web sitesi, `localhost`'taki sunucuna istek atmay
 | 16 | Siyah kutu "karartma" sanılır | Gerçek `apply_redactions` + arayüz uyarısı |
 | 17 | **Uzun yolda LibreOffice çöker** (Faz 0'da yaşandı: 281 karakterlik profil yolunda `0xC0000409`) | Profiller ve iş klasörleri her zaman kısa veri klasöründe (`%LOCALAPPDATA%\PdfAtolye\...`); girdi dosyası dönüşümden önce oraya kopyalanır |
 | 18 | PyMuPDF 2.0'da `import fitz` kullanımdan kalktı | Her yerde `import pymupdf` |
+| 19 | **CRLF satır sonlu .md'de `\newpage` tanınmıyordu** (Faz 2 testinde yakalandı) | Ayrıştırmadan önce satır sonları `\n`'e çevrilir; testler iki biçimle de çalışır |
+| 20 | KaTeX `align` ortamını numaralar, Obsidian (MathJax) numaralamaz | Baskıda `align` → `align*` (equation, gather vb. de); elle numara için `$$ ... $$ (1)` |
+| 21 | İçindekilerde sayfa numarası Chromium'da CSS ile yapılamıyor | İki geçiş: ilk baskının yer imlerinden başlık sayfaları okunur, `000` yer tutucuları doldurulup yeniden basılır (aynı genişlik → yerleşim değişmez) |
+
+**Faz 2 notları**: Not gömme (`![[Başka not]]`) henüz yok, uyarı verir. Sayfa numarası kapak sayfasında da görünür (Chromium sınırı).
 
 ---
 

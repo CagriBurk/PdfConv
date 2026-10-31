@@ -1,0 +1,18 @@
+/* Rapor: sans-serif, ferah aralıklar, belirgin başlıklar. */
+:root {
+  --body-font: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --heading-font: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --mono-font: "Cascadia Mono", "Consolas", monospace;
+  --font-size: 11pt;
+  --line-height: 1.55;
+  --text: #1f2937;
+  --heading: #0f3d3a;
+  --muted: #6b7280;
+  --accent: #0f766e;
+  --rule: #d1d5db;
+  --code-bg: #f3f4f6;
+}
+h1 { font-size: 1.9em; font-weight: 700; }
+h2 { font-size: 1.45em; font-weight: 650; color: var(--accent); margin-top: 1.6em; }
+h3 { font-weight: 650; }
+p { text-align: justify; }

@@ -1,0 +1,17 @@
+/* Ders notu: formül yoğun, sıkı ama okunaklı. Serif gövde, KaTeX ile uyumlu. */
+:root {
+  --body-font: "Cambria", "Georgia", "Times New Roman", serif;
+  --heading-font: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --mono-font: "Cascadia Mono", "Consolas", monospace;
+  --font-size: 10.5pt;
+  --line-height: 1.45;
+  --text: #1c1917;
+  --heading: #0f172a;
+  --muted: #57534e;
+  --accent: #1d4ed8;
+  --rule: #d6d3d1;
+  --code-bg: #f5f5f4;
+}
+h1 { font-size: 1.7em; }
+h2 { border-bottom: 1px solid var(--rule); padding-bottom: 0.15em; }
+h3 { color: var(--accent); }
