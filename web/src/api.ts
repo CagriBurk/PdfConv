@@ -73,6 +73,17 @@ export interface MdPreview {
   options: { theme: string; paper: string; toc: boolean; cover: boolean; landscape: boolean };
 }
 
+export interface PdfInfo {
+  file_size: number;
+  encrypted: boolean;
+  needs_password: boolean;
+  page_count: number;
+  has_text: boolean | null;
+  bookmark_count: number;
+  metadata: Record<string, string>;
+  pdf_version: string | null;
+}
+
 export interface FontInfo {
   key: string;
   name: string;
@@ -158,6 +169,7 @@ export const api = {
   mdPreview: (text: string, attachments: string[], options: Record<string, unknown>) =>
     request<MdPreview>("/api/md/preview", json({ text, attachments, options })),
 
+  info: (id: string) => request<PdfInfo>(`/api/files/${id}/info`),
   fonts: () => request<FontInfo[]>("/api/fonts"),
   signatures: () => request<FileMeta[]>("/api/signatures"),
   addSignature: (file: Blob, name: string) => {

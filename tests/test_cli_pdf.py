@@ -79,3 +79,19 @@ def test_watermark_and_page_numbers(tmp_path):
         assert "Sayfa 2 / 2" in doc[2].get_text()
     r = runner.invoke(app, ["sayfa-no", str(a), "--bicim", "numara"])
     assert r.exit_code == 2 and "{n}" in r.output
+
+
+def test_compress_encrypt_clean_repair(tmp_path):
+    a = fx.numbered(tmp_path / "a.pdf", 2, with_toc=False)
+    r = runner.invoke(app, ["sikistir", str(a), "--seviye", "kayipsiz"])
+    assert r.exit_code == 0, r.output
+    assert "MB" in r.output and (tmp_path / "a_kucuk.pdf").exists()
+    r = runner.invoke(app, ["sifrele", str(a), "--yeni-sifre", "parola1"])
+    assert r.exit_code == 0, r.output
+    r = runner.invoke(app, ["sifre-kaldir", str(tmp_path / "a_sifreli.pdf"), "--sifre", "yanlis"])
+    assert r.exit_code == 2 and "yanlış" in r.output
+    r = runner.invoke(app, ["meta-temizle", str(a)])
+    assert r.exit_code == 0, r.output
+    b = fx.broken(tmp_path / "b.pdf")
+    r = runner.invoke(app, ["onar", str(b)])
+    assert r.exit_code == 0 and fx.labels(tmp_path / "b_onarilmis.pdf")[2] == "Sayfa 3"

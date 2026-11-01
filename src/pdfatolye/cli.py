@@ -506,3 +506,121 @@ def sayfa_no(
                        skip_first=kapak, pages=sayfalar, size=boyut)
     out = cikti or _default_output(pdf, "numarali")
     _done(apply_ops(pdf, out, [op], password=sifre).output)
+
+
+@app.command()
+@friendly_errors
+def sikistir(
+    pdfler: Annotated[list[Path], typer.Argument(help="PDF dosyaları", exists=True,
+                                                 dir_okay=False)],
+    seviye: Annotated[str, typer.Option(help="kayipsiz | dengeli | guclu")] = "dengeli",
+    cikti: OutOpt = None,
+    sifre: PwOpt = None,
+    config: ConfigOpt = None,
+) -> None:
+    """PDF'i küçültür. Sonuç büyük çıkarsa orijinal korunur."""
+    from pdfatolye.core.compress import compress
+
+    if cikti and len(pdfler) > 1:
+        raise typer.BadParameter("Birden çok dosyada -o kullanılamaz.")
+    gs = engines.detect_ghostscript(load_settings(config)).path if seviye == "guclu" else None
+    for pdf in pdfler:
+        r = compress(pdf, cikti or _default_output(pdf, "kucuk"), seviye, password=sifre,
+                     ghostscript=gs)
+        mb = 1024 * 1024
+        typer.echo(f"{pdf.name}: {r.before / mb:.2f} MB → {r.after / mb:.2f} MB"
+                   + (" (orijinal korundu)" if r.kept_original
+                      else f" (%{round(r.saved_ratio * 100)} küçüldü)"))
+        _done(r.output)
+
+
+@app.command("ocr")
+@friendly_errors
+def ocr_cmd(
+    pdf: InPdf,
+    mod: Annotated[str, typer.Option(
+        help="skip: metinli sayfaları atla · redo: eski OCR'ı yenile · force: hepsini tanı")]
+    = "skip",
+    diller: Annotated[str, typer.Option(help="Tesseract dilleri")] = "tur+eng",
+    cikti: OutOpt = None,
+    sifre: PwOpt = None,
+    config: ConfigOpt = None,
+) -> None:
+    """Taranmış PDF'i aranabilir yapar (Türkçe + İngilizce)."""
+    from pdfatolye.core.ocr import ocr
+
+    settings = load_settings(config)
+    tess = engines.detect_tesseract(settings)
+    if not tess.available:
+        raise PdfAtolyeError("Tesseract bulunamadı: " + (tess.install_hint or ""))
+    last = [""]
+
+    def progress(_frac: float, msg: str) -> None:
+        if msg != last[0]:
+            last[0] = msg
+            typer.echo(f"  {msg}")
+
+    r = ocr(pdf, cikti or _default_output(pdf, "ocr"), mode=mod, langs=diller.split("+"),
+            password=sifre, tesseract=tess.path,
+            ghostscript=engines.detect_ghostscript(settings).path, on_progress=progress)
+    typer.echo(f"{r.page_count} sayfanın {r.pages_with_text} tanesinde metin var.")
+    for w in r.warnings:
+        typer.secho(f"Uyarı: {w}", fg="yellow")
+    _done(r.output)
+
+
+@app.command()
+@friendly_errors
+def sifrele(
+    pdf: InPdf,
+    yeni_sifre: Annotated[str, typer.Option("--yeni-sifre", prompt=True, hide_input=True,
+                                            confirmation_prompt=True,
+                                            help="Açılış şifresi")],
+    sahip_sifresi: Annotated[str | None, typer.Option(help="İzinleri değiştirme şifresi")]
+    = None,
+    yazdirma_yok: Annotated[bool, typer.Option("--yazdirma-yok")] = False,
+    kopyalama_yok: Annotated[bool, typer.Option("--kopyalama-yok")] = False,
+    duzenleme_yok: Annotated[bool, typer.Option("--duzenleme-yok")] = False,
+    cikti: OutOpt = None,
+    sifre: PwOpt = None,
+) -> None:
+    """AES-256 ile şifreler."""
+    from pdfatolye.core.security import encrypt
+
+    r = encrypt(pdf, cikti or _default_output(pdf, "sifreli"), yeni_sifre,
+                owner_password=sahip_sifresi, allow_print=not yazdirma_yok,
+                allow_copy=not kopyalama_yok, allow_modify=not duzenleme_yok, password=sifre)
+    _done(r.output)
+
+
+@app.command("sifre-kaldir")
+@friendly_errors
+def sifre_kaldir(pdf: InPdf, sifre: PwOpt = None, cikti: OutOpt = None) -> None:
+    """Bilinen şifreyi kaldırır (şifre kırmaz)."""
+    from pdfatolye.core.security import decrypt
+
+    r = decrypt(pdf, cikti or _default_output(pdf, "sifresiz"), sifre)
+    typer.echo(r.notes[0])
+    _done(r.output)
+
+
+@app.command("meta-temizle")
+@friendly_errors
+def meta_temizle(pdf: InPdf, sifre: PwOpt = None, cikti: OutOpt = None) -> None:
+    """Yazar, program, XMP, gömülü dosya ve JavaScript'i siler."""
+    from pdfatolye.core.security import clean_metadata
+
+    r = clean_metadata(pdf, cikti or _default_output(pdf, "temiz"), sifre)
+    typer.echo(r.notes[0])
+    _done(r.output)
+
+
+@app.command()
+@friendly_errors
+def onar(pdf: InPdf, sifre: PwOpt = None, cikti: OutOpt = None) -> None:
+    """Bozuk PDF'i onarmayı dener."""
+    from pdfatolye.core.security import repair
+
+    r = repair(pdf, cikti or _default_output(pdf, "onarilmis"), sifre)
+    typer.echo(" ".join(r.notes))
+    _done(r.output)

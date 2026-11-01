@@ -2,7 +2,7 @@
 
 > Kendi bilgisayarında çalışan, kayıt / reklam / bekleme / dosya yükleme sınırı olmayan PDF araç seti.
 > Dosyalar hiçbir zaman internete çıkmaz.
-> Tarih: 2026-10-31 · Durum: Faz 0–4 tamamlandı
+> Tarih: 2026-11-01 · Durum: Faz 0–6 tamamlandı
 
 ---
 
@@ -358,6 +358,18 @@ Tarayıcıda açık başka bir web sitesi, `localhost`'taki sunucuna istek atmay
 | 25 | Arayüzden gelen CRLF metin Windows'ta `write_text` ile `\r\r\n` oluyor, uyarı satır numaraları ikiye katlanıyordu | Yazarken `newline=""` + satır sonu normalleştirme; arayüz de metni yüklerken `\n`'e çevirir |
 
 | 26 | **LibreOffice 26.8 bir kez kullanılmış profille (kopyasıyla bile) ikinci çağrıda takılıyor**; öldürülen soffice.com'un açtığı soffice.bin arkada kalıyordu | Her çağrıda taze profil (~4 sn); toplu dönüşüm tek çağrıda, çıkmayan dosya tek başına yeniden denenir; profil yolunu taşıyan tüm soffice süreçleri her çağrıdan sonra öldürülür. Planlanan "kalıcı profil" yaklaşımı bu yüzden bırakıldı |
+
+| 27 | **PyMuPDF 2.0'da `page.transformation_matrix` döndürülmüş + CropBox'ı kaydırılmış sayfada ofseti kaybediyor** | Hiçbir yerde kullanılmaz; görünüm ↔ sayfa dönüşümü yalnızca `rotation_matrix` / `derotation_matrix` ile (`geometry.py`) |
+| 28 | `morph` matrisi PDF'in y'si yukarı uzayında uygulanıyor: `Matrix(30)` ekranda saat yönünün **tersine** döndürür | `geometry.morph_matrix(açı)` işareti çevirir; döndürülmüş yazı/şekil testleri yönü denetler |
+| 29 | Çoğu Windows fontunda boşluk ve NBSP aynı glifi paylaşır; tam font gömülünce metin çıkarmada boşluklar U+00A0 okunur (Ctrl+F bulamaz) | Font fontTools ile kullanılan karakterlere indirgenip gömülür (`core/fonts.py`): hem boşluk doğru okunur hem dosya ~1 MB yerine birkaç KB büyür |
+| 30 | `insert_textbox` yazı sığmazsa **hiçbir şey yazmaz** (negatif değer döner) | Kutu eksik yükseklik kadar uzatılıp yeniden denenir; yine sığmazsa uyarı |
+
+| 31 | OCRmyPDF API'si ana süreçte çalışırsa iptal edilemez; kendi günlüğünü de yapılandırmadan hiçbir şey yazmaz | `core/_ocr_run.py` ayrı süreçte çalışır (iptal/zaman aşımı = süreç ağacını öldür); ilerleme bir OCRmyPDF eklentisiyle (`_ocr_plugin.py`) stderr'e `PA_OCR {json}` satırları olarak gelir; `configure_logging` ile "sayfada zaten metin var" satırları sayılır |
+| 32 | `"İzin".lower()` Python'da `"i̇zin"` olur (noktalı i + birleşik nokta) | Türkçe metin karşılaştırmasında `lower()`a güvenme; testler küçük harfli kelime arar |
+
+**Faz 6 notları**: Sıkıştırma PyMuPDF `rewrite_images` + `garbage=4`/nesne akışlarıyla; "güçlü" seviyede Ghostscript `/ebook` da denenir, küçük olan alınır; sonuç büyükse orijinal kopyalanır. Şifreleme pikepdf ile AES-256 (R6); şifreler iş kaydına yazılmaz (`exclude`). Meta temizliği docinfo, XMP, gömülü dosyalar, belge/açılış JavaScript'i ve sayfa PieceInfo'yu siler. Onarım önce qpdf, olmazsa MuPDF. OCR `--skip-text --deskew --rotate-pages`, `output_type=pdf` (PDF/A değil: daha hızlı, Ghostscript'e bağımlı değil), `optimize=1`; şifreli girdi önce şifresiz geçici kopyaya çevrilir. Sayfa düzenleyici metni olmayan PDF'te "OCR ile aranabilir yap" önerir; "bozuk olabilir" hatası veren işte "Onarmayı dene" bağlantısı çıkar.
+
+**Faz 5 notları**: Editör (`#/editor/<id>`) nesneleri tarayıcıda Konva ile tutar, "Uygula" `apply` işine işlem listesi gönderir; koordinatlar görünüm uzayında (döndürme + CropBox uygulanmış sayfa, sol üst köşe, nokta). Fontlar şimdilik Windows'tan (Segoe UI, Arial, Calibri, Times New Roman, Georgia, Consolas); `assets/fonts/` klasörüne aynı dosya adıyla konan TTF önceliklidir. Karartma `apply_redactions` ile yazıyı, resim piksellerini ve tamamen kapsanan çizimleri siler; "Beyazla kapat" yalnızca yazıyı siler, üstünü boyar. Vurgu, kutunun altındaki kelimelere oturur. İmzalar sabitlenmiş PNG (`tag="signature"`), kâğıt otomatik saydamlaşır. Sayfa numarasında "ilk sayfayı atla" kapağı numarasız bırakır, numaralama ikinci sayfadan başlangıç değeriyle sürer.
 
 **Faz 4 notları**: `cevir` komutu ve "Office → PDF" ekranı Word/Excel/PowerPoint/ODT/RTF'yi LibreOffice ile, HTML ve TXT'yi tarayıcıyla çevirir. Eksik font kontrolü: belgede istenen ama hem PDF'e gömülmemiş hem de Windows'ta kurulu olmayan fontlar uyarılır (ör. yeni Office varsayılanı Aptos). HTML dosyasının göreli resimleri arayüzden yüklenince bulunamaz (tek dosya yüklenir); kendine yeten HTML önerilir.
 

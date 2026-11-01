@@ -44,9 +44,18 @@ export default function JobPanel({ job, error, zipName }: Props) {
         </div>
       )}
       {job.error && <p className="error-text">{job.error}</p>}
+      {job.error?.includes("bozuk olabilir") && typeof job.request.file === "string" && (
+        <button
+          type="button"
+          className="link-button"
+          onClick={() => navigate("guvenlik", { dosya: job.request.file as string, islem: "onar" })}
+        >
+          Onarmayı dene
+        </button>
+      )}
       {job.warnings.length > 0 && (
         <details className="warnings" open={job.warnings.length <= 5}>
-          <summary>{job.warnings.length} uyarı</summary>
+          <summary>{job.warnings.length} ayrıntı / uyarı</summary>
           <ul>
             {job.warnings.map((w) => (
               <li key={w}>{w}</li>

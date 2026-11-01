@@ -202,3 +202,67 @@ def rtf(path: Path, text: str) -> Path:
     path.write_text("{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0 Arial;}}\\f0\\fs24 " + body + "\\par}",
                     encoding="ascii")
     return path
+
+
+# --- Faz 6: taranmış, meta verili, bozuk -------------------------------------------------
+
+SCAN_LINES = ["Değerli öğrenciler, ışığı söndürün.", "Şükrü Çağrı İğdır'da yaşıyor."]
+
+
+def scanned_turkish(path: Path, pages: int = 1, dpi: int = 200, noise: bool = False) -> Path:
+    """Türkçe yazının resmi (metin katmanı yok). `noise` resmi sıkıştırması zor yapar."""
+    import io
+    import random
+
+    from PIL import ImageDraw, ImageFont
+
+    w, h = round(8.27 * dpi), round(11.69 * dpi)
+    font = ImageFont.truetype(str(_WIN_FONT), round(dpi / 4))
+    doc = pymupdf.open()
+    for n in range(1, pages + 1):
+        if noise:
+            rnd = random.Random(n)
+            img = Image.frombytes("RGB", (w, h), rnd.randbytes(w * h * 3)).point(
+                lambda v: 225 + v * 30 // 255)
+        else:
+            img = Image.new("RGB", (w, h), "white")
+        draw = ImageDraw.Draw(img)
+        for i, line in enumerate([*SCAN_LINES, f"Sayfa {n}"]):
+            draw.text((dpi * 0.75, dpi + i * dpi * 0.45), line, font=font, fill="black")
+        buf = io.BytesIO()
+        img.save(buf, "JPEG" if noise else "PNG", quality=95)
+        doc.new_page(width=595, height=842).insert_image(pymupdf.Rect(0, 0, 595, 842),
+                                                         stream=buf.getvalue())
+    doc.save(path)
+    doc.close()
+    return path
+
+
+def with_metadata(path: Path) -> Path:
+    """Yazar/üretici bilgisi, XMP, gömülü dosya ve belge JavaScript'i olan 2 sayfa."""
+    import pikepdf
+
+    doc = pymupdf.open()
+    for i in (1, 2):
+        _write_label(doc.new_page(), f"Sayfa {i}")
+    doc.set_metadata({"author": "Gizli Yazar", "creator": "Gizli Program", "title": "Başlık"})
+    doc.set_xml_metadata('<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf='
+                         '"http://www.w3.org/1999/02/22-rdf-syntax-ns#"/></x:xmpmeta>')
+    doc.embfile_add("gizli.txt", b"gizli ek")
+    doc.save(path)
+    doc.close()
+    with pikepdf.open(path, allow_overwriting_input=True) as pdf:
+        js = pikepdf.Dictionary(S=pikepdf.Name.JavaScript, JS=pikepdf.String("app.alert(1)"))
+        pdf.Root.Names.JavaScript = pikepdf.Dictionary(
+            Names=pikepdf.Array([pikepdf.String("a"), js]))
+        pdf.save(path)
+    return path
+
+
+def broken(path: Path) -> Path:
+    """Çapraz başvuru tablosu bozulmuş 3 sayfalık PDF (içerik sağlam)."""
+    numbered(path, 3, with_toc=False)
+    data = path.read_bytes()
+    i = data.rfind(b"startxref")
+    path.write_bytes(data[:i] + b"startxref\n999999\n%%EOF\n")
+    return path

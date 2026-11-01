@@ -22,9 +22,9 @@ export const TOOLS: Tool[] = [
   { id: "edit", title: "İçerik Ekle", description: "Yazı, resim, imza, vurgu, şekil, karartma", phase: 5, route: "editor", group: "Ekle" },
   { id: "watermark", title: "Filigran", description: "Yazı veya resim filigranı", phase: 5, route: "filigran", group: "Ekle" },
   { id: "pagenum", title: "Sayfa Numarası", description: "\"Sayfa 3 / 10\" biçiminde numaralandır", phase: 5, route: "sayfa-no", group: "Ekle" },
-  { id: "compress", title: "Sıkıştır", description: "Kayıpsız, dengeli veya güçlü küçültme", phase: 6, group: "Optimize ve güvenlik" },
-  { id: "ocr", title: "OCR", description: "Taranmış PDF'i aranabilir yap (Türkçe)", phase: 6, group: "Optimize ve güvenlik", needs: ["tesseract", "ghostscript"] },
-  { id: "protect", title: "Şifrele / Şifre Kaldır", description: "AES-256 şifre, izinler, meta veri temizliği", phase: 6, group: "Optimize ve güvenlik" },
+  { id: "compress", title: "Sıkıştır", description: "Kayıpsız, dengeli veya güçlü küçültme", phase: 6, route: "sikistir", group: "Optimize ve güvenlik" },
+  { id: "ocr", title: "OCR", description: "Taranmış PDF'i aranabilir yap (Türkçe)", phase: 6, route: "ocr", group: "Optimize ve güvenlik", needs: ["tesseract", "ghostscript"] },
+  { id: "protect", title: "Güvenlik ve Bakım", description: "AES-256 şifre, şifre kaldırma, meta veri temizliği, onarım", phase: 6, route: "guvenlik", group: "Optimize ve güvenlik" },
 ];
 
 export const GROUPS: Tool["group"][] = ["Düzenle", "Dönüştür", "Ekle", "Optimize ve güvenlik"];

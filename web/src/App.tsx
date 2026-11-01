@@ -5,6 +5,9 @@ import Jobs from "./pages/Jobs";
 import Markdown from "./pages/Markdown";
 import Merge from "./pages/Merge";
 import Office from "./pages/Office";
+import Compress from "./pages/Compress";
+import Ocr from "./pages/Ocr";
+import Protect from "./pages/Protect";
 import { ImagesToPdf, PdfToImages } from "./pages/Images";
 import Settings from "./pages/Settings";
 import Split from "./pages/Split";
@@ -82,6 +85,9 @@ export default function App() {
         <PageNumbers route={route} />
       </Suspense>
     );
+  else if (section === "sikistir") content = <Compress route={route} />;
+  else if (section === "ocr") content = <Ocr route={route} engines={engines} />;
+  else if (section === "guvenlik") content = <Protect route={route} />;
   else if (section === "birlestir") content = <Merge route={route} />;
   else if (section === "bol") content = <Split route={route} />;
   else if (section === "md") content = <Markdown route={route} engines={engines} />;

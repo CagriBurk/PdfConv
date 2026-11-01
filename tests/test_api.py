@@ -363,3 +363,58 @@ def test_job_events_stream(client, tmp_path):
     with client.stream("GET", f"/api/jobs/{job_id}/events") as s:
         body = "".join(s.iter_text())
     assert body.startswith("data: ") and '"status": "bitti"' in body
+
+
+# --- Faz 6 ------------------------------------------------------------------------------
+
+
+def test_info_reports_missing_text(client, tmp_path):
+    [scan] = upload(client, fx.scanned_turkish(tmp_path / "tarama.pdf"))
+    info = client.get(f"/api/files/{scan['id']}/info").json()
+    assert info["has_text"] is False and "path" not in info
+
+
+def test_compress_job_reports_sizes(client, tmp_path):
+    files = upload(client, fx.scanned_turkish(tmp_path / "a.pdf", dpi=300, noise=True),
+                   fx.numbered(tmp_path / "b.pdf", 1, with_toc=False))
+    job = run_job(client, {"type": "compress", "files": [f["id"] for f in files],
+                           "level": "dengeli"})
+    assert job["status"] == "bitti", job
+    assert [f["name"] for f in job["files"]] == ["a_kucuk.pdf", "b_kucuk.pdf"]
+    assert "küçüldü" in job["warnings"][0]
+
+
+def test_encrypt_decrypt_jobs_keep_passwords_out_of_log(client, tmp_path):
+    [pdf] = upload(client, fx.numbered(tmp_path / "a.pdf", 1, with_toc=False))
+    job = run_job(client, {"type": "encrypt", "file": pdf["id"], "user_password": "çok-gizli",
+                           "allow_print": False})
+    assert job["status"] == "bitti", job
+    enc = job["files"][0]
+    assert enc["encrypted"] and enc["name"] == "a_sifreli.pdf"
+    assert "çok-gizli" not in str(job["request"])
+    job = run_job(client, {"type": "decrypt", "file": enc["id"],
+                           "passwords": {enc["id"]: "çok-gizli"}})
+    assert job["status"] == "bitti", job
+    assert not job["files"][0]["encrypted"]
+
+
+def test_clean_and_repair_as_version(client, tmp_path):
+    [m] = upload(client, fx.with_metadata(tmp_path / "m.pdf"))
+    job = run_job(client, {"type": "clean_metadata", "file": m["id"], "target": "version"})
+    assert job["status"] == "bitti" and job["outputs"] == [m["id"]]
+    [b] = upload(client, fx.broken(tmp_path / "b.pdf"))
+    job = run_job(client, {"type": "repair", "file": b["id"]})
+    assert job["status"] == "bitti", job
+    assert job["files"][0]["page_count"] == 3
+
+
+def test_ocr_job(client, tmp_path):
+    if not engines.detect_tesseract(Settings()).ok:
+        pytest.skip("Tesseract yok")
+    [scan] = upload(client, fx.scanned_turkish(tmp_path / "tarama.pdf"))
+    job = run_job(client, {"type": "ocr", "file": scan["id"]})
+    assert job["status"] == "bitti", job
+    assert job["warnings"][0] == "1 sayfanın 1 tanesinde metin var."
+    out = job["files"][0]
+    assert out["name"] == "tarama_ocr.pdf"
+    assert client.get(f"/api/files/{out['id']}/info").json()["has_text"] is True

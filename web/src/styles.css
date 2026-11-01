@@ -1351,3 +1351,12 @@ input[type="color"] {
     display: none;
   }
 }
+
+/* --- Faz 6 --- */
+
+.result-line {
+  margin: 0;
+  padding: 0.6rem 0.8rem;
+  background: var(--ok-soft);
+  border-radius: var(--radius);
+}

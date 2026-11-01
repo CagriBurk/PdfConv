@@ -50,6 +50,16 @@ engelleyebilir; bu yüzden komutlar `python -m pdfatolye` biçiminde.
   "Önceki sürüme dön" ile geri alınır.
 - **Birleştir, Böl, Resim → PDF, PDF → Resim**: çok dosyalı çıktılar tek ZIP olarak indirilebilir.
 - **Markdown → PDF**: yazdıkça canlı önizleme (baskıyla aynı tema), seçenekler, uyarılar.
+- **İçerik Ekle** (editör): yazı, resim, imza, vurgu, dikdörtgen/elips/çizgi/ok, karartma, beyazla
+  kapat. Nesneler taşınır, boyutlandırılır, döndürülür; `Delete` sil, `Ctrl+Z` / `Ctrl+Y`, oklar kaydırır.
+  "Uygula" yeni sürüm oluşturur. **Karartma** alttaki yazıyı ve resmi dosyadan gerçekten siler; siyah
+  dikdörtgen çizmek karartma değildir. İmzalar ("İmzalarım") kalıcı saklanır.
+- **Filigran** ve **Sayfa Numarası**: önizlemeli ayrı ekranlar.
+- **Sıkıştır**: kayıpsız / dengeli / güçlü; önce-sonra boyutu gösterilir, büyürse orijinal korunur.
+- **OCR**: taranmış PDF'i Türkçe + İngilizce aranabilir yapar; metni olan sayfalar atlanır.
+  Sayfa düzenleyici metni olmayan PDF'te bunu kendisi önerir.
+- **Güvenlik ve bakım**: AES-256 şifre + izinler, şifre kaldırma (şifre kırma yok), meta veri
+  temizliği, bozuk PDF onarımı.
 - **İşler ve dosyalar**: son işler, tüm dosyalar; sabitlenmeyen dosyalar 24 saat sonra silinir.
 
 Şifreli PDF'lerin şifresi yalnızca açık sekmenin belleğinde tutulur, hiçbir yere kaydedilmez.
@@ -71,6 +81,14 @@ uv run python -m pdfatolye bol not.pdf --mod her | n --n 5 | aralik --aralik "1-
 uv run python -m pdfatolye resimden foto1.jpg foto2.heic --boyut A4 --kenar 10
 uv run python -m pdfatolye resme not.pdf --dpi 200 --bicim jpg
 uv run python -m pdfatolye resimleri-cikar not.pdf
+uv run python -m pdfatolye filigran not.pdf --yazi TASLAK --aci 45 --opaklik 0.2
+uv run python -m pdfatolye sayfa-no not.pdf --bicim "Sayfa {n} / {N}" --kapak
+uv run python -m pdfatolye sikistir *.pdf --seviye dengeli     # kayipsiz | dengeli | guclu
+uv run python -m pdfatolye ocr tarama.pdf                     # --mod redo | force
+uv run python -m pdfatolye sifrele not.pdf --kopyalama-yok    # şifreyi sorar
+uv run python -m pdfatolye sifre-kaldir not.pdf --sifre ...
+uv run python -m pdfatolye meta-temizle not.pdf
+uv run python -m pdfatolye onar bozuk.pdf
 ```
 
 ### Office / HTML / metin → PDF

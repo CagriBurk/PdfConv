@@ -13,7 +13,9 @@ from pathlib import Path
 
 from pdfatolye import engines
 from pdfatolye.convert.markdown.render import BrowserNotFoundError
-from pdfatolye.core import content, images, pages
+from pdfatolye.core import compress as compresslib
+from pdfatolye.core import content, images, pages, security
+from pdfatolye.core.ocr import OcrCancelled
 from pdfatolye.core.pdfio import safe_filename
 from pdfatolye.errors import EncryptedPdfError, PdfAtolyeError, UnsupportedFileError
 from pdfatolye.storage import FileMeta
@@ -54,10 +56,19 @@ def run(manager, req, report: Report, job_id: str) -> WorkResult:
         "md_to_pdf": md_to_pdf,
         "office_to_pdf": office_to_pdf,
         "apply": apply,
+        "compress": compress,
+        "ocr": ocr,
+        "encrypt": encrypt,
+        "decrypt": decrypt,
+        "clean_metadata": clean_metadata,
+        "repair": repair,
     }[req.type]
     with tempfile.TemporaryDirectory(prefix="pa-is-") as tmp:
         try:
             return fn(manager.store, manager.settings, req, report, Path(tmp), job_id)
+        except OcrCancelled:
+            report(1, "")  # iptal bayrağı varsa JobCancelled yükseltir
+            raise
         except PdfAtolyeError as e:
             raise with_display_name(e, manager.store) from e
 
@@ -260,3 +271,97 @@ def apply(store, settings, req, report, tmp: Path, job_id) -> WorkResult:
                           result.warnings)
     name = _out_name(req.name, f"{_stem(meta)}_duzenlenmis")
     return WorkResult([store.add_file(out, name, job_id=job_id)], result.warnings)
+
+
+def _size(n: int) -> str:
+    return f"{n / 1024 / 1024:.1f} MB" if n >= 1024 * 1024 else f"{n / 1024:.0f} KB"
+
+
+def compress(store, settings, req, report, tmp: Path, job_id) -> WorkResult:
+    gs = engines.detect_ghostscript(settings).path if req.level == "guclu" else None
+    outputs, warnings = [], []
+    total = len(req.files)
+    for i, fid in enumerate(req.files):
+        meta, path = _require(store, fid, "pdf")
+        report(i / total, f"{i + 1}/{total}: {meta.name}")
+        out = tmp / f"{i:04d}.pdf"
+        r = compresslib.compress(path, out, req.level, password=req.passwords.get(fid),
+                                 ghostscript=gs)
+        if r.kept_original:
+            warnings.append(f"{meta.name}: daha fazla küçülmedi, orijinal korundu "
+                            f"({_size(r.before)}).")
+        else:
+            warnings.append(f"{meta.name}: {_size(r.before)} → {_size(r.after)} "
+                            f"(%{round(r.saved_ratio * 100)} küçüldü)")
+        outputs.append(store.add_file(out, _out_name(None, f"{_stem(meta)}_kucuk"),
+                                      job_id=job_id))
+    return WorkResult(outputs, warnings)
+
+
+def _single_output(store, req, meta, out: Path, note: str, suffix: str, job_id) -> FileMeta:
+    if req.target == "version":
+        return store.new_version(req.file, out, note)
+    return store.add_file(out, _out_name(None, f"{_stem(meta)}_{suffix}"), job_id=job_id)
+
+
+def ocr(store, settings, req, report, tmp: Path, job_id) -> WorkResult:
+    from pdfatolye.core import ocr as ocrlib
+
+    meta, path = _require(store, req.file, "pdf")
+    tess = engines.detect_tesseract(settings)
+    if not tess.available:
+        raise PdfAtolyeError("OCR için Tesseract bulunamadı. Ayarlar sayfasındaki kurulum "
+                             "komutunu çalıştır.")
+    cancelled = False
+
+    def progress(frac: float, msg: str) -> None:
+        nonlocal cancelled
+        try:
+            report(frac, msg)
+        except Exception:  # iptal: OCR süreci öldürülsün, sonra yeniden yükselt
+            cancelled = True
+
+    out = tmp / "ocr.pdf"
+    r = ocrlib.ocr(path, out, mode=req.mode, langs=req.langs,
+                   password=req.passwords.get(req.file), tesseract=tess.path,
+                   ghostscript=engines.detect_ghostscript(settings).path,
+                   on_progress=progress, should_cancel=lambda: cancelled)
+    summary = f"{r.page_count} sayfanın {r.pages_with_text} tanesinde metin var."
+    return WorkResult([_single_output(store, req, meta, out, "OCR", "ocr", job_id)],
+                      [summary, *r.warnings])
+
+
+def encrypt(store, settings, req, report, tmp: Path, job_id) -> WorkResult:
+    meta, path = _require(store, req.file, "pdf")
+    out = tmp / "sifreli.pdf"
+    r = security.encrypt(path, out, req.user_password, owner_password=req.owner_password,
+                         allow_print=req.allow_print, allow_copy=req.allow_copy,
+                         allow_modify=req.allow_modify, password=req.passwords.get(req.file))
+    name = _out_name(None, f"{_stem(meta)}_sifreli")
+    return WorkResult([store.add_file(out, name, job_id=job_id)], r.notes)
+
+
+def decrypt(store, settings, req, report, tmp: Path, job_id) -> WorkResult:
+    meta, path = _require(store, req.file, "pdf")
+    out = tmp / "sifresiz.pdf"
+    r = security.decrypt(path, out, req.passwords.get(req.file))
+    return WorkResult([_single_output(store, req, meta, out, "Şifre kaldırıldı", "sifresiz",
+                                      job_id)], r.notes)
+
+
+def clean_metadata(store, settings, req, report, tmp: Path, job_id) -> WorkResult:
+    meta, path = _require(store, req.file, "pdf")
+    out = tmp / "temiz.pdf"
+    r = security.clean_metadata(path, out, req.passwords.get(req.file))
+    return WorkResult([_single_output(store, req, meta, out, "Meta veri temizlendi", "temiz",
+                                      job_id)], r.notes)
+
+
+def repair(store, settings, req, report, tmp: Path, job_id) -> WorkResult:
+    meta = store.get(req.file)
+    if meta.kind != "pdf":
+        raise UnsupportedFileError(Path(meta.name), "PDF")
+    out = tmp / "onarilmis.pdf"
+    r = security.repair(store.path(req.file), out, req.passwords.get(req.file))
+    return WorkResult([_single_output(store, req, meta, out, "Onarıldı", "onarilmis", job_id)],
+                      r.notes)

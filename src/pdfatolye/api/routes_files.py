@@ -76,6 +76,21 @@ def check_password(request: Request, file_id: str, body: PasswordBody) -> dict:
     return {"ok": True, "page_count": info.page_count}
 
 
+@router.get("/files/{file_id}/info")
+def info(request: Request, file_id: str) -> dict:
+    """PDF incelemesi (metin var mı, sayfa boyutları...). Arayüz "metin yok → OCR?" önerir."""
+    s = store(request)
+    meta = s.get(file_id)
+    if meta.kind != "pdf":
+        raise PdfAtolyeError(f"'{meta.name}' bir PDF değil.")
+    try:
+        result = inspect_pdf(s.path(file_id)).to_dict()
+    except PdfAtolyeError as e:
+        raise with_display_name(e, s) from e
+    result.pop("path", None)  # arayüz yol görmez
+    return result
+
+
 @router.post("/files/{file_id}/undo")
 def undo(request: Request, file_id: str) -> dict:
     return store(request).undo(file_id).to_dict()

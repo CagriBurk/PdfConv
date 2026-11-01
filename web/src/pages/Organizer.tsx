@@ -60,6 +60,7 @@ export default function Organizer({ fileId }: { fileId?: string }) {
   const [preview, setPreview] = useState<Item | null>(null);
   const [dragging, setDragging] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [noText, setNoText] = useState(false);
   const addInput = useRef<HTMLInputElement>(null);
   const { upload, uploading } = useUpload();
   const saveJob = useJob();
@@ -93,6 +94,13 @@ export default function Organizer({ fileId }: { fileId?: string }) {
       const ready = await withPageCount(meta);
       if (!ready) return navigate("araclar");
       setBase(ready);
+      setNoText(false);
+      if (!ready.encrypted) {
+        api
+          .info(ready.id)
+          .then((i) => setNoText(i.has_text === false))
+          .catch(() => undefined);
+      }
       setSources({ [ready.id]: ready });
       setItems(pagesOf(ready));
       setPast([]);
@@ -417,6 +425,14 @@ export default function Organizer({ fileId }: { fileId?: string }) {
           {error}
           <button type="button" className="link-button" onClick={() => setError(null)}>
             Kapat
+          </button>
+        </div>
+      )}
+      {noText && base && (
+        <div className="banner warn">
+          Bu PDF'te seçilebilir metin yok; taranmış görünüyor.{" "}
+          <button type="button" className="link-button" onClick={() => navigate("ocr", { dosya: base.id })}>
+            OCR ile aranabilir yap
           </button>
         </div>
       )}

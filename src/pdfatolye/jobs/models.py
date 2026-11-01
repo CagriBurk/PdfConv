@@ -141,8 +141,52 @@ class ApplyRequest(_Base):
         return self
 
 
+class CompressRequest(_Base):
+    type: Literal["compress"]
+    files: list[FileId] = Field(min_length=1, max_length=500)
+    level: Literal["kayipsiz", "dengeli", "guclu"] = "dengeli"
+
+
+class OcrRequest(_Base):
+    type: Literal["ocr"]
+    file: FileId
+    mode: Literal["skip", "redo", "force"] = "skip"
+    langs: list[Literal["tur", "eng"]] = Field(default_factory=lambda: ["tur", "eng"],
+                                               min_length=1)
+    target: Literal["version", "new"] = "new"
+
+
+class EncryptRequest(_Base):
+    type: Literal["encrypt"]
+    file: FileId
+    # Yeni şifreler de kayda yazılmaz.
+    user_password: str = Field(min_length=4, max_length=128, exclude=True)
+    owner_password: str | None = Field(default=None, max_length=128, exclude=True)
+    allow_print: bool = True
+    allow_copy: bool = True
+    allow_modify: bool = True
+
+
+class _SingleFile(_Base):
+    file: FileId
+    target: Literal["version", "new"] = "new"
+
+
+class DecryptRequest(_SingleFile):
+    type: Literal["decrypt"]
+
+
+class CleanMetadataRequest(_SingleFile):
+    type: Literal["clean_metadata"]
+
+
+class RepairRequest(_SingleFile):
+    type: Literal["repair"]
+
+
 JobRequest = Annotated[
     ComposeRequest | MergeRequest | SplitRequest | ImagesToPdfRequest | PdfToImagesRequest
-    | MdToPdfRequest | OfficeToPdfRequest | ApplyRequest,
+    | MdToPdfRequest | OfficeToPdfRequest | ApplyRequest | CompressRequest | OcrRequest
+    | EncryptRequest | DecryptRequest | CleanMetadataRequest | RepairRequest,
     Field(discriminator="type"),
 ]
