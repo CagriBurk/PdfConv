@@ -19,6 +19,13 @@ export interface EnginesResponse {
   config_file: string | null;
   vault_path: string | null;
   retention_hours: number;
+  log_file: string;
+}
+
+export interface LanInfo {
+  enabled: boolean;
+  urls?: string[];
+  qr_svg?: string | null;
 }
 
 export type FileKind = "pdf" | "image" | "markdown" | "text" | "office" | "html" | "other";
@@ -169,6 +176,7 @@ export const api = {
   mdPreview: (text: string, attachments: string[], options: Record<string, unknown>) =>
     request<MdPreview>("/api/md/preview", json({ text, attachments, options })),
 
+  lan: () => request<LanInfo>("/api/lan"),
   info: (id: string) => request<PdfInfo>(`/api/files/${id}/info`),
   fonts: () => request<FontInfo[]>("/api/fonts"),
   signatures: () => request<FileMeta[]>("/api/signatures"),

@@ -9,6 +9,18 @@ class PdfAtolyeError(Exception):
     """Tüm beklenen hataların tabanı. `str(e)` doğrudan kullanıcıya gösterilebilir."""
 
 
+def error_id() -> str:
+    """Beklenmeyen hatalar için kısa kimlik: kullanıcı mesajında ve günlükte aynısı geçer."""
+    import uuid
+
+    return uuid.uuid4().hex[:8]
+
+
+def unexpected_message(exc: BaseException, eid: str) -> str:
+    return (f"Beklenmeyen hata ({type(exc).__name__}). Hata kimliği: {eid}. Ayrıntı günlük "
+            "dosyasında (Ayarlar sayfasında yolu yazar).")
+
+
 class PageRangeError(PdfAtolyeError, ValueError):
     pass
 

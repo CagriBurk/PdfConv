@@ -4,29 +4,53 @@ Kendi bilgisayarında çalışan, çevrimdışı PDF araç seti: Markdown / Offi
 sayfa düzenleme, içerik ekleme, sıkıştırma, OCR, şifreleme. Dosyalar internete çıkmaz.
 Ayrıntılı plan: [PLAN.md](PLAN.md).
 
-## Gereksinimler
+## Kurulum (temiz bir Windows 10/11'de ~10 dakika)
 
-- Windows 10/11, Python 3.11+, [uv](https://docs.astral.sh/uv/), Node.js 20+ (yalnızca arayüzü derlemek için)
-- Dış araçlar:
+1. **Programlar** (PowerShell'de, her biri bir kez):
 
-  ```
-  winget install astral-sh.uv
-  winget install TheDocumentFoundation.LibreOffice
-  winget install UB-Mannheim.TesseractOCR
-  ```
+   ```
+   winget install astral-sh.uv
+   winget install OpenJS.NodeJS.LTS
+   winget install Git.Git
+   winget install TheDocumentFoundation.LibreOffice
+   winget install UB-Mannheim.TesseractOCR
+   ```
 
-  - Tesseract Türkçe paketi: `tur.traineddata` dosyasını
-    github.com/tesseract-ocr/tessdata_fast'tan indirip `C:\Program Files\Tesseract-OCR\tessdata\` içine kopyala.
-  - Ghostscript winget'te yok: github.com/ArtifexSoftware/ghostpdl-downloads sürümlerinden
-    `gs*w64.exe` dosyasını kısa bir klasöre indirip kur.
-  - Edge Windows ile birlikte gelir.
+   Kurulumdan sonra PowerShell'i kapatıp yeniden aç (PATH yenilensin). Python'u uv kendisi getirir;
+   Edge Windows ile gelir.
 
-## Çalıştırma
+2. **Türkçe OCR paketi**: `tur.traineddata` dosyasını github.com/tesseract-ocr/tessdata_fast
+   deposundan indirip `C:\Program Files\Tesseract-OCR\tessdata\` içine kopyala (yönetici izni ister).
 
-`baslat.bat` dosyasına çift tıkla. İlk açılışta bağımlılıkları kurar ve arayüzü derler,
-sonra tarayıcıda `http://127.0.0.1:8790` açılır.
+3. **Ghostscript** (OCR ve güçlü sıkıştırma için; winget'te yok):
+   github.com/ArtifexSoftware/ghostpdl-downloads sürümlerinden `gs*w64.exe` dosyasını
+   **kısa bir klasöre** (ör. `C:\Kur`) indirip çalıştır; uzun yoldan çalışınca sessizce çıkıyor.
 
-Elle:
+4. **Proje**:
+
+   ```
+   git clone https://github.com/CagriBurk/PdfConv.git
+   cd PdfConv
+   ```
+
+5. **Çalıştır**: `baslat.bat` dosyasına çift tıkla. İlk açılışta Python bağımlılıklarını kurar ve
+   arayüzü derler (birkaç dakika), sonra tarayıcıda `http://127.0.0.1:8790` açılır.
+
+6. **Kontrol**: arayüzde **Ayarlar** sayfasında dört motorun (LibreOffice, Edge, Tesseract,
+   Ghostscript) hepsi "Hazır" görünmeli. Eksik olanın yanında kurulum komutu yazar.
+   Komut satırından: `uv run python -m pdfatolye motorlar`
+
+7. **Kısayollar** (isteğe bağlı): masaüstüne "PDF Atölyesi" ve sağ tık → Gönder menüsüne
+   "PDF'e çevir" ekler. Yalnızca kendi kullanıcı klasörüne yazar; `-Kaldir` ile geri alınır.
+
+   ```
+   powershell -ExecutionPolicy Bypass -File kurulum\kisayollar.ps1
+   ```
+
+   Sonra bir Word/Markdown/resim dosyasına sağ tıkla → Gönder (Windows 11'de önce "Daha fazla
+   seçenek göster") → **PDF'e çevir**; PDF dosyanın yanına yazılır.
+
+Elle çalıştırmak istersen:
 
 ```
 uv sync
@@ -35,10 +59,25 @@ npm --prefix web run build
 uv run python -m pdfatolye serve
 ```
 
-Motor durumu: `uv run python -m pdfatolye motorlar`
-
 Not: Windows'un Akıllı Uygulama Denetimi uv'nin ürettiği `pdfatolye.exe` başlatıcısını
 engelleyebilir; bu yüzden komutlar `python -m pdfatolye` biçiminde.
+
+### Telefondan kullanmak (aynı Wi-Fi)
+
+`baslat.bat --lan` ile başlat. Terminalde ve **Ayarlar** sayfasında bir QR kod çıkar; telefonun
+kamerasıyla okut. QR koddaki tek seferlik eşleştirme belirteci olmadan gelen istekler reddedilir.
+Windows güvenlik duvarı ilk seferde izin isteyebilir ("Özel ağlar" yeterli). Adresi bilen herkes
+dosyalara erişebileceği için işin bitince sunucuyu kapat.
+
+### Sorun giderme
+
+- Beklenmeyen bir hatada mesajda **hata kimliği** (ör. `3fa2c1b9`) yazar; aynı kimlik günlük
+  dosyasında (`%LOCALAPPDATA%\PdfAtolye\logs\pdfatolye.log`, yolu Ayarlar'da da var) ayrıntısıyla
+  bulunur.
+- "8790 portu başka bir program tarafından kullanılıyor": `config.toml`'da `port` değiştir ya da
+  `baslat.bat --port 8800`.
+- Proje klasörünün yolu çok uzunsa (260+ karakter) LibreOffice ve Ghostscript bozulabilir; projeyi
+  kısa bir yola (ör. `C:\PdfConv`) koy.
 
 ## Web arayüzü
 
@@ -89,6 +128,7 @@ uv run python -m pdfatolye sifrele not.pdf --kopyalama-yok    # şifreyi sorar
 uv run python -m pdfatolye sifre-kaldir not.pdf --sifre ...
 uv run python -m pdfatolye meta-temizle not.pdf
 uv run python -m pdfatolye onar bozuk.pdf
+uv run python -m pdfatolye gonder rapor.docx not.md foto1.jpg foto2.jpg   # türüne göre PDF
 ```
 
 ### Office / HTML / metin → PDF
@@ -145,7 +185,7 @@ pdf:
 ## Geliştirme
 
 ```
-uv run pytest            # testler
+uv run pytest            # testler (tests/e2e: derlenmiş arayüz + Edge ile uçtan uca)
 uv run ruff check .      # kod denetimi
 npm --prefix web run dev # arayüz geliştirme sunucusu (API'yi 8790'e yönlendirir)
 ```

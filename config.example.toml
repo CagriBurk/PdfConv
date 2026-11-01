@@ -1,7 +1,8 @@
 # PDF Atölyesi ayarları. Bu dosyayı config.toml olarak kopyala.
 # Yazmadığın her ayar varsayılan değeriyle kalır.
 
-# host = "127.0.0.1"        # 0.0.0.0 yapma; telefon modu Faz 7'de belirteçle gelecek
+# host = "127.0.0.1"        # 0.0.0.0 yapma; telefon modu için lan = true ya da --lan
+# lan = false               # telefon modu: aynı Wi-Fi'den QR kodla eşleşen cihazlar bağlanır
 # port = 8790
 # data_dir = "%LOCALAPPDATA%\\PdfAtolye"
 # retention_hours = 24      # bu süreden eski, sabitlenmemiş dosyalar silinir

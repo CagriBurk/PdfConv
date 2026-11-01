@@ -1,4 +1,5 @@
-import type { EngineStatus, EnginesResponse } from "../api";
+import { useEffect, useState } from "react";
+import { api, type EngineStatus, type EnginesResponse, type LanInfo } from "../api";
 
 interface Props {
   data: EnginesResponse | null;
@@ -12,9 +13,57 @@ function statusLabel(e: EngineStatus): { text: string; cls: string } {
   return { text: "Kurulu değil", cls: "bad" };
 }
 
+function PhoneMode() {
+  const [info, setInfo] = useState<LanInfo | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    api
+      .lan()
+      .then(setInfo)
+      .catch((e: Error) => setError(e.message));
+  }, []);
+
+  if (error) return <p className="muted small">{error}</p>;
+  if (!info) return null;
+  if (!info.enabled) {
+    return (
+      <p className="muted small">
+        Kapalı. Telefondan kullanmak için sunucuyu <code>baslat.bat --lan</code> ile başlat; burada bir QR kod
+        çıkar. Telefon ve bilgisayar aynı Wi-Fi'de olmalı.
+      </p>
+    );
+  }
+  if (!info.urls?.length) return <p className="warn-line">Yerel ağ adresi bulunamadı. Wi-Fi'ye bağlı mısın?</p>;
+  return (
+    <div className="phone-mode">
+      {info.qr_svg && (
+        <img
+          className="qr"
+          alt="Telefonla bağlanmak için QR kod"
+          src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(info.qr_svg)}`}
+        />
+      )}
+      <div>
+        <p>Telefonun kamerasıyla QR kodu okut ya da adresi yaz:</p>
+        {info.urls.map((u) => (
+          <p key={u} className="mono small break">
+            {u}
+          </p>
+        ))}
+        <p className="warn-line">
+          Bu adresi bilen herkes dosyalarına erişebilir. Başkasıyla paylaşma; işin bitince sunucuyu kapat.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function Settings({ data, refreshing, onRefresh }: Props) {
   return (
     <>
+      <h2>Telefon modu</h2>
+      <PhoneMode />
+
       <div className="section-head">
         <h2>Motorlar</h2>
         <button type="button" onClick={onRefresh} disabled={refreshing}>
@@ -80,6 +129,10 @@ export default function Settings({ data, refreshing, onRefresh }: Props) {
               <dd className="mono">
                 {data.vault_path ?? "tanımlı değil (config.toml → vault_path; ![[resim]] aramak için)"}
               </dd>
+            </div>
+            <div>
+              <dt>Günlük dosyası</dt>
+              <dd className="mono">{data.log_file}</dd>
             </div>
             <div>
               <dt>Otomatik silme</dt>

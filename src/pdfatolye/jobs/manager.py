@@ -14,7 +14,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
-from pdfatolye.errors import PdfAtolyeError
+from pdfatolye.errors import PdfAtolyeError, error_id, unexpected_message
 from pdfatolye.jobs import workers
 
 log = logging.getLogger("pdfatolye.jobs")
@@ -169,10 +169,10 @@ class JobManager:
             self._update(job, True, status="hata", finished=time.time(), error=str(e),
                          message="Hata")
         except Exception as e:  # beklenmeyen: kullanıcıya kısa, loga ayrıntılı
-            log.exception("İş %s (%s) beklenmedik hata", job.id, job.type)
+            eid = error_id()
+            log.exception("[%s] İş %s (%s) beklenmedik hata", eid, job.id, job.type)
             self._update(job, True, status="hata", finished=time.time(),
-                         error=f"Beklenmeyen hata ({type(e).__name__}). Ayrıntı: günlük dosyası.",
-                         message="Hata")
+                         error=unexpected_message(e, eid), message="Hata")
         finally:
             if limit:
                 limit.release()

@@ -2,7 +2,7 @@
 
 > Kendi bilgisayarında çalışan, kayıt / reklam / bekleme / dosya yükleme sınırı olmayan PDF araç seti.
 > Dosyalar hiçbir zaman internete çıkmaz.
-> Tarih: 2026-11-01 · Durum: Faz 0–6 tamamlandı
+> Tarih: 2026-11-01 · Durum: Faz 0–7 tamamlandı (v1)
 
 ---
 
@@ -366,6 +366,11 @@ Tarayıcıda açık başka bir web sitesi, `localhost`'taki sunucuna istek atmay
 
 | 31 | OCRmyPDF API'si ana süreçte çalışırsa iptal edilemez; kendi günlüğünü de yapılandırmadan hiçbir şey yazmaz | `core/_ocr_run.py` ayrı süreçte çalışır (iptal/zaman aşımı = süreç ağacını öldür); ilerleme bir OCRmyPDF eklentisiyle (`_ocr_plugin.py`) stderr'e `PA_OCR {json}` satırları olarak gelir; `configure_logging` ile "sayfada zaten metin var" satırları sayılır |
 | 32 | `"İzin".lower()` Python'da `"i̇zin"` olur (noktalı i + birleşik nokta) | Türkçe metin karşılaştırmasında `lower()`a güvenme; testler küçük harfli kelime arar |
+
+| 33 | Bash heredoc içinde `'` geçen Türkçe metin (ör. `İğdır'da`) araç kabuğunda tırnak hatası verdi | Uzun düzenleme betikleri dosyaya yazılıp öyle çalıştırılır |
+| 34 | `_setup_logging` ilk uygulamanın günlük dosyasını tutuyordu; aynı süreçte farklı veri klasörüyle yeni uygulama (testler) eski dosyaya yazıyordu | Var olan dosya işleyicisi hedef yol farklıysa değiştirilir |
+
+**Faz 7 notları**: Beklenmeyen hatalar (iş ya da HTTP 500) 8 haneli **hata kimliği**yle kullanıcıya kısa, günlüğe ayrıntılı (yığın izi) yazılır. **Telefon modu** (`--lan` / `lan = true`): sunucu 0.0.0.0'da dinler, yerel ağ IP'leri izinli Host listesine eklenir; oturum çerezi yalnızca loopback'ten gelen isteğe ya da QR koddaki eşleştirme belirteciyle (`/?t=...`, oturum çerezinden ayrı) gelen cihaza verilir, ardından adres çubuğundan belirteç silinir (303). QR yalnızca bilgisayarda gösterilir (`/api/lan` loopback dışına kapalı). **Gönder → PDF'e çevir**: `gonder` komutu dosyaları türüne göre `md` / `resimden` / `cevir`'e dağıtır; `pdfe-cevir.bat` + `kurulum\kisayollar.ps1` (BOM'lu UTF-8, PowerShell 5.1 için) masaüstü ve SendTo kısayollarını kullanıcı klasörüne yazar. **E2E**: `tests/e2e` gerçek sunucuyu iş parçacığında, Edge'i başsız açar: yükle → sil → kaydet, editörde döndürülmüş sayfaya Türkçe yazı, ayarlar/araçlar. Sistem tepsisi simgesi ve PyInstaller paketi yapılmadı (isteğe bağlıydı; `baslat.bat` + kısayol yeterli görüldü).
 
 **Faz 6 notları**: Sıkıştırma PyMuPDF `rewrite_images` + `garbage=4`/nesne akışlarıyla; "güçlü" seviyede Ghostscript `/ebook` da denenir, küçük olan alınır; sonuç büyükse orijinal kopyalanır. Şifreleme pikepdf ile AES-256 (R6); şifreler iş kaydına yazılmaz (`exclude`). Meta temizliği docinfo, XMP, gömülü dosyalar, belge/açılış JavaScript'i ve sayfa PieceInfo'yu siler. Onarım önce qpdf, olmazsa MuPDF. OCR `--skip-text --deskew --rotate-pages`, `output_type=pdf` (PDF/A değil: daha hızlı, Ghostscript'e bağımlı değil), `optimize=1`; şifreli girdi önce şifresiz geçici kopyaya çevrilir. Sayfa düzenleyici metni olmayan PDF'te "OCR ile aranabilir yap" önerir; "bozuk olabilir" hatası veren işte "Onarmayı dene" bağlantısı çıkar.
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import secrets
 import threading
 from contextlib import asynccontextmanager
 from logging.handlers import RotatingFileHandler
@@ -10,16 +11,16 @@ from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from pdfatolye import __version__, engines
+from pdfatolye import __version__, engines, lan
 from pdfatolye.api import routes_content, routes_files, routes_jobs, routes_md
 from pdfatolye.api.security import COOKIE, SessionGuard, new_token
 from pdfatolye.convert.markdown.document import ASSETS as MD_ASSETS
-from pdfatolye.errors import PdfAtolyeError
+from pdfatolye.errors import PdfAtolyeError, error_id, unexpected_message
 from pdfatolye.jobs import JobManager
 from pdfatolye.settings import PROJECT_ROOT, Settings
 from pdfatolye.storage import FileNotInStoreError, FileStore
@@ -36,6 +37,14 @@ NO_UI_PAGE = """<!doctype html><html lang="tr"><meta charset="utf-8">
 <pre>npm --prefix web install
 npm --prefix web run build</pre>
 <p>API durumu: <a href="/api/engines">/api/engines</a></p>
+</body></html>"""
+
+LAN_LOCKED_PAGE = """<!doctype html><html lang="tr"><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>PDF Atölyesi</title>
+<body style="font-family:system-ui;max-width:30rem;margin:3rem auto;padding:0 1rem">
+<h1>PDF Atölyesi</h1>
+<p>Bu bilgisayar telefon modunda. Bağlanmak için bilgisayardaki <b>Ayarlar</b> sayfasındaki ya
+da terminaldeki QR kodu telefonun kamerasıyla okut.</p>
 </body></html>"""
 
 
@@ -55,9 +64,13 @@ class EngineCache:
 
 
 def _setup_logging(settings: Settings) -> None:
-    if any(isinstance(h, RotatingFileHandler) for h in log.handlers):
-        return
-    handler = RotatingFileHandler(settings.logs_dir / "pdfatolye.log", maxBytes=2_000_000,
+    target = settings.logs_dir / "pdfatolye.log"
+    for h in [h for h in log.handlers if isinstance(h, RotatingFileHandler)]:
+        if Path(h.baseFilename) == target.resolve():
+            return
+        log.removeHandler(h)  # başka veri klasörüyle yeniden oluşturuldu (testler)
+        h.close()
+    handler = RotatingFileHandler(target, maxBytes=2_000_000,
                                   backupCount=3, encoding="utf-8")
     handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
     log.addHandler(handler)
@@ -83,6 +96,11 @@ def create_app(settings: Settings, *, start_background: bool = True) -> FastAPI:
     jobs = JobManager(store, settings)
     stop = threading.Event()
     token = new_token()
+    # Telefon modu: QR koddaki eşleştirme belirteci. Oturum çerezinden ayrı tutulur ki adres
+    # çubuğunda / geçmişte kalan değer doğrudan çerez olmasın.
+    pair_token = secrets.token_urlsafe(16)
+    if settings.lan:
+        settings.allowed_hosts = list(dict.fromkeys([*settings.allowed_hosts, *lan.lan_ips()]))
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -102,6 +120,7 @@ def create_app(settings: Settings, *, start_background: bool = True) -> FastAPI:
     app.state.store = store
     app.state.jobs = jobs
     app.state.token = token
+    app.state.pair_token = pair_token
     app.state.preview_assets = routes_md.PreviewAssets(token)
     engine_cache = EngineCache(settings)
 
@@ -109,6 +128,13 @@ def create_app(settings: Settings, *, start_background: bool = True) -> FastAPI:
     async def _app_error(request: Request, exc: PdfAtolyeError):
         status = 404 if isinstance(exc, FileNotInStoreError) else 400
         return JSONResponse({"detail": str(exc)}, status_code=status)
+
+    @app.exception_handler(Exception)
+    async def _unexpected(request: Request, exc: Exception):
+        eid = error_id()
+        log.error("[%s] %s %s beklenmedik hata", eid, request.method, request.url.path,
+                  exc_info=exc)
+        return JSONResponse({"detail": unexpected_message(exc, eid)}, status_code=500)
 
     @app.exception_handler(ValidationError)
     async def _validation_error(request: Request, exc: ValidationError):
@@ -124,7 +150,10 @@ def create_app(settings: Settings, *, start_background: bool = True) -> FastAPI:
         return {"status": "ok", "app": "pdfatolye", "version": __version__}
 
     @app.get("/api/session")
-    def session() -> JSONResponse:
+    def session(request: Request) -> JSONResponse:
+        if settings.lan and not _trusted(request, token):
+            return JSONResponse({"detail": "Telefon modunda bağlanmak için bilgisayardaki QR "
+                                           "kodu okut."}, status_code=403)
         resp = JSONResponse({"ok": True, "version": __version__})
         _set_cookie(resp, token)
         return resp
@@ -138,14 +167,24 @@ def create_app(settings: Settings, *, start_background: bool = True) -> FastAPI:
             "config_file": str(settings.config_file) if settings.config_file else None,
             "vault_path": str(settings.vault_path) if settings.vault_path else None,
             "retention_hours": settings.retention_hours,
+            "log_file": str(settings.logs_dir / "pdfatolye.log"),
         }
+
+    @app.get("/api/lan")
+    def lan_info(request: Request) -> dict:
+        if not settings.lan:
+            return {"enabled": False}
+        if not _is_local(request):
+            raise PdfAtolyeError("QR kod yalnızca sunucunun çalıştığı bilgisayarda gösterilir.")
+        urls = [f"http://{ip}:{settings.port}/?t={pair_token}" for ip in lan.lan_ips()]
+        return {"enabled": True, "urls": urls, "qr_svg": lan.qr_svg(urls[0]) if urls else None}
 
     app.include_router(routes_files.router)
     app.include_router(routes_jobs.router)
     app.include_router(routes_md.router)
     app.include_router(routes_content.router)
     app.mount("/api/md/katex", StaticFiles(directory=MD_ASSETS / "katex"), name="katex")
-    _mount_ui(app, WEB_DIST, token)
+    _mount_ui(app, WEB_DIST, token, pair_token if settings.lan else None)
     return app
 
 
@@ -158,23 +197,40 @@ def _first_error(errors: list) -> str:
     return f"{where}: {msg}" if where else msg
 
 
+def _is_local(request: Request) -> bool:
+    host = request.client.host if request.client else ""
+    return host in lan.LOOPBACK_HOSTS
+
+
+def _trusted(request: Request, token: str) -> bool:
+    """Bu bilgisayardan mı, yoksa daha önce eşleşmiş (geçerli çerezli) bir cihazdan mı?"""
+    return _is_local(request) or secrets.compare_digest(request.cookies.get(COOKIE, ""), token)
+
+
 def _set_cookie(resp, token: str) -> None:
     resp.set_cookie(COOKIE, token, httponly=True, samesite="strict", path="/")
 
 
-def _mount_ui(app: FastAPI, dist: Path, token: str) -> None:
+def _mount_ui(app: FastAPI, dist: Path, token: str, pair_token: str | None) -> None:
     index = dist / "index.html"
     if (dist / "assets").is_dir():
         app.mount("/assets", StaticFiles(directory=dist / "assets"), name="assets")
 
     # Tek sayfalık uygulama: /api dışındaki her yol index.html'e düşer.
     @app.get("/{path:path}", include_in_schema=False)
-    def spa(path: str):
+    def spa(path: str, request: Request, t: str = ""):
         if path.startswith("api/"):
             return JSONResponse({"detail": "Bulunamadı"}, status_code=404)
         candidate = (dist / path).resolve()
         if path and candidate.is_file() and candidate.is_relative_to(dist.resolve()):
             return FileResponse(candidate)
+        if pair_token and not _trusted(request, token):
+            if not (t and secrets.compare_digest(t, pair_token)):
+                return HTMLResponse(LAN_LOCKED_PAGE, status_code=403)
+            # Eşleşti: çerezi ver, belirteci adres çubuğundan sil.
+            resp = RedirectResponse("/", status_code=303)
+            _set_cookie(resp, token)
+            return resp
         resp = FileResponse(index) if index.is_file() else HTMLResponse(NO_UI_PAGE)
         _set_cookie(resp, token)
         return resp

@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import functools
 import json
 import socket
@@ -70,6 +71,8 @@ def _done(path: Path) -> None:
 def serve(
     port: Annotated[int | None, typer.Option(help="Sunucu portu")] = None,
     no_browser: Annotated[bool, typer.Option("--no-browser", help="Tarayıcıyı açma")] = False,
+    lan: Annotated[bool, typer.Option(
+        "--lan", help="Telefon modu: aynı Wi-Fi'deki cihazlar QR kodla bağlanır")] = False,
     config: ConfigOpt = None,
 ) -> None:
     """Web arayüzünü başlatır."""
@@ -80,10 +83,15 @@ def serve(
     settings = load_settings(config)
     if port is not None:
         settings.port = port
-    url = f"http://{settings.host}:{settings.port}"
+    if lan:
+        settings.lan = True
+    if settings.lan:
+        settings.host = "0.0.0.0"
+    local_host = "127.0.0.1" if settings.host == "0.0.0.0" else settings.host
+    url = f"http://{local_host}:{settings.port}"
     browser = settings.open_browser and not no_browser
 
-    if _port_in_use(settings.host, settings.port):
+    if _port_in_use(local_host, settings.port):
         if _is_our_server(url):
             typer.echo(f"PDF Atölyesi zaten çalışıyor: {url}")
             if browser:
@@ -96,10 +104,31 @@ def serve(
         )
         raise typer.Exit(1)
 
+    application = create_app(settings)
     typer.echo(f"PDF Atölyesi çalışıyor: {url}  (kapatmak için Ctrl+C)")
+    if settings.lan:
+        _print_lan(settings.port, application.state.pair_token)
     if browser:
         threading.Timer(1.0, webbrowser.open, args=[url]).start()
-    uvicorn.run(create_app(settings), host=settings.host, port=settings.port, log_level="warning")
+    uvicorn.run(application, host=settings.host, port=settings.port, log_level="warning")
+
+
+def _print_lan(port: int, pair_token: str) -> None:
+    from pdfatolye.lan import lan_ips, qr_text
+
+    ips = lan_ips()
+    if not ips:
+        typer.secho("Telefon modu: yerel ağ adresi bulunamadı (Wi-Fi'ye bağlı mısın?).",
+                    fg="yellow")
+        return
+    link = f"http://{ips[0]}:{port}/?t={pair_token}"
+    typer.echo("\nTelefon modu açık. Aynı Wi-Fi'deki telefonla bu QR kodu okut:")
+    # Eski konsol kod sayfası blok karakterlerini basamazsa QR atlanır, adres yeter.
+    with contextlib.suppress(UnicodeEncodeError):
+        typer.echo(qr_text(link))
+    typer.echo(f"ya da adresi yaz: {link}")
+    typer.secho("Bu adresi bilen herkes dosyalarına erişir; işin bitince sunucuyu kapat. "
+                "Windows güvenlik duvarı ilk seferde izin isteyebilir.", fg="yellow")
 
 
 def _port_in_use(host: str, port: int) -> bool:
@@ -624,3 +653,55 @@ def onar(pdf: InPdf, sifre: PwOpt = None, cikti: OutOpt = None) -> None:
     r = repair(pdf, cikti or _default_output(pdf, "onarilmis"), sifre)
     typer.echo(" ".join(r.notes))
     _done(r.output)
+
+
+_IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".tif", ".tiff", ".heic",
+               ".heif"}
+_MD_EXTS = {".md", ".markdown"}
+
+
+@app.command()
+def gonder(
+    dosyalar: Annotated[list[Path], typer.Argument(help="Dosyalar (karışık türler olabilir)",
+                                                   exists=True, dir_okay=False)],
+    config: ConfigOpt = None,
+) -> None:
+    """Sağ tık → Gönder → "PDF'e çevir" için: her dosyayı türüne göre PDF'e çevirir.
+
+    Markdown → MD baskısı, resimler → tek PDF, Word/Excel/PowerPoint/HTML/TXT → cevir.
+    Çıktılar dosyaların yanına yazılır. Biri başarısız olsa diğerleri sürer.
+    """
+    from pdfatolye.convert.office import OFFICE_EXTS
+
+    groups: dict[str, list[Path]] = {"md": [], "resim": [], "belge": []}
+    failed = False
+    for f in dosyalar:
+        ext = f.suffix.lower()
+        if ext in _MD_EXTS:
+            groups["md"].append(f)
+        elif ext in _IMAGE_EXTS:
+            groups["resim"].append(f)
+        elif ext in OFFICE_EXTS or ext in (".html", ".htm", ".txt"):
+            groups["belge"].append(f)
+        elif ext == ".pdf":
+            typer.echo(f"Atlandı (zaten PDF): {f.name}")
+        else:
+            typer.secho(f"Hata: '{f.name}' PDF'e çevrilemeyen bir tür ({ext or 'uzantısız'}).",
+                        fg="red", err=True)
+            failed = True
+
+    steps = []
+    if groups["md"]:
+        steps.append(lambda: md(groups["md"], None, None, None, None, None, None, None, None,
+                                None, None, None, False, config))
+    if groups["resim"]:
+        steps.append(lambda: resimden(groups["resim"], None, "A4", "otomatik", 0))
+    if groups["belge"]:
+        steps.append(lambda: cevir(groups["belge"], None, False, False, config))
+    for step in steps:
+        try:
+            step()
+        except typer.Exit as e:
+            failed = failed or bool(e.exit_code)
+    if failed:
+        raise typer.Exit(2)

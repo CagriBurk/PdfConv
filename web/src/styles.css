@@ -1360,3 +1360,22 @@ input[type="color"] {
   background: var(--ok-soft);
   border-radius: var(--radius);
 }
+
+.phone-mode {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.2rem;
+  align-items: center;
+}
+
+.phone-mode .qr {
+  width: 200px;
+  height: 200px;
+  background: #fff;
+  padding: 0.5rem;
+  border-radius: var(--radius);
+}
+
+.break {
+  word-break: break-all;
+}

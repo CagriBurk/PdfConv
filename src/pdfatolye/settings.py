@@ -38,6 +38,7 @@ class Settings:
     max_upload_mb: int = 1024
     vault_path: Path | None = None
     open_browser: bool = True
+    lan: bool = False  # telefon modu: 0.0.0.0, QR koddaki belirteçle eşleşme
     allowed_hosts: list[str] = field(default_factory=lambda: ["127.0.0.1", "localhost"])
     engines: EnginePaths = field(default_factory=EnginePaths)
     config_file: Path | None = None

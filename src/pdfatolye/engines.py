@@ -161,7 +161,7 @@ def detect_ghostscript(settings: Settings) -> EngineStatus:
         key="ghostscript",
         name="Ghostscript",
         available=False,
-        needed_for="OCR ve güçlü sıkıştırma (Faz 6)",
+        needed_for="OCR ve güçlü sıkıştırma",
         install_hint="ghostscript.com/releases adresinden Windows 64-bit kurulum dosyası",
     )
     exe = _find_executable(

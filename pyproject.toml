@@ -21,6 +21,7 @@ dependencies = [
     "pyyaml>=6.0.3",
     "fonttools>=4.55",
     "ocrmypdf>=16",
+    "qrcode>=8.0",
 ]
 
 [project.scripts]

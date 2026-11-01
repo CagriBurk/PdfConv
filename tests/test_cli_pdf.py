@@ -95,3 +95,18 @@ def test_compress_encrypt_clean_repair(tmp_path):
     b = fx.broken(tmp_path / "b.pdf")
     r = runner.invoke(app, ["onar", str(b)])
     assert r.exit_code == 0 and fx.labels(tmp_path / "b_onarilmis.pdf")[2] == "Sayfa 3"
+
+
+def test_send_to_dispatches_by_type(tmp_path):
+    img1 = fx.photo_jpeg(tmp_path / "foto1.jpg")
+    img2 = fx.transparent_png(tmp_path / "foto2.png")
+    pdf = fx.numbered(tmp_path / "zaten.pdf", 1, with_toc=False)
+    other = tmp_path / "veri.xyz"
+    other.write_text("x")
+    r = runner.invoke(app, ["gonder", str(img1), str(img2), str(pdf), str(other)])
+    assert r.exit_code == 2, r.output  # .xyz çevrilemedi ama diğerleri bitti
+    assert "zaten PDF" in r.output and "veri.xyz" in r.output
+    import pymupdf
+
+    with pymupdf.open(tmp_path / "foto1_resimler.pdf") as doc:
+        assert doc.page_count == 2
