@@ -524,9 +524,9 @@ Bu kararlar verilene kadar yapılan, maddede yazılı; hiçbiri ücretli bir şe
    - *d) Microsoft Store (MSIX)*: Store imzalar; geliştirici hesabı ve paketleme işi gerekir.
    - **Karar (2026-11-07): a) imzasız devam.** Dağıtım genişlerse yeniden bakılır.
 2. **Lisans** — **Karar (2026-11-07): AGPL-3.0.** `LICENSE` eklendi, `pyproject.toml`'da `AGPL-3.0-only`, pakette `LICENSE.txt`. ("or-later" istenirse yalnızca SPDX ifadesi değişir.)
-3. **Yayın (GitHub Releases)**: **0.9.1** hazırlandı (arkadaş denemesi sonrası; 0.9.0 kurulu olanlar "Güncellemeleri denetle" ile görsün diye numara artırıldı). `v0.9.1` etiketi gönderildi, değişiklikler `CHANGELOG.md`'de; Release'i oluşturup `build/PdfAtolyesi-0.9.1.zip`'i yüklemek depo sahibinin tarayıcıdan yapacağı iş (kimlik bilgisi gerektirir). İstenirse CI'a etiketle tetiklenen bir yayın işi eklenebilir (motorsuz paket CI'da üretilebiliyor; OCR'lı tam paket için Tesseract/Ghostscript'in CI'da kurulması gerekir).
+3. **Yayın (GitHub Releases)**: son sürüm **0.10.0** (Faz F: PDF → Word / Excel, A0). Önceki: 0.9.1 (arkadaş denemesi sonrası). Her sürümde etiket (`vX.Y.Z`) gönderilir, değişiklikler `CHANGELOG.md`'de; Release'i oluşturup `build/PdfAtolyesi-X.Y.Z.zip`'i yüklemek depo sahibinin tarayıcıdan yapacağı iş (kimlik bilgisi gerektirir). Release taslak ya da ön sürüm (pre-release) olmamalı: "Güncellemeleri denetle" `releases/latest`'e sorar, o ikisini görmez. İstenirse CI'a etiketle tetiklenen bir yayın işi eklenebilir (motorsuz paket CI'da üretilebiliyor; OCR'lı tam paket için Tesseract/Ghostscript'in CI'da kurulması gerekir).
 4. **Ghostscript'i pakette tutmak** (+~40 MB, AGPL): şu an pakette (OCR ve güçlü sıkıştırma için). Alternatif: çıkarıp OCR'ı Ghostscript'siz yapılandırmak (OCRmyPDF sürümüne bağlı, denenmedi).
-5. **1.0.0 sürüm numarası**: şimdilik 0.9.1. 1.0.0'ı arkadaş denemesi 0.9.1 ile sorunsuz geçtikten sonra vermeni öneririm.
+5. **1.0.0 sürüm numarası**: şimdilik 0.10.0. 1.0.0'ı arkadaş denemesi sorunsuz geçtikten sonra vermeni öneririm.
 
 ### Sonraki sürüm adayları
 Form doldurma (AcroForm alanları), iki PDF'i karşılaştırma, not gömme (`![[Not]]`), Pandoc/LaTeX alternatif MD motoru, PDF/A doğrulama, İngilizce arayüz.

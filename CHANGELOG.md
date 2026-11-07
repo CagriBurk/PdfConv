@@ -1,6 +1,12 @@
 # Değişiklikler
 
-## Yayımlanmamış
+## 0.10.0 — 2026-11-08
+
+Yeni araçlar: PDF → Word ve PDF → Excel; A0'a kadar kağıt.
+
+**Kurulum ve güncelleme**: yeni paketi indirip ayıkla, **Kur**'a çift tıkla. Eski sürümü
+kaldırmaya gerek yok; belgelerin, imzaların ve ayarların korunur. Kurarken PDF Atölyesi
+penceresi kapalı olmalı.
 
 ### Yeni araçlar
 - **PDF → Word**: yazı, paragraf, tablo ve resimler düzenlenebilir bir Word belgesine (.docx)
