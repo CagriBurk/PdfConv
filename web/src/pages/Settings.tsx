@@ -167,7 +167,7 @@ function GeneralSettings({ settings, onSettings }: { settings: SettingsResponse;
               aria-describedby="ayar-kasa-not"
               onChange={(e) => setVault(e.target.value)}
             />
-            {settings.local && (
+            {settings.desktop && (
               <button type="button" onClick={() => void pick()} disabled={picking}>
                 {picking ? "Pencere açık…" : "Klasör seç…"}
               </button>
@@ -373,7 +373,9 @@ export function EngineList({ data, onRefresh }: { data: EnginesResponse; onRefre
                 {p}
               </p>
             ))}
-            {!e.available && e.key === "libreoffice" && <InstallLibreOffice onInstalled={onRefresh} />}
+            {!e.available && e.key === "libreoffice" && data.windows && (
+              <InstallLibreOffice onInstalled={onRefresh} />
+            )}
             {!e.available && e.install_hint && (
               <p className="small">
                 Elle kurulum: <code>{e.install_hint}</code>

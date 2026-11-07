@@ -88,7 +88,7 @@ export default function Jobs() {
       setJobs(j);
       setFiles(f);
       setRetention(s.values.retention_hours);
-      setLocal(s.local);
+      setLocal(s.desktop);
       setError(null);
     } catch (err) {
       setError(errorMessage(err));

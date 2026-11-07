@@ -8,6 +8,7 @@ Ayar değiştirme, yeniden başlatma ve masaüstü işleri yalnızca sunucunun �
 from __future__ import annotations
 
 import logging
+import os
 from pathlib import Path
 from typing import Literal
 
@@ -64,6 +65,8 @@ def settings_view(request: Request) -> dict:
         "restart_available": state.restart is not None,
         "config_file": str(settings_file(s)),
         "local": is_local(request),
+        # Klasör seç / Gezgin'de göster yalnızca Windows'ta (native.py).
+        "desktop": is_local(request) and os.name == "nt",
         "themes": list(THEMES),
         "papers": list(PAPERS),
     }

@@ -5,6 +5,7 @@ Derlenmiş arayüz (web/dist) ya da tarayıcı yoksa atlanır.
 
 from __future__ import annotations
 
+import os
 import socket
 import threading
 import time
@@ -483,8 +484,10 @@ def test_jobs_have_turkish_names_and_files_can_be_renamed(server, page, tmp_path
     field.press("Enter")
     page.get_by_text("Yeni ad: Yeni ad ğüş.pdf").wait_for()
     assert app.state.store.get(meta.id).name == "Yeni ad ğüş.pdf"
-    # Bu bilgisayardan açıldığı için "Klasörde göster" var (tıklamıyoruz: Gezgin açılır).
-    assert page.get_by_role("button", name="Klasörde göster").count() >= 1
+    # Bu bilgisayardan ve Windows'ta "Klasörde göster" var (tıklamıyoruz: Gezgin açılır);
+    # Linux'ta Gezgin yok, düğme de yok.
+    reveal = page.get_by_role("button", name="Klasörde göster").count()
+    assert reveal >= 1 if os.name == "nt" else reveal == 0
 
 
 def test_render_error_shows_message_not_white_page(server, page):

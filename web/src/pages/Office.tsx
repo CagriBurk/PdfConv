@@ -37,7 +37,11 @@ export default function Office({ route, engines, onEnginesChanged }: Props) {
       {lo && !lo.ok && needsLo && (
         <div className="banner error">
           LibreOffice bulunamadı; Word/Excel/PowerPoint dosyaları çevrilemez. HTML ve TXT çevrilebilir.
-          <InstallLibreOffice onInstalled={onEnginesChanged} />
+          {engines?.windows ? (
+            <InstallLibreOffice onInstalled={onEnginesChanged} />
+          ) : (
+            lo.install_hint && <code className="small">{lo.install_hint}</code>
+          )}
         </div>
       )}
       <div className="tool-layout">

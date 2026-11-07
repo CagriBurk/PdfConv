@@ -52,6 +52,15 @@ def _program_files() -> list[Path]:
     return dirs
 
 
+def on_windows() -> bool:
+    return os.name == "nt"
+
+
+def _hint(windows: str, linux: str) -> str:
+    """Eksik motor için kurulum ipucu (Linux'ta Debian/Ubuntu paket adları)."""
+    return windows if on_windows() else linux
+
+
 def _bundled(*rel: str) -> list[Path]:
     """Kurulumla gelen motorun olası yerleri (geliştirmede boş)."""
     root = paths.engines_dir()
@@ -125,7 +134,9 @@ def detect_libreoffice(settings: Settings) -> EngineStatus:
         name="LibreOffice",
         available=False,
         needed_for="Word / Excel / PowerPoint → PDF",
-        install_hint="winget install TheDocumentFoundation.LibreOffice",
+        install_hint=_hint("winget install TheDocumentFoundation.LibreOffice",
+                           "sudo apt install libreoffice-writer libreoffice-calc "
+                           "libreoffice-impress"),
     )
     exe = _find_executable(
         settings.engines.libreoffice,
@@ -147,7 +158,8 @@ def detect_tesseract(settings: Settings) -> EngineStatus:
         name="Tesseract OCR",
         available=False,
         needed_for="Taranmış PDF'i aranabilir yapma (OCR)",
-        install_hint="winget install UB-Mannheim.TesseractOCR",
+        install_hint=_hint("winget install UB-Mannheim.TesseractOCR",
+                           "sudo apt install tesseract-ocr tesseract-ocr-tur tesseract-ocr-eng"),
     )
     exe = _find_executable(
         settings.engines.tesseract, ["tesseract"], ["Tesseract-OCR/tesseract.exe"],
@@ -175,7 +187,8 @@ def detect_ghostscript(settings: Settings) -> EngineStatus:
         name="Ghostscript",
         available=False,
         needed_for="OCR ve güçlü sıkıştırma",
-        install_hint="ghostscript.com/releases adresinden Windows 64-bit kurulum dosyası",
+        install_hint=_hint("ghostscript.com/releases adresinden Windows 64-bit kurulum dosyası",
+                           "sudo apt install ghostscript"),
     )
     exe = _find_executable(
         settings.engines.ghostscript,
@@ -198,7 +211,9 @@ def detect_browser(settings: Settings) -> EngineStatus:
         name="Edge / Chrome",
         available=False,
         needed_for="Markdown / HTML → PDF baskısı",
-        install_hint="Microsoft Edge Windows ile birlikte gelir; kaldırıldıysa yeniden kur",
+        install_hint=_hint("Microsoft Edge Windows ile birlikte gelir; kaldırıldıysa yeniden kur",
+                           "Chromium, Google Chrome ya da Microsoft Edge kur (ör. sudo apt install "
+                           "chromium)"),
     )
     exe = _find_executable(
         settings.engines.browser,

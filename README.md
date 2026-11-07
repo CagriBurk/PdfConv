@@ -96,6 +96,24 @@ uv run python -m pdfatolye serve
 Not: Windows'un Akıllı Uygulama Denetimi uv'nin ürettiği `pdfatolye.exe` başlatıcısını
 engelleyebilir; bu yüzden komutlar `python -m pdfatolye` biçiminde.
 
+### Linux (kaynak koddan)
+
+Masaüstü paketi (Kur.cmd) yalnızca Windows içindir. Linux'ta uygulama kaynak koddan çalışır ve
+tarayıcıda açılır; her gönderimde CI Ubuntu'da da bütün testleri çalıştırır. Debian/Ubuntu'da:
+
+```
+sudo apt install tesseract-ocr tesseract-ocr-tur ghostscript libreoffice-writer libreoffice-calc libreoffice-impress chromium
+curl -LsSf https://astral.sh/uv/install.sh | sh     # uv; Node.js da gerekir (arayüzü derlemek için)
+git clone https://github.com/CagriBurk/PdfConv.git && cd PdfConv
+uv sync && npm --prefix web install && npm --prefix web run build
+uv run python -m pdfatolye serve                    # http://127.0.0.1:8790
+```
+
+Markdown/HTML → PDF için Chromium, Google Chrome ya da Microsoft Edge'den biri yeterli (PATH'te
+aranır). Ayarlar ve belgeler: `~/.local/share/PdfAtolye`. Linux'ta olmayanlar: masaüstü penceresi
+ve kurulum programı, "Klasör seç…" ve "Klasörde göster" (yolu elle yaz), "LibreOffice'i kur"
+düğmesi (paket yöneticisiyle kur). Telefon modu: `uv run python -m pdfatolye serve --lan`.
+
 ### Telefondan kullanmak (aynı Wi-Fi)
 
 Masaüstü uygulamasında: **Ayarlar → Telefon modu** kutusunu işaretle, **Şimdi yeniden başlat**
