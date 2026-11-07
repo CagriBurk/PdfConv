@@ -425,6 +425,16 @@ def test_update_check(monkeypatch, tag, newer):
     assert seen == [update.LATEST_URL]
 
 
+@pytest.mark.parametrize(("current", "tag", "newer"), [("0.9.1", "v0.10.0", True),
+                                                       ("0.10.0", "v0.9.1", False),
+                                                       ("0.10.0", "v0.10.0", False)])
+def test_update_check_compares_numbers_not_text(monkeypatch, current, tag, newer):
+    """Metin olarak "0.10" < "0.9" olurdu: 0.9.1 kuranlar 0.10.0'ı göremezdi."""
+    body = json.dumps({"tag_name": tag}).encode()
+    monkeypatch.setattr(update.urllib.request, "urlopen", lambda req, timeout: _Resp(body))
+    assert update.check(current)["newer"] is newer
+
+
 def test_update_check_offline(monkeypatch):
     def offline(req, timeout):
         raise OSError("ağ yok")
