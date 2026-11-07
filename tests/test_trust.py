@@ -645,6 +645,24 @@ def test_pdf_raw_stays_inline_for_viewer(client, tmp_path):
     assert not r.headers["content-security-policy"].startswith("sandbox")
 
 
+@pytest.mark.skipif(not list((app_module.WEB_DIST / "assets").glob("*.mjs")),
+                    reason="Arayüz derlenmemiş")
+def test_scripts_served_as_javascript_even_if_registry_is_broken(settings, monkeypatch):
+    """CI'da yakalandı: kayıt defterinde .mjs yoktu, pdf.js `text/plain` geldi ve hiç yüklenmedi."""
+    import mimetypes
+
+    monkeypatch.setattr(engines, "detect_all", lambda _s: [])
+    mimetypes.add_type("text/plain", ".mjs")  # bozuk kayıt defterini taklit et
+    mimetypes.add_type("text/plain", ".js")
+    with TestClient(app_module.create_app(settings, start_background=False)) as c:
+        c.get("/api/session")
+        for pattern in ("*.mjs", "*.js", "*.css"):
+            asset = next((app_module.WEB_DIST / "assets").glob(pattern))
+            r = c.get(f"/assets/{asset.name}")
+            expected = "text/css" if pattern == "*.css" else "text/javascript"
+            assert r.headers["content-type"].startswith(expected), (asset.name, r.headers)
+
+
 def test_api_docs_are_off(client):
     for path in ("/api/docs", "/redoc", "/docs", "/api/openapi.json", "/openapi.json"):
         assert "swagger" not in client.get(path).text.lower(), path

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import mimetypes
 import threading
 from contextlib import asynccontextmanager
 from logging.handlers import RotatingFileHandler
@@ -90,7 +91,23 @@ def _cleanup_loop(store: FileStore, hours: float, stop: threading.Event) -> None
             return
 
 
+WEB_MIME_TYPES = {
+    ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css",
+    ".wasm": "application/wasm", ".json": "application/json", ".svg": "image/svg+xml",
+    ".woff2": "font/woff2", ".woff": "font/woff", ".ttf": "font/ttf",
+}
+
+
+def register_mime_types() -> None:
+    """Python dosya türünü Windows kayıt defterinden okur. Bazı makinelerde `.mjs` hiç yoktur ya da
+    `.js` `text/plain` olarak kayıtlıdır (bazı programlar bunu bozar): tarayıcı modül betiğini
+    reddeder, pdf.js yüklenmez, arayüzde hiçbir sayfa çizilmez. Kayıt defterine güvenilmez."""
+    for ext, mime in WEB_MIME_TYPES.items():
+        mimetypes.add_type(mime, ext)
+
+
 def create_app(settings: Settings, *, start_background: bool = True) -> FastAPI:
+    register_mime_types()
     if not settings.lan and settings.host not in lan.LOOPBACK_HOSTS:
         # Telefon modu dışında eşleştirme yok: bu bilgisayara özgü oturum herkese verilirdi.
         raise ValueError(f"host = \"{settings.host}\" güvenli değil: yerel ağdan bağlanmak için "
