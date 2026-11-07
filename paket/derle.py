@@ -95,9 +95,32 @@ def log(msg: str) -> None:
     print(msg, flush=True)
 
 
+class StepFailed(Exception):
+    pass
+
+
 def run(args: list, **kw) -> None:
+    """Komutu çalıştırır; başarısızsa çıktısının sonunu hatayla birlikte verir (CI günlüğü
+    kimliksiz okunamıyor: hata `::error::` annotation'ı olarak da yazılır)."""
     log("  $ " + " ".join(map(str, args)))
-    subprocess.run([str(a) for a in args], check=True, **kw)
+    r = subprocess.run([str(a) for a in args], capture_output=True, text=True,
+                       encoding="utf-8", errors="replace", **kw)
+    out = (r.stdout or "") + (r.stderr or "")
+    if r.returncode != 0:
+        tail = "\n".join(out.strip().splitlines()[-25:])
+        raise StepFailed(f"Komut başarısız (çıkış {r.returncode}): {Path(str(args[0])).name} "
+                         f"{' '.join(map(str, args[1:4]))}...\n{tail}")
+    if out.strip():
+        log("\n".join("    " + ln for ln in out.strip().splitlines()[-5:]))
+
+
+def ci_error(message: str) -> None:
+    """GitHub Actions'ta hatayı annotation olarak yaz (API'den kimliksiz okunur)."""
+    import os
+
+    if os.environ.get("GITHUB_ACTIONS"):
+        esc = message.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+        print(f"::error title=Paket derlenemedi::{esc}", flush=True)
 
 
 def project_version() -> str:
@@ -280,4 +303,16 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    import traceback
+
+    try:
+        main()
+    except SystemExit as e:
+        if e.code not in (0, None):
+            ci_error(str(e.code))
+        raise
+    except Exception as e:
+        detail = str(e) if isinstance(e, StepFailed) else traceback.format_exc()[-3000:]
+        log(detail)
+        ci_error(detail)
+        sys.exit(1)
