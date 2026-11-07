@@ -1,6 +1,6 @@
 ---
 title: Devre Analizi — Hafta 3
-author: Çağrı Burak
+author: Ad Soyad
 date: 2026-10-31
 pdf:
   icindekiler: true
