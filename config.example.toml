@@ -1,5 +1,7 @@
 # PDF Atölyesi ayarları. Bu dosyayı config.toml olarak kopyala.
-# Yazmadığın her ayar varsayılan değeriyle kalır.
+# Yazmadığın her ayar varsayılan değeriyle kalır. Uygulamanın Ayarlar ekranı da bu dosyaya yazar
+# (saklama süresi, kasa, varsayılan tema/kağıt, port, telefon modu); elle yazılan açıklamalar o
+# zaman kaybolur.
 
 # host = "127.0.0.1"        # başka bir değer reddedilir; telefon modu için lan = true ya da --lan
 # lan = false               # telefon modu: aynı Wi-Fi'den QR kodla eşleşen cihazlar bağlanır
@@ -9,6 +11,8 @@
 # max_upload_mb = 1024      # dosya başına üst sınır
 # max_request_mb = 4096     # tek seferde yüklenen dosyaların toplamı
 # vault_path = "C:\\Users\\ben\\Documents\\ObsidianKasam"   # MD → PDF'te ![[resim]] için
+# default_theme = "ders"    # MD → PDF varsayılanı: ders | rapor | sade
+# default_paper = "A4"      # A4 | A5 | A3 | Letter | Legal
 # open_browser = true
 
 [engines]

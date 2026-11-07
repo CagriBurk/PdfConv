@@ -229,7 +229,9 @@ def md_to_pdf(store, settings, req, report, tmp: Path, job_id) -> WorkResult:
 
     browser = engines.detect_browser(settings).path
     report(0.15, "Tarayıcı başlatılıyor")
-    with MarkdownPrinter(browser, settings.vault_path, confine=True) as printer:
+    defaults = MdOptions(theme=settings.default_theme, paper=settings.default_paper)
+    with MarkdownPrinter(browser, settings.vault_path, confine=True,
+                         user_defaults=defaults) as printer:
         report(0.4, "Basılıyor")
         result = printer.convert(source, tmp / "cikti.pdf",
                                  MdOptions(**req.options.model_dump()))

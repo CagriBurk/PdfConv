@@ -106,14 +106,16 @@ class MarkdownPrinter:
     """
 
     def __init__(self, browser_path: str | None, vault: Path | None = None,
-                 *, confine: bool = False) -> None:
+                 *, confine: bool = False, user_defaults: MdOptions | None = None) -> None:
         """`confine=True`: notun resimleri yalnızca not klasöründen ve kasadan okunur (arayüzden
-        gelen not). Komut satırında kullanıcı kendi notunu bastığı için göreli `../` serbesttir."""
+        gelen not). Komut satırında kullanıcı kendi notunu bastığı için göreli `../` serbesttir.
+        `user_defaults`: Ayarlar'daki varsayılan tema / kağıt (ön bilgi ve seçim önce gelir)."""
         if not browser_path or not Path(browser_path).is_file():
             raise BrowserNotFoundError()
         self.browser_path = browser_path
         self.vault = vault
         self.confine = confine
+        self.user_defaults = user_defaults
         self._ob = OfflineBrowser(browser_path)
         self._tmp: tempfile.TemporaryDirectory | None = None
 
@@ -165,7 +167,8 @@ class MarkdownPrinter:
                      confine=self.confine)
         # Satır sonu ayarı ayrıştırmadan önce lazım: ön bilgi için hızlı bir ilk geçiş.
         first = parse_markdown(text, **parse)
-        opts = resolve_options(options or MdOptions(), first.front_matter, warnings)
+        opts = resolve_options(options or MdOptions(), first.front_matter, warnings,
+                               self.user_defaults)
         parsed = first if opts.breaks else parse_markdown(text, breaks=False, **parse)
         warnings.extend(parsed.warnings)
 

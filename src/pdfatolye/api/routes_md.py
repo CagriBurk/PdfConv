@@ -70,7 +70,9 @@ def preview(request: Request, body: PreviewBody) -> dict:
                             url_for=state.preview_assets.url_for, attachments=attachments,
                             confine=True)
     warnings = list(parsed.warnings)
-    opts = resolve_options(MdOptions(**body.options.model_dump()), parsed.front_matter, warnings)
+    defaults = MdOptions(theme=state.settings.default_theme, paper=state.settings.default_paper)
+    opts = resolve_options(MdOptions(**body.options.model_dump()), parsed.front_matter, warnings,
+                           defaults)
     origin = str(request.base_url).rstrip("/")
     nonce = secrets.token_urlsafe(16)
     html = build_html(parsed, opts, katex_dir=f"{origin}/api/md/katex", preview=True,

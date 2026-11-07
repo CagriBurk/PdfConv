@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import mimetypes
 import threading
+import uuid
 from contextlib import asynccontextmanager
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
@@ -17,7 +18,13 @@ from pydantic import ValidationError
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from pdfatolye import __version__, engines, lan, paths
-from pdfatolye.api import routes_content, routes_files, routes_jobs, routes_md
+from pdfatolye.api import (
+    routes_content,
+    routes_files,
+    routes_jobs,
+    routes_md,
+    routes_settings,
+)
 from pdfatolye.api.limits import RequestLimits
 from pdfatolye.api.security import COOKIE, SecurityHeaders, SessionGuard, Sessions, app_csp
 from pdfatolye.convert.markdown.document import ASSETS as MD_ASSETS
@@ -80,8 +87,11 @@ def _setup_logging(settings: Settings) -> None:
     log.setLevel(logging.INFO)
 
 
-def _cleanup_loop(store: FileStore, jobs: JobManager, hours: float, stop: threading.Event) -> None:
+def _cleanup_loop(store: FileStore, jobs: JobManager, settings: Settings,
+                  stop: threading.Event) -> None:
     while True:
+        # Saklama süresi Ayarlar'dan değişebilir: her turda güncel değer okunur.
+        hours = settings.retention_hours
         try:
             removed = store.cleanup(hours)
             if removed:
@@ -129,7 +139,7 @@ def create_app(settings: Settings, *, start_background: bool = True) -> FastAPI:
     async def lifespan(app: FastAPI):
         if start_background:
             threading.Thread(target=_cleanup_loop,
-                             args=(store, jobs, settings.retention_hours, stop),
+                             args=(store, jobs, settings, stop),
                              daemon=True, name="temizlik").start()
         yield
         stop.set()
@@ -150,6 +160,9 @@ def create_app(settings: Settings, *, start_background: bool = True) -> FastAPI:
     app.state.store = store
     app.state.jobs = jobs
     app.state.sessions = sessions
+    # Masaüstü uygulaması yeniden başlatma kancasını buraya koyar (desktop.run); `serve`'de yok.
+    app.state.restart = None
+    app.state.restart_pending = set()
     app.state.preview_assets = routes_md.PreviewAssets(sessions.local)
     engine_cache = EngineCache(settings)
 
@@ -174,10 +187,18 @@ def create_app(settings: Settings, *, start_background: bool = True) -> FastAPI:
     async def _request_validation_error(request: Request, exc: RequestValidationError):
         return JSONResponse({"detail": _first_error(exc.errors())}, status_code=422)
 
+    instance = uuid.uuid4().hex[:12]
+
     @app.get("/api/health")
-    def health() -> dict:
-        # "app" alanı: aynı portta başka bir uygulama varsa onu bizimki sanmayalım.
-        return {"status": "ok", "app": "pdfatolye", "version": __version__}
+    def health() -> JSONResponse:
+        # "app" alanı: aynı portta başka bir uygulama varsa onu bizimki sanmayalım. "instance":
+        # yeniden başlatmadan sonra arayüz yeni sunucunun açıldığını buradan anlar. Arayüz port
+        # değişince yeni adresi (başka köken) okumadan yoklar: yalnızca bu yanıt köken dışına
+        # verilebilir (içeriği yine okunamaz, CORS yok).
+        return JSONResponse({"status": "ok", "app": "pdfatolye", "version": __version__,
+                             "instance": instance},
+                            headers={"Cross-Origin-Resource-Policy": "cross-origin",
+                                     "Cache-Control": "no-store"})
 
     @app.get("/api/session")
     def session(request: Request) -> JSONResponse:
@@ -232,6 +253,7 @@ def create_app(settings: Settings, *, start_background: bool = True) -> FastAPI:
     app.include_router(routes_jobs.router)
     app.include_router(routes_md.router)
     app.include_router(routes_content.router)
+    app.include_router(routes_settings.router)
     app.mount("/api/md/katex", StaticFiles(directory=MD_ASSETS / "katex"), name="katex")
     _mount_ui(app, WEB_DIST, sessions, lan_mode=settings.lan)
     return app

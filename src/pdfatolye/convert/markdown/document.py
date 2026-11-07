@@ -78,14 +78,16 @@ def options_from_front_matter(front: dict, warnings: list[str]) -> MdOptions:
     return opts
 
 
-def resolve_options(explicit: MdOptions, front: dict, warnings: list[str]) -> MdOptions:
-    """Üç katmanı birleştirir ve değerleri doğrular."""
+def resolve_options(explicit: MdOptions, front: dict, warnings: list[str],
+                    user_defaults: MdOptions | None = None) -> MdOptions:
+    """Katmanları birleştirir ve değerleri doğrular: yerleşik varsayılan < kullanıcının
+    Ayarlar'daki varsayılanı (tema, kağıt) < notun ön bilgisi < komut / arayüz seçimi."""
     from_front = options_from_front_matter(front, warnings)
     merged = replace(DEFAULTS)
     for f in fields(MdOptions):
         if f.name == "macros":
             continue
-        for layer in (from_front, explicit):
+        for layer in (user_defaults or MdOptions(), from_front, explicit):
             value = getattr(layer, f.name)
             if value is not None:
                 setattr(merged, f.name, value)
@@ -186,28 +188,35 @@ def toc_headings(headings: list[Heading], depth: int) -> list[Heading]:
 
 # Obsidian (MathJax) ortamları otomatik numaralamaz; KaTeX numaralar. Aynı görünsün diye
 # numarasız (*) sürümlerine çevrilir. Elle etiket gerekiyorsa `$$ ... $$ (1)` kullanılır.
+#
+# `window.__paRender(kök)`: arayüzün canlı önizlemesi içeriği yerinde güncellerken (sayfa yeniden
+# yüklenmeden, kaydırma konumu korunarak) yeni formülleri de bununla çizer.
 KATEX_SCRIPT = r"""
 (async () => {
-  const errors = [];
   const macros = JSON.parse(document.getElementById('katex-macros').textContent);
   if (typeof katex === 'undefined') {
     window.__sonuc = {fatal: 'KaTeX yüklenemedi'};
     return;
   }
   const unnumbered = /\\(begin|end)\{(equation|align|alignat|gather|multline|flalign)\}/g;
-  for (const el of document.querySelectorAll('.math-inline, .math-display')) {
-    const tex = el.textContent;
-    try {
-      katex.render(tex.replace(unnumbered, '\\$1{$2*}'), el, {
-        displayMode: el.classList.contains('math-display'),
-        throwOnError: true, macros, strict: 'ignore', trust: false, output: 'html',
-      });
-    } catch (e) {
-      errors.push({line: el.dataset.line || '', message: String(e && e.message || e)});
-      el.classList.add('math-error');
-      el.textContent = tex;
+  window.__paRender = (root) => {
+    const errors = [];
+    for (const el of root.querySelectorAll('.math-inline, .math-display')) {
+      const tex = el.textContent;
+      try {
+        katex.render(tex.replace(unnumbered, '\\$1{$2*}'), el, {
+          displayMode: el.classList.contains('math-display'),
+          throwOnError: true, macros, strict: 'ignore', trust: false, output: 'html',
+        });
+      } catch (e) {
+        errors.push({line: el.dataset.line || '', message: String(e && e.message || e)});
+        el.classList.add('math-error');
+        el.textContent = tex;
+      }
     }
-  }
+    return errors;
+  };
+  const errors = window.__paRender(document);
   await Promise.all([...document.images].map(img => img.complete ? null :
     new Promise(r => { img.onload = img.onerror = r; })));
   await document.fonts.ready;
