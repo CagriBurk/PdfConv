@@ -4,7 +4,37 @@ Kendi bilgisayarında çalışan, çevrimdışı PDF araç seti: Markdown / Offi
 sayfa düzenleme, içerik ekleme, sıkıştırma, OCR, şifreleme. Dosyalar internete çıkmaz.
 Ayrıntılı plan: [PLAN.md](PLAN.md).
 
-## Kurulum (temiz bir Windows 10/11'de ~10 dakika)
+## Arkadaşlar için kurulum (tek dosya, hiçbir şey bilmeden)
+
+Uygulamayı kullanmak için uv, Node, git ya da Python **gerekmez**.
+
+1. `PdfAtolyesi-<sürüm>.zip` dosyasını indir, sağ tıkla → **Tümünü ayıkla**.
+2. Açılan klasördeki **Kur** (`Kur.cmd`) dosyasına çift tıkla. Windows "Windows bilgisayarınızı
+   korudu" ya da "yayımcı doğrulanamadı" derse **Daha fazla bilgi → Yine de çalıştır** (kurulum
+   dosyası imzalı değil; içinde çalışan Python python.org imzalıdır). Yönetici izni istemez.
+3. Kurulum bir iki dakika sürer, bitince uygulama penceresi açılır. Sonra masaüstündeki **PDF
+   Atölyesi** simgesini kullan. İndirdiğin zip'i ve ayıkladığın klasörü silebilirsin.
+
+- Kurulum yeri: `%LOCALAPPDATA%\Programs\PdfAtolyesi`; belgeler ve ayarlar:
+  `%LOCALAPPDATA%\PdfAtolye` (ayrı tutulur, güncellemede korunur).
+- Uygulama kendi penceresinde açılır (Edge'in uygulama kipi, ayrı profil; kendi Edge sekmelerine
+  karışmaz). Pencereyi kapatınca uygulama da kapanır. Simgeye ikinci kez tıklamak yeni bir
+  pencere açar, ikinci bir uygulama başlatmaz.
+- OCR (Tesseract, Türkçe + İngilizce) ve Ghostscript pakette gelir. **Word / Excel / PowerPoint
+  → PDF** için LibreOffice gerekir (pakete konmadı, ~350 MB): Ayarlar'da ya da Office ekranında
+  **LibreOffice'i kur** düğmesi (winget ile; Windows izin isteyebilir).
+- Sağ tık → Gönder → **PDF'e çevir** de kurulur.
+- **Güncelleme**: Ayarlar → **Güncellemeleri denetle** (yalnızca basınca GitHub'a sorar). Yeni
+  paketi indirip yine **Kur**'a çift tıkla; eskisinin üzerine kurar, belgelerin korunur.
+- **Kaldırma**: Ayarlar → Uygulamalar → PDF Atölyesi → Kaldır (ya da kurulum klasöründeki
+  `Kaldir.cmd`). Belgelerin, imzaların ve ayarların da silinsin mi diye sorar.
+
+Paketi üretmek (geliştirici): `uv run python paket/derle.py` → `build/PdfAtolyesi-<sürüm>.zip`
+(Tesseract ve Ghostscript bu bilgisayardaki kurulumdan alınır; `--motorsuz` ile alınmaz; ağ
+yavaşsa `--yerel-ortam` bağımlılıkları kilitle eşit `.venv`'den kopyalar). Her gönderimde CI
+motorsuz paketi üretip dener ve artifact olarak yükler.
+
+## Geliştirici kurulumu (kaynak koddan, ~10 dakika)
 
 1. **Programlar** (PowerShell'de, her biri bir kez):
 

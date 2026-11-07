@@ -248,6 +248,10 @@ def main(argv: list[str]) -> int:
 
 
 if __name__ == "__main__":
+    # Çıktı bir boruya/dosyaya giderse Windows kod sayfası (cp1252/cp857) "→", "ğ" yazamaz.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
     code = main(sys.argv[1:])
     if os.environ.get("PDFATOLYE_KURULUM_BEKLEME") != "0":
         input("\nKapatmak için Enter'a bas...")

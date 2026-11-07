@@ -171,14 +171,60 @@ def build_python(dest: Path, cache: Path) -> Path:
     return py / "Lib" / "site-packages"
 
 
-def install_packages(site: Path, work: Path) -> None:
+def _requirement_names(req: Path) -> set[str]:
+    import re
+
+    from packaging.markers import Marker
+
+    names = set()
+    for line in req.read_text(encoding="utf-8").splitlines():
+        spec, _, marker = line.strip().partition(";")
+        m = re.match(r"^([A-Za-z0-9_.-]+)==", spec.strip())
+        # İşaretçiler bu yorumlayıcıya göre (Windows, CPython 3.11) değerlendirilir.
+        if m and (not marker.strip() or Marker(marker.strip()).evaluate()):
+            names.add(re.sub(r"[-_.]+", "-", m.group(1)).lower())
+    return names
+
+
+def copy_from_venv(site: Path, req: Path) -> None:
+    """Ağ yavaşken: kilit dosyasıyla eşitlenmiş yerel .venv'den yalnızca çalışma paketlerini
+    (kilitteki sürümler) RECORD dosyalarına göre kopyalar. Geliştirme araçları ve düzenlenebilir
+    pdfatolye kurulumu alınmaz."""
+    import re
+    from importlib.metadata import distributions
+
+    venv_site = ROOT / ".venv" / "Lib" / "site-packages"
+    wanted = _requirement_names(req)
+    found = set()
+    for dist in distributions(path=[str(venv_site)]):
+        name = re.sub(r"[-_.]+", "-", dist.metadata["Name"]).lower()
+        if name not in wanted:
+            continue
+        found.add(name)
+        for f in dist.files or []:
+            src = Path(dist.locate_file(f)).resolve()
+            if not src.is_file() or not src.is_relative_to(venv_site.resolve()):
+                continue  # Scripts\*.exe gibi site-packages dışındakiler
+            dest = site / src.relative_to(venv_site.resolve())
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(src, dest)
+    missing = wanted - found
+    if missing:
+        raise SystemExit(f".venv'de olmayan çalışma paketleri: {sorted(missing)} (uv sync)")
+    log(f"  .venv'den {len(found)} paket kopyalandı")
+
+
+def install_packages(site: Path, work: Path, *, from_venv: bool = False) -> None:
     site.mkdir(parents=True, exist_ok=True)
     req = work / "gereksinimler.txt"
     run(["uv", "export", "--frozen", "--no-dev", "--no-hashes", "--no-emit-project",
          "--format", "requirements-txt", "-o", req], cwd=ROOT)
     target = ["--target", site, "--python-version", "3.11",
               "--python-platform", "x86_64-pc-windows-msvc", "--only-binary", ":all:"]
-    run(["uv", "pip", "install", "--quiet", *target, "-r", req], cwd=ROOT)
+    if from_venv:
+        copy_from_venv(site, req)
+    else:
+        run(["uv", "pip", "install", "--quiet", *target, "-r", req], cwd=ROOT)
     wheel_dir = work / "teker"
     run(["uv", "build", "--wheel", "--out-dir", wheel_dir], cwd=ROOT)
     wheel = next(wheel_dir.glob("pdfatolye-*.whl"))
@@ -264,6 +310,8 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--motorsuz", action="store_true", help="Tesseract/Ghostscript ekleme")
     ap.add_argument("--zip", action=argparse.BooleanOptionalAction, default=True)
+    ap.add_argument("--yerel-ortam", action="store_true",
+                    help="Bağımlılıkları ağdan değil kilitle eşit .venv'den al (yavaş ağ)")
     args = ap.parse_args()
 
     version = project_version()
@@ -280,7 +328,7 @@ def main() -> None:
     log("1/5 Python (python.org, imzalı)")
     site = build_python(pkg, build / "onbellek")
     log("2/5 Python paketleri ve arayüz")
-    install_packages(site, work)
+    install_packages(site, work, from_venv=args.yerel_ortam)
     log("3/5 Motorlar")
     engines_dir = pkg / "motorlar"
     engines_dir.mkdir()

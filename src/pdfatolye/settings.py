@@ -83,8 +83,9 @@ def load_settings(config_file: Path | None = None) -> Settings:
     if path is None:
         return settings
 
-    with path.open("rb") as f:
-        raw = tomllib.load(f)
+    # utf-8-sig: Not Defteri ve PowerShell (Set-Content -Encoding utf8) başa BOM koyar; tomllib
+    # BOM'lu dosyayı "Invalid statement" ile reddederdi ve uygulama açılmazdı.
+    raw = tomllib.loads(path.read_bytes().decode("utf-8-sig"))
 
     known = {f.name for f in fields(Settings)} - {"engines", "config_file"}
     unknown = set(raw) - known - {"engines"}

@@ -376,3 +376,12 @@ def test_update_check_offline(monkeypatch):
     monkeypatch.setattr(update.urllib.request, "urlopen", offline)
     r = update.check("0.9.0")
     assert r["newer"] is False and "ulaşılamadı" in r["message"]
+
+
+def test_installer_output_survives_cp1252_pipe():
+    """Kurulum çıktısı boruya giderse (cp1252) "→", "ı" yazdırmak çöktürmemeli (denemede oldu)."""
+    env = dict(os.environ, PYTHONIOENCODING="cp1252", PDFATOLYE_KURULUM_BEKLEME="0")
+    r = subprocess.run([sys.executable, "-m", "pdfatolye.kurulum"], capture_output=True,
+                       env=env, timeout=60)
+    assert r.returncode == 2, r.stderr.decode("utf-8", "replace")
+    assert "Kullanım" in r.stdout.decode("utf-8")

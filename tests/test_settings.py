@@ -55,3 +55,14 @@ def test_ensure_dirs(settings: Settings):
     assert settings.files_dir.is_dir()
     assert settings.jobs_dir.is_dir()
     assert settings.logs_dir.is_dir()
+
+
+def test_config_with_bom_is_read(tmp_path):
+    """Not Defteri / PowerShell BOM'lu UTF-8 yazar; uygulama yine açılmalı (kurulum denemesinde
+    BOM'lu config.toml uygulamayı açtırmadı)."""
+    from pdfatolye.settings import load_settings
+
+    cfg = tmp_path / "config.toml"
+    cfg.write_bytes("\ufeffport = 8800\nvault_path = 'C:/Kasa/Ödev'\n".encode())
+    s = load_settings(cfg)
+    assert s.port == 8800 and str(s.vault_path).endswith("Ödev")
