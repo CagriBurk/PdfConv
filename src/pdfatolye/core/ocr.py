@@ -22,8 +22,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
-import psutil
-
+from pdfatolye import proc
 from pdfatolye.core._ocr_run import PREFIX
 from pdfatolye.core.pdfio import atomic_output, opened
 from pdfatolye.errors import BrokenPdfError, EncryptedPdfError, PdfAtolyeError
@@ -31,10 +30,11 @@ from pdfatolye.errors import BrokenPdfError, EncryptedPdfError, PdfAtolyeError
 Mode = Literal["skip", "redo", "force"]
 PAGE_TIMEOUT_S = 30  # Tesseract'ın tek sayfaya ayırabileceği süre
 BASE_TIMEOUT_S = 120
+WAIT_EXIT_S = 30  # stderr kapandıktan sonra sürecin çıkması için
 
 
-class OcrCancelled(Exception):
-    pass
+# Eski ad: iptal artık bütün alt süreçlerde ortak (`proc.Cancelled`).
+OcrCancelled = proc.Cancelled
 
 
 class OcrError(PdfAtolyeError):
@@ -65,14 +65,61 @@ _STEPS = {"Checking output": "Çıktı denetleniyor", "Linearizing": "Dosya düz
           "Grafting hOCR to PDF": "Metin katmanı ekleniyor"}
 
 
-def _kill_tree(proc: subprocess.Popen) -> None:
+def _follow(child: subprocess.Popen, page_count: int, report: Progress,
+            should_cancel: Callable[[], bool]) -> tuple[int, dict | None, list[str], int]:
+    """OCR sürecinin stderr'ini izler, ilerlemeyi bildirir. (çıkış kodu, hata, günlük, atlanan
+    sayfa sayısı). İptalde `proc.Cancelled`, zaman aşımında `OcrError` (süreç `spawn` bloğundan
+    çıkınca öldürülür)."""
+    lines: queue.Queue[str | None] = queue.Queue()
+
+    def pump() -> None:
+        assert child.stderr is not None
+        for raw in child.stderr:
+            lines.put(raw.decode("utf-8", errors="replace").rstrip())
+        lines.put(None)
+
+    threading.Thread(target=pump, daemon=True).start()
+    deadline = time.monotonic() + BASE_TIMEOUT_S + page_count * PAGE_TIMEOUT_S * 2
+    log: list[str] = []
+    error: dict | None = None
+    skipped = 0
+    report(0.02, "OCR başlıyor")
+    while True:
+        if should_cancel():
+            raise OcrCancelled()
+        if time.monotonic() > deadline:
+            raise OcrError("OCR zaman aşımına uğradı. Daha az sayfayla dene.")
+        try:
+            line = lines.get(timeout=0.3)
+        except queue.Empty:
+            continue
+        if line is None:
+            break
+        if not line.startswith(PREFIX):
+            log.append(line)
+            if "skipping all processing" in line or "already has text" in line:
+                skipped += 1
+            continue
+        data = json.loads(line[len(PREFIX):])
+        if "error" in data:
+            error = data
+        elif "step" in data and data.get("total"):
+            step, total = data["step"], data["total"]
+            frac = min(1.0, float(data["done"]) / float(total))
+            if step == "OCR":
+                report(0.05 + 0.85 * frac,
+                       f"Metin tanınıyor: {int(data['done'])}/{int(total)} sayfa")
+            elif step == "Scanning contents":
+                report(0.02 + 0.03 * frac, "Sayfalar inceleniyor")
+            else:
+                report(0.9 + 0.08 * frac, _STEPS.get(step, "Son işlemler"))
     try:
-        parent = psutil.Process(proc.pid)
-        for child in parent.children(recursive=True):
-            child.kill()
-        parent.kill()
-    except psutil.NoSuchProcess:
-        pass
+        # stderr kapandı (süreç bitmek üzere); yine de takılırsa beklenmeyen hata olmasın.
+        code = child.wait(timeout=WAIT_EXIT_S)
+    except subprocess.TimeoutExpired:
+        raise OcrError("OCR süreci bitmesi gerekirken kapanmadı; durduruldu. Yeniden dene."
+                       ) from None
+    return code, error, log, skipped
 
 
 def _env(tools: Sequence[str | None]) -> dict[str, str]:
@@ -90,6 +137,7 @@ def ocr(src: Path, output: Path, *, mode: Mode = "skip", langs: Sequence[str] = 
         should_cancel: Callable[[], bool] | None = None) -> OcrResult:
     src = Path(src)
     report = on_progress or (lambda f, m: None)
+    should_cancel = should_cancel or proc.cancel_check()
     with opened(src, password) as doc:  # şifre/bozukluk burada Türkçe hatayla yakalanır
         page_count = doc.page_count
         encrypted = doc.is_encrypted or bool(password)
@@ -105,59 +153,12 @@ def ocr(src: Path, output: Path, *, mode: Mode = "skip", langs: Sequence[str] = 
         result_pdf = Path(tmp) / "cikti.pdf"
         args = {"input": str(work), "output": str(result_pdf), "mode": mode,
                 "langs": list(langs), "page_timeout": PAGE_TIMEOUT_S}
-        proc = subprocess.Popen(
-            [sys.executable, "-m", "pdfatolye.core._ocr_run", json.dumps(args)],
-            stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, env=_env([tesseract, ghostscript]),
-            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
-        )
-        lines: queue.Queue[str | None] = queue.Queue()
-
-        def pump() -> None:
-            assert proc.stderr is not None
-            for raw in proc.stderr:
-                lines.put(raw.decode("utf-8", errors="replace").rstrip())
-            lines.put(None)
-
-        threading.Thread(target=pump, daemon=True).start()
-        deadline = time.monotonic() + BASE_TIMEOUT_S + page_count * PAGE_TIMEOUT_S * 2
-        log: list[str] = []
-        error: dict | None = None
-        skipped = 0
-        report(0.02, "OCR başlıyor")
-        try:
-            while True:
-                if should_cancel and should_cancel():
-                    raise OcrCancelled()
-                if time.monotonic() > deadline:
-                    raise OcrError("OCR zaman aşımına uğradı. Daha az sayfayla dene.")
-                try:
-                    line = lines.get(timeout=0.3)
-                except queue.Empty:
-                    continue
-                if line is None:
-                    break
-                if not line.startswith(PREFIX):
-                    log.append(line)
-                    if "skipping all processing" in line or "already has text" in line:
-                        skipped += 1
-                    continue
-                data = json.loads(line[len(PREFIX):])
-                if "error" in data:
-                    error = data
-                elif "step" in data and data.get("total"):
-                    step, total = data["step"], data["total"]
-                    frac = min(1.0, float(data["done"]) / float(total))
-                    if step == "OCR":
-                        report(0.05 + 0.85 * frac,
-                               f"Metin tanınıyor: {int(data['done'])}/{int(total)} sayfa")
-                    elif step == "Scanning contents":
-                        report(0.02 + 0.03 * frac, "Sayfalar inceleniyor")
-                    else:
-                        report(0.9 + 0.08 * frac, _STEPS.get(step, "Son işlemler"))
-        except BaseException:
-            _kill_tree(proc)
-            raise
-        code = proc.wait(timeout=30)
+        # spawn: süreç kayıtlı (sunucu kapanırken öldürülür) ve bloktan nasıl çıkılırsa
+        # çıkılsın ağacıyla (tesseract alt süreçleri dahil) öldürülür.
+        with proc.spawn([sys.executable, "-m", "pdfatolye.core._ocr_run", json.dumps(args)],
+                        stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                        env=_env([tesseract, ghostscript])) as child:
+            code, error, log, skipped = _follow(child, page_count, report, should_cancel)
         if code != 0 or not result_pdf.is_file():
             code = (error or {}).get("error", code)
             if code == 8:

@@ -30,7 +30,12 @@ from pdfatolye.core import geometry as geo
 from pdfatolye.core import images as _images  # noqa: F401  (HEIC açıcısını kaydeder)
 from pdfatolye.core.pdfio import atomic_output, opened, save_pdf
 from pdfatolye.core.ranges import parse_ranges
-from pdfatolye.errors import PageRangeError, PdfAtolyeError, UnsupportedFileError
+from pdfatolye.errors import (
+    ImageTooLargeError,
+    PageRangeError,
+    PdfAtolyeError,
+    UnsupportedFileError,
+)
 
 Color = Annotated[str, Field(pattern=r"^#[0-9a-fA-F]{6}$")]
 FontKey = Literal["segoe", "arial", "calibri", "times", "georgia", "consolas"]
@@ -240,6 +245,8 @@ class _Images:
                     im.load()
                     alpha = im.mode in ("RGBA", "LA", "PA") or "transparency" in im.info
                     self._img[key] = im.convert("RGBA" if alpha else "RGB")
+            except Image.DecompressionBombError as e:
+                raise ImageTooLargeError(Path(path)) from e
             except (UnidentifiedImageError, OSError) as e:
                 raise UnsupportedFileError(Path(path), "resim") from e
         return self._img[key]
@@ -582,6 +589,8 @@ def prepare_signature(src: Path, output: Path, *, max_side: int = 1600) -> Path:
     try:
         with Image.open(src) as im:
             img = ImageOps.exif_transpose(im).convert("RGBA")
+    except Image.DecompressionBombError as e:
+        raise ImageTooLargeError(Path(src)) from e
     except (UnidentifiedImageError, OSError) as e:
         raise UnsupportedFileError(Path(src), "resim") from e
 

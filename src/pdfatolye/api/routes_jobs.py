@@ -6,7 +6,7 @@ import asyncio
 import json
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Request
+from fastapi import APIRouter, Body, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import TypeAdapter
 
@@ -25,7 +25,7 @@ def job_view(request: Request, job) -> dict:
             files.append(request.app.state.store.get(fid).to_dict())
         except FileNotInStoreError:
             continue
-    return job.to_dict() | {"files": files}
+    return job.view() | {"files": files}
 
 
 @router.post("/jobs")
@@ -35,7 +35,7 @@ def submit(request: Request, payload: Annotated[dict, Body()]) -> dict:
 
 
 @router.get("/jobs")
-def list_jobs(request: Request, limit: int = 50) -> list[dict]:
+def list_jobs(request: Request, limit: int = Query(default=50, ge=1, le=500)) -> list[dict]:
     return [job_view(request, j) for j in request.app.state.jobs.list(limit)]
 
 

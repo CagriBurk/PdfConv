@@ -99,7 +99,8 @@ class MdOptionsModel(BaseModel):
 class MdToPdfRequest(_Base):
     type: Literal["md_to_pdf"]
     file: FileId | None = None  # ya yüklenmiş .md ...
-    text: str | None = Field(default=None, max_length=5_000_000)  # ... ya da düzenlenmiş metin
+    # ... ya da düzenlenmiş metin. Kayda yazılmaz (5 MB'a kadar; her yoklamada gönderilirdi).
+    text: str | None = Field(default=None, max_length=5_000_000, exclude=True)
     name: str = "belge.md"
     attachments: list[FileId] = Field(default_factory=list, max_length=2000)
     options: MdOptionsModel = Field(default_factory=MdOptionsModel)

@@ -12,7 +12,6 @@ Sonuç orijinalden küçük değilse orijinal korunur (çıktı orijinalin kopya
 from __future__ import annotations
 
 import shutil
-import subprocess
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -20,6 +19,7 @@ from typing import Literal
 
 import pymupdf
 
+from pdfatolye import proc
 from pdfatolye.core.pdfio import atomic_output, opened
 from pdfatolye.errors import PdfAtolyeError
 
@@ -61,10 +61,9 @@ def _pymupdf(src: Path, out: Path, level: Level, password: str | None) -> None:
 def _ghostscript(gs: str, src: Path, out: Path) -> bool:
     args = [gs, "-sDEVICE=pdfwrite", "-dCompatibilityLevel=1.6", "-dPDFSETTINGS=/ebook",
             "-dNOPAUSE", "-dBATCH", "-dQUIET", "-dSAFER", f"-sOutputFile={out}", str(src)]
-    try:
-        result = subprocess.run(args, capture_output=True, timeout=GS_TIMEOUT_S,
-                                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-    except (OSError, subprocess.TimeoutExpired):
+    try:  # iptal (proc.Cancelled) yukarı geçer; süreç ağacı öldürülür
+        result = proc.run(args, timeout=GS_TIMEOUT_S)
+    except (OSError, proc.TimedOut):
         return False
     if result.returncode != 0 or not out.is_file():
         return False

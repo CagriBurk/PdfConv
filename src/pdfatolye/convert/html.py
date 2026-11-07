@@ -14,11 +14,17 @@ from pathlib import Path
 
 import pymupdf
 
-from pdfatolye.convert.browser import blocked_warnings, launch_offline, new_offline_page
+from pdfatolye import proc
+from pdfatolye.convert.browser import OfflineBrowser, blocked_warnings, new_offline_page
 from pdfatolye.convert.markdown.render import BrowserNotFoundError
 from pdfatolye.core.pdfio import atomic_output
+from pdfatolye.core.textio import decode_text
+from pdfatolye.errors import PdfAtolyeError
 
 TIMEOUT_MS = 60_000
+# Bütün baskının üst süresi. Belgedeki betik `load`'dan sonra sonsuz döngüye girerse
+# `evaluate`/`page.pdf` hiç dönmez; süre dolunca tarayıcı süreç ağacı öldürülür.
+PRINT_TIMEOUT_S = 180
 FOOTER = (
     '<div style="width:100%;font-size:8pt;color:#78716c;text-align:center;'
     "font-family:'Segoe UI',Arial,sans-serif;\">"
@@ -40,12 +46,10 @@ class HtmlResult:
 
 
 def read_text(path: Path, warnings: list[str], name: str) -> str:
-    raw = path.read_bytes()
-    try:
-        return raw.decode("utf-8-sig")
-    except UnicodeDecodeError:
-        warnings.append(f"'{name}' UTF-8 değil; Windows-1254 (Türkçe) olarak okundu.")
-        return raw.decode("cp1254", errors="replace")
+    text, note = decode_text(Path(path).read_bytes(), name)
+    if note:
+        warnings.append(note)
+    return text
 
 
 def print_html(
@@ -65,8 +69,6 @@ def print_html(
     dosyanın kendisi açılır, deponun geri kalanı görünmez."""
     if not browser_path or not Path(browser_path).is_file():
         raise BrowserNotFoundError()
-    from playwright.sync_api import sync_playwright
-
     name = display_name or Path(source).name
     warnings: list[str] = []
     blocked: list[str] = []
@@ -75,10 +77,13 @@ def print_html(
     def allow_file(path: Path) -> bool:
         return path == source_path or (not confine and path.is_relative_to(source_path.parent))
 
-    with sync_playwright() as pw:
-        browser = launch_offline(pw, browser_path)
-        try:
-            page = new_offline_page(browser, allow_file, blocked)
+    from playwright.sync_api import TimeoutError as PlaywrightTimeout
+
+    stuck = PdfAtolyeError(f"'{name}' {PRINT_TIMEOUT_S} saniyede basılamadı; belgedeki bir betik "
+                           "takılmış (sonsuz döngü) olabilir.")
+    try:
+        with OfflineBrowser(browser_path) as ob, ob.guard(PRINT_TIMEOUT_S):
+            page = new_offline_page(ob.browser, allow_file, blocked)
             page.goto(source_path.as_uri(), wait_until="load", timeout=TIMEOUT_MS)
             page.evaluate("document.fonts.ready.then(() => true)")
             pdf_bytes = page.pdf(
@@ -88,8 +93,8 @@ def print_html(
                 margin={s: f"{margin_mm}mm" for s in ("top", "right", "left")}
                 | {"bottom": f"{max(margin_mm, 14 if page_numbers else 0)}mm"},
             )
-        finally:
-            browser.close()
+    except (proc.TimedOut, PlaywrightTimeout):
+        raise stuck from None
 
     warnings.extend(blocked_warnings(blocked, f"'{name}': "))
     with pymupdf.open(stream=pdf_bytes, filetype="pdf") as doc:

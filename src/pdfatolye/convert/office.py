@@ -18,19 +18,19 @@ from __future__ import annotations
 import contextlib
 import re
 import shutil
-import subprocess
 import tempfile
 import zipfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
-import psutil
 import pymupdf
 
+from pdfatolye import proc
 from pdfatolye.errors import PdfAtolyeError
+from pdfatolye.formats import OFFICE_EXTS
 
-OFFICE_EXTS = {".docx", ".doc", ".odt", ".rtf", ".xlsx", ".xls", ".ods", ".csv", ".pptx",
-               ".ppt", ".odp", ".docm", ".xlsm", ".pptm", ".wpd"}
+__all__ = ["OFFICE_EXTS", "convert_office", "convert_office_many"]
+
 _CALC = {".xlsx", ".xls", ".ods", ".csv", ".xlsm"}
 _IMPRESS = {".pptx", ".ppt", ".odp", ".pptm"}
 DEFAULT_TIMEOUT_S = 120
@@ -78,18 +78,6 @@ def _filter_group(ext: str) -> str:
     return "calc" if ext in _CALC else "impress" if ext in _IMPRESS else "writer"
 
 
-def _kill_marked(marker: str) -> None:
-    """Komut satırında `marker` (profil yolumuz) geçen bütün LibreOffice süreçlerini öldürür."""
-    for p in psutil.process_iter(["name", "cmdline"]):
-        try:
-            if (p.info["name"] or "").lower().startswith("soffice") and marker in " ".join(
-                p.info["cmdline"] or []
-            ):
-                p.kill()
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
-            continue
-
-
 def _run_soffice(soffice: str, inputs: list[Path], outdir: Path, export: str,
                  timeout: float) -> str:
     """Girdileri tek çağrıda çevirir (taze profil). LibreOffice'in çıktı metnini döndürür."""
@@ -98,18 +86,15 @@ def _run_soffice(soffice: str, inputs: list[Path], outdir: Path, export: str,
         args = [soffice, f"-env:UserInstallation={uri}", "--headless", "--norestore",
                 "--nolockcheck", "--nodefault", "--nologo", "--convert-to", export,
                 "--outdir", str(outdir), *map(str, inputs)]
-        proc = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        # İptal (kullanıcı ya da sunucu kapanışı) ve zaman aşımında süreç ağacı ve profil
+        # yolumuzu taşıyan bütün soffice süreçleri öldürülür; iptal `proc.Cancelled` yükseltir.
+        # Çıkışta da öldürülür: arkada kalan soffice.bin profili kilitlemesin.
         try:
-            out, err = proc.communicate(timeout=timeout)
-        except subprocess.TimeoutExpired:
-            proc.kill()
-            _kill_marked(Path(profile).name)
-            proc.communicate()
+            done = proc.run(args, timeout=timeout, marker=Path(profile).name,
+                            marker_name="soffice")
+        except proc.TimedOut:
             raise _Timeout() from None
-        finally:
-            _kill_marked(Path(profile).name)  # arkada kalan soffice.bin profili kilitlemesin
-        return (err or out or b"").decode("utf-8", errors="replace")
+        return (done.stderr or done.stdout or b"").decode("utf-8", errors="replace")
 
 
 def _check_pdf(produced: Path, item: OfficeItem) -> OfficeResult:

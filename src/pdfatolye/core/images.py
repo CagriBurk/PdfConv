@@ -12,7 +12,7 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 
 from pdfatolye.core.pdfio import opened, save_pdf
 from pdfatolye.core.ranges import parse_ranges
-from pdfatolye.errors import PageRangeError, UnsupportedFileError
+from pdfatolye.errors import ImageTooLargeError, PageRangeError, UnsupportedFileError
 
 try:  # iPhone fotoğrafları (HEIC/HEIF)
     from pillow_heif import register_heif_opener
@@ -52,6 +52,8 @@ def _frames(path: Path) -> Iterator[_Frame]:
     """
     try:
         img = Image.open(path)
+    except Image.DecompressionBombError as e:
+        raise ImageTooLargeError(path) from e
     except (UnidentifiedImageError, OSError) as e:
         raise UnsupportedFileError(path, "resim") from e
 

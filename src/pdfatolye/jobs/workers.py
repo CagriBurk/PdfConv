@@ -16,8 +16,7 @@ from pdfatolye import engines
 from pdfatolye.convert.markdown.render import BrowserNotFoundError
 from pdfatolye.core import compress as compresslib
 from pdfatolye.core import content, images, pages, security
-from pdfatolye.core.ocr import OcrCancelled
-from pdfatolye.core.pdfio import safe_filename
+from pdfatolye.core.pdfio import safe_filename, split_ext, strip_ext
 from pdfatolye.errors import EncryptedPdfError, PdfAtolyeError, UnsupportedFileError
 from pdfatolye.storage import FileMeta
 
@@ -30,13 +29,22 @@ class WorkResult:
     warnings: list[str] = field(default_factory=list)
 
 
+STEM_MAX = 56  # çıktı adındaki kaynak adı: "_duzenlenmis", "_01-05" gibi ekler kesilmesin
+
+
+def _title(meta: FileMeta) -> str:
+    """Yer imi başlığı: kısaltılmamış ad (uzantısız)."""
+    return split_ext(meta.name)[0]
+
+
 def _stem(meta: FileMeta) -> str:
-    return Path(meta.name).stem
+    return safe_filename(split_ext(meta.name)[0], fallback="belge", max_len=STEM_MAX)
 
 
 def _out_name(requested: str | None, default: str, ext: str = ".pdf") -> str:
-    name = safe_filename(Path(requested).stem if requested else default, fallback="cikti")
-    return name + ext
+    """Çıktı adı. İstenen addan yalnızca kendi uzantısı atılır ("Rapor v1.2" kısalmaz)."""
+    stem = strip_ext(Path(requested).name, ext) if requested else default
+    return safe_filename(stem, fallback="cikti") + ext
 
 
 def _require(store, file_id: str, kind: str) -> tuple[FileMeta, Path]:
@@ -85,9 +93,6 @@ def run(manager, req, report: Report, job_id: str) -> WorkResult:
     with tempfile.TemporaryDirectory(prefix="pa-is-") as tmp:
         try:
             return fn(manager.store, manager.settings, req, report, Path(tmp), job_id)
-        except OcrCancelled:
-            report(1, "")  # iptal bayrağı varsa JobCancelled yükseltir
-            raise
         except PdfAtolyeError as e:
             raise with_display_name(e, manager.store) from e
 
@@ -124,8 +129,10 @@ def compose(store, settings, req, report, tmp: Path, job_id) -> WorkResult:
     ]
     report(0.2, "Sayfalar diziliyor")
     out = tmp / "cikti.pdf"
+    # Her parçadan sonra ilerleme: iptal büyük belgede de beklemeden etkili olur.
     pages.compose(paths, manifest, out, passwords=[req.passwords.get(f) for f in order],
-                  keep_bookmarks=req.keep_bookmarks, bookmark_titles=[_stem(m) for m in metas])
+                  keep_bookmarks=req.keep_bookmarks, bookmark_titles=[_title(m) for m in metas],
+                  on_progress=lambda f: report(0.2 + 0.65 * f, "Sayfalar diziliyor"))
     report(0.9, "Kaydediliyor")
     if req.target == "version":
         notes = _protect(store, req, req.base_file, out)
@@ -146,7 +153,7 @@ def merge(store, settings, req, report, tmp: Path, job_id) -> WorkResult:
     out = tmp / "birlesik.pdf"
     pages.merge(list(paths), out, passwords=[req.passwords.get(f) for f in req.files],
                 bookmark_per_file=req.bookmark_per_file,
-                bookmark_titles=[_stem(m) for m in metas])
+                bookmark_titles=[_title(m) for m in metas])
     name = _out_name(req.name, f"{_stem(metas[0])}_birlesik")
     return WorkResult([store.add_file(out, name, job_id=job_id)],
                       _unprotected_warning(list(metas)))
@@ -191,17 +198,24 @@ def pdf_to_images(store, settings, req, report, tmp: Path, job_id) -> WorkResult
 
 def md_to_pdf(store, settings, req, report, tmp: Path, job_id) -> WorkResult:
     from pdfatolye.convert.markdown import MarkdownPrinter, MdOptions
+    from pdfatolye.core.textio import decode_text
 
     work = tmp / "md"
     work.mkdir()
+    notes: list[str] = []
     if req.file:
-        meta, path = _require(store, req.file, "markdown")
+        meta = store.get(req.file)
+        if meta.kind not in ("markdown", "text"):  # arayüz .txt notu da kabul ediyor
+            raise UnsupportedFileError(Path(meta.name), "Markdown")
         name = meta.name
-        text = req.text if req.text is not None else path.read_text(encoding="utf-8-sig",
-                                                                     errors="replace")
+        if req.text is not None:
+            text = req.text
+        else:
+            text, note = decode_text(store.path(req.file).read_bytes(), meta.name)
+            notes += [note] if note else []
     else:
         name, text = req.name, req.text or ""
-    md_name = safe_filename(Path(name).stem, fallback="belge") + ".md"
+    md_name = safe_filename(split_ext(Path(name).name)[0], fallback="belge") + ".md"
     source = work / md_name
     # newline="": Windows'ta \n → \r\n çevrilmesin; metin zaten \r\n içeriyorsa \r\r\n olur ve
     # satır numaraları iki katına çıkar (uyarılardaki "Satır N" yanlış gösterilir).
@@ -218,7 +232,7 @@ def md_to_pdf(store, settings, req, report, tmp: Path, job_id) -> WorkResult:
         result = printer.convert(source, tmp / "cikti.pdf",
                                  MdOptions(**req.options.model_dump()))
     meta = store.add_file(result.output, Path(md_name).stem + ".pdf", job_id=job_id)
-    return WorkResult([meta], result.warnings)
+    return WorkResult([meta], notes + result.warnings)
 
 
 def office_to_pdf(store, settings, req, report, tmp: Path, job_id) -> WorkResult:
@@ -272,7 +286,7 @@ def office_to_pdf(store, settings, req, report, tmp: Path, job_id) -> WorkResult
         report(0.95, "Birleştiriliyor")
         merged = tmp / "birlesik.pdf"
         pages.merge([p for _, p in converted], merged, bookmark_per_file=True,
-                    bookmark_titles=[_stem(m) for m, _ in converted])
+                    bookmark_titles=[_title(m) for m, _ in converted])
         name = _out_name(req.name, f"{_stem(converted[0][0])}_birlesik")
         outputs = [store.add_file(merged, name, job_id=job_id)]
     else:
@@ -350,20 +364,12 @@ def ocr(store, settings, req, report, tmp: Path, job_id) -> WorkResult:
     if not tess.available:
         raise PdfAtolyeError("OCR için Tesseract bulunamadı. Ayarlar sayfasındaki kurulum "
                              "komutunu çalıştır.")
-    cancelled = False
-
-    def progress(frac: float, msg: str) -> None:
-        nonlocal cancelled
-        try:
-            report(frac, msg)
-        except Exception:  # iptal: OCR süreci öldürülsün, sonra yeniden yükselt
-            cancelled = True
-
     out = tmp / "ocr.pdf"
+    # İptal: `report` JobCancelled yükseltir ya da süreç izlenirken bayrak görülür; ikisinde de
+    # OCR süreç ağacı öldürülür (`proc.spawn`).
     r = ocrlib.ocr(path, out, mode=req.mode, langs=req.langs,
                    password=req.passwords.get(req.file), tesseract=tess.path,
-                   ghostscript=engines.detect_ghostscript(settings).path,
-                   on_progress=progress, should_cancel=lambda: cancelled)
+                   ghostscript=engines.detect_ghostscript(settings).path, on_progress=report)
     summary = f"{r.page_count} sayfanın {r.pages_with_text} tanesinde metin var."
     notes = _protect(store, req, req.file, out)
     return WorkResult([_single_output(store, req, meta, out, "OCR", "ocr", job_id)],

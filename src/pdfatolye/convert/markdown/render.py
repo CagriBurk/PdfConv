@@ -21,10 +21,11 @@ from pathlib import Path
 
 import pymupdf
 
+from pdfatolye import proc
 from pdfatolye.convert.browser import (
+    OfflineBrowser,
     blocked_warnings,
     file_url_path,
-    launch_offline,
     new_offline_page,
 )
 from pdfatolye.convert.markdown.document import (
@@ -37,9 +38,13 @@ from pdfatolye.convert.markdown.document import (
 )
 from pdfatolye.convert.markdown.parser import Heading, parse_markdown
 from pdfatolye.core.pdfio import atomic_output
+from pdfatolye.core.textio import decode_text
 from pdfatolye.errors import PdfAtolyeError
 
 RENDER_TIMEOUT_MS = 90_000
+# Tek notun bütün baskısının (iki geçişli içindekiler dahil) üst süresi; dolunca tarayıcı
+# öldürülür, sonraki not için yeniden açılır.
+PRINT_TIMEOUT_S = 300
 FOOTER = (
     '<div style="width:100%;font-size:8pt;color:#78716c;text-align:center;'
     "font-family:'Segoe UI',Arial,sans-serif;\">"
@@ -62,12 +67,10 @@ class MdResult:
 
 
 def read_markdown(path: Path, warnings: list[str]) -> str:
-    raw = path.read_bytes()
-    try:
-        return raw.decode("utf-8-sig")
-    except UnicodeDecodeError:
-        warnings.append(f"'{path.name}' UTF-8 değil; Windows-1254 (Türkçe) olarak okundu.")
-        return raw.decode("cp1254", errors="replace")
+    text, note = decode_text(Path(path).read_bytes(), Path(path).name)
+    if note:
+        warnings.append(note)
+    return text
 
 
 def _norm(text: str) -> str:
@@ -111,38 +114,43 @@ class MarkdownPrinter:
         self.browser_path = browser_path
         self.vault = vault
         self.confine = confine
-        self._pw = None
-        self._browser = None
+        self._ob = OfflineBrowser(browser_path)
         self._tmp: tempfile.TemporaryDirectory | None = None
 
     def __enter__(self) -> MarkdownPrinter:
-        from playwright.sync_api import sync_playwright
-
         # Kısa yol: uzun klasör yolları Windows'ta sorun çıkarıyor (PLAN.md tuzak #17).
         self._tmp = tempfile.TemporaryDirectory(prefix="pa-md-")
         shutil.copytree(ASSETS / "katex", Path(self._tmp.name) / "katex")
-        self._pw = sync_playwright().start()
         try:
-            self._browser = launch_offline(self._pw, self.browser_path)
+            self._ob.start()
         except Exception:
-            self._pw.stop()
             self._tmp.cleanup()
             raise
         return self
 
     def __exit__(self, *exc) -> None:
         try:
-            if self._browser:
-                self._browser.close()
+            self._ob.stop()
         finally:
-            if self._pw:
-                self._pw.stop()
             if self._tmp:
                 self._tmp.cleanup()
 
     def convert(
         self, source: Path, output: Path, options: MdOptions | None = None, *, html_out=None
     ) -> MdResult:
+        from playwright.sync_api import TimeoutError as PlaywrightTimeout
+
+        self._ob.ensure()  # önceki not takılıp öldürüldüyse yeniden aç
+        try:
+            with self._ob.guard(PRINT_TIMEOUT_S):
+                return self._convert(source, output, options, html_out=html_out)
+        except (proc.TimedOut, PlaywrightTimeout):
+            raise PdfAtolyeError(f"'{Path(source).name}' {PRINT_TIMEOUT_S} saniyede "
+                                 "basılamadı (zaman aşımı). Not çok büyük ya da bir formül "
+                                 "tarayıcıyı kilitlemiş olabilir.") from None
+
+    def _convert(self, source: Path, output: Path, options: MdOptions | None, *, html_out
+                 ) -> MdResult:
         source = Path(source)
         warnings: list[str] = []
         text = read_markdown(source, warnings)
@@ -171,7 +179,7 @@ class MarkdownPrinter:
                 ASSETS / "katex").as_uri()), encoding="utf-8")
 
         blocked: list[str] = []
-        page = new_offline_page(self._browser,
+        page = new_offline_page(self._ob.browser,
                                 lambda p: p.is_relative_to(tmp_root) or p in images, blocked)
         try:
             page.goto(html_path.as_uri(), wait_until="load", timeout=RENDER_TIMEOUT_MS)

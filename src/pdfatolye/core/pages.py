@@ -6,7 +6,7 @@ ya da "boş sayfa". Birleştirme, sıralama, silme, döndürme, sayfa ekleme bun
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -83,10 +83,13 @@ def compose(
     keep_bookmarks: bool = True,
     bookmark_per_file: bool = False,
     bookmark_titles: Sequence[str] | None = None,
+    on_progress: Callable[[float], None] | None = None,
 ) -> Path:
     """Manifestteki sayfalardan yeni bir PDF yazar.
 
     - Kaynaktaki döndürme korunur, `rotate` üstüne eklenir.
+    - Belge bilgileri (başlık, yazar, XMP) çıktıda ilk görünen kaynaktan alınır; sayfa
+      etiketleri (i, ii, 1, 2...) sayfalarla birlikte taşınır; gömülü dosyalar korunur.
     - Yer imleri sayfa kaymasına göre yeniden hesaplanır; sayfası çıkarılanlar düşer.
       (Hedef, sayfanın başı olur; sayfa içi konum korunmaz.)
     - Şifreli kaynaklar çözülmüş olarak yazılır.
@@ -143,6 +146,8 @@ def compose(
                 if first.rotate:
                     page = out[start_at + k]
                     page.set_rotation((src[src_page].rotation + first.rotate) % 360)
+            if on_progress:  # iptal edilen iş burada durur (JobCancelled)
+                on_progress((i + 1) / len(runs))
 
         if keep_bookmarks or bookmark_per_file:
             toc = _build_toc(
@@ -150,6 +155,7 @@ def compose(
                 keep_bookmarks, bookmark_per_file, bookmark_titles,
             )
             out.set_toc(toc)
+        _carry_document_info(docs, items, out)
 
         # Kaynaklar kaydetmeden önce kapanmalı: Windows açık dosyanın üstüne yazdırmaz
         # (çıktı = girdi olduğunda). insert_pdf nesneleri kopyaladığı için `out` bağımsızdır.
@@ -158,6 +164,80 @@ def compose(
     finally:
         out.close()
         _close_all(docs)
+
+
+_INFO_KEYS = ("title", "author", "subject", "keywords", "creator", "producer", "creationDate")
+
+
+def _carry_document_info(docs: list[pymupdf.Document], items: Sequence[ManifestItem],
+                         out: pymupdf.Document) -> None:
+    """`pymupdf.open()` boş belgeyle başlar: başlık, yazar, sayfa etiketleri ve gömülü dosyalar
+    düşerdi. Belge bilgisi çıktıda ilk görünen kaynaktan (birleştirmede ilk dosya) alınır."""
+    used = list(dict.fromkeys(i.source for i in items if isinstance(i, PageRef)))
+    if not used:
+        return
+    first = docs[used[0]]
+    info = first.metadata or {}
+    out.set_metadata({k: info.get(k) or "" for k in _INFO_KEYS}
+                     | {"modDate": pymupdf.get_pdf_now()})
+    xml = first.get_xml_metadata()
+    if xml:
+        out.set_xml_metadata(xml)
+    labels = _carried_labels(docs, items)
+    if labels:
+        out.set_page_labels(labels)
+    taken = set(out.embfile_names())
+    for s in used:
+        src = docs[s]
+        for name in src.embfile_names():
+            meta = src.embfile_info(name)
+            new, n = name, 2
+            while new in taken:  # iki kaynakta aynı adlı ek
+                new, n = f"{name} ({n})", n + 1
+            taken.add(new)
+            out.embfile_add(new, src.embfile_get(name), filename=meta.get("filename"),
+                            ufilename=meta.get("ufilename"), desc=meta.get("description"))
+
+
+def _carried_labels(docs: list[pymupdf.Document], items: Sequence[ManifestItem]) -> list[dict]:
+    """Her çıktı sayfası kaynaktaki etiketini taşır. Ardışık sayfalar aynı kuralla devam ettikçe
+    tek kural yazılır ("i, ii" ve "1, 2, 3" sıralandıktan sonra da doğru). Etiketsiz kaynakta
+    ya da boş sayfada etiket sayfanın kendi numarasıdır (birleştirmede de anlamlı kalsın)."""
+    rules_of = {s: docs[s].get_page_labels() for s in {i.source for i in items
+                                                      if isinstance(i, PageRef)}}
+    if not any(rules_of.values()):
+        return []
+    out: list[dict] = []
+    prev: tuple | None = None  # (kaynak, kural no, kaynak sayfası)
+    for idx, item in enumerate(items):
+        rules = rules_of.get(item.source) if isinstance(item, PageRef) else None
+        if not rules:
+            out.append({"startpage": idx, "prefix": "", "style": "D", "firstpagenum": idx + 1})
+            prev = None
+            continue
+        page = item.page
+        r = max((k for k, rule in enumerate(rules) if rule["startpage"] <= page), default=None)
+        if r is None:  # ilk kuraldan önceki sayfalar: düz numara
+            rule = {"prefix": "", "style": "D", "startpage": 0, "firstpagenum": 1}
+        else:
+            rule = rules[r]
+        if prev and prev == (item.source, r, page - 1):
+            prev = (item.source, r, page)
+            continue
+        out.append({"startpage": idx, "prefix": rule.get("prefix", ""),
+                    "style": rule.get("style", ""),
+                    "firstpagenum": rule.get("firstpagenum", 1) + page - rule["startpage"]})
+        prev = (item.source, r, page)
+    # Aynı biçimde ardışık devam eden kuralları birleştir (etiketsiz sayfalar 1, 2, 3...).
+    merged: list[dict] = []
+    for rule in out:
+        last = merged[-1] if merged else None
+        if (last and last["style"] == rule["style"] == "D" and last["prefix"] == rule["prefix"]
+                and last["firstpagenum"] + rule["startpage"] - last["startpage"]
+                == rule["firstpagenum"]):
+            continue
+        merged.append(rule)
+    return merged
 
 
 def _close_all(docs: list[pymupdf.Document]) -> None:
