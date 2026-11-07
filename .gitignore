@@ -9,3 +9,11 @@ web/dist/
 *.tsbuildinfo
 *.log
 build/
+
+# Yerel araç ayarları ve oturum notları (depoya girmez)
+.claude/
+SONRAKI_OTURUM.md
+
+# Gizli bilgiler (projede yok; yanlışlıkla eklenmesin)
+.env
+.env.*
