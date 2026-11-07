@@ -15,6 +15,8 @@
   DPI söyleniyor.
 
 ### Diğer
+- Sayfa düzenleyicide büyük önizlemeyi Esc ile kapatıp hemen oklarla başka sayfaya geçince
+  klavye odağı bazen önizlenen sayfaya geri sıçrıyordu; artık geçtiğin sayfada kalıyor.
 - Linux'ta kaynak koddan çalışma (README'de "Linux" bölümü).
 
 ## 0.9.1 — 2026-11-07

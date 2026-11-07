@@ -481,6 +481,32 @@ def test_organizer_works_with_keyboard_only(server, page, tmp_path):
     assert fx.labels(out) == ["Sayfa 2"]
 
 
+def test_closing_preview_does_not_steal_focus_back(server, page, tmp_path):
+    """Esc'te tarayıcı pencereyi hemen kapatır ama `close` olayı sonraki görevde gelir; React
+    pencereyi ancak o zaman kaldırır ve odağı açan sayfaya *yeniden* verirdi. Bu arada oklarla
+    başka sayfaya geçilmişse odak geri çekiliyordu: sonraki tuşlar yanlış sayfaya gidiyor, klavye
+    testi CI'da "3 sayfa seçili"de düşüyordu. Kullanıcının geçişi burada aynı görevde yapılır."""
+    from playwright.sync_api import expect
+
+    base, app = server
+    meta = app.state.store.add_file(fx.numbered(tmp_path / "o.pdf", 3, with_toc=False),
+                                    "odak.pdf", source="upload")
+    page.goto(f"{base}/#/duzenle/{meta.id}")
+    tiles = page.locator(".page-tile")
+    _tile_images(page, 3)
+    tiles.nth(1).focus()
+    page.keyboard.press("Enter")
+    dialog = page.get_by_role("dialog")
+    expect(dialog).to_be_visible()
+    page.evaluate("""() => {
+        document.querySelector('dialog').close();
+        document.querySelectorAll('.page-tile')[2].focus();
+    }""")
+    expect(page.locator("dialog")).to_have_count(0)  # React pencereyi kaldırdı
+    page.wait_for_timeout(100)
+    expect(tiles.nth(2)).to_be_focused()
+
+
 def test_jobs_have_turkish_names_and_files_can_be_renamed(server, page, tmp_path):
     base, app = server
     meta = app.state.store.add_file(fx.numbered(tmp_path / "j.pdf", 2, with_toc=False),
