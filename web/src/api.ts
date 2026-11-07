@@ -23,6 +23,7 @@ export interface EnginesResponse {
   version: string;
   installed: boolean;
   install_dir: string | null;
+  windows: boolean;
 }
 
 export interface SettingsValues {
@@ -42,6 +43,8 @@ export interface SettingsResponse {
   restart_available: boolean;
   config_file: string;
   local: boolean;
+  /** Bu bilgisayardan ve Windows'ta: klasör seçme penceresi, Gezgin'de gösterme. */
+  desktop: boolean;
   themes: string[];
   papers: string[];
 }

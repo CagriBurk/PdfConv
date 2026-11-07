@@ -6,7 +6,7 @@ import contextlib
 import os
 import tempfile
 from collections.abc import Iterator
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 import pymupdf
 
@@ -91,6 +91,12 @@ def unique_path(path: Path) -> Path:
 _FORBIDDEN = set('<>:"/\\|?*') | {chr(i) for i in range(32)}
 _RESERVED = {"CON", "PRN", "AUX", "NUL", *(f"COM{i}" for i in range(1, 10)),
              *(f"LPT{i}" for i in range(1, 10))}
+
+
+def base_name(name: str) -> str:
+    """Kullanıcıdan gelen adın son parçası: eğik ve ters eğik çizgi her işletim sisteminde
+    ayırıcıdır (Linux'ta `Path` ters eğik çizgiyi adın parçası sayardı)."""
+    return PureWindowsPath(name).name
 
 
 def safe_filename(name: str, fallback: str = "dosya", max_len: int = 80) -> str:

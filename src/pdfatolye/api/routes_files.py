@@ -14,7 +14,7 @@ from starlette.background import BackgroundTask
 
 from pdfatolye.api.security import SANDBOX_CSP
 from pdfatolye.core.info import inspect_pdf
-from pdfatolye.core.pdfio import safe_filename, strip_ext
+from pdfatolye.core.pdfio import base_name, safe_filename, strip_ext
 from pdfatolye.core.textio import decode_text
 from pdfatolye.errors import PdfAtolyeError
 from pdfatolye.jobs.workers import with_display_name
@@ -174,6 +174,6 @@ def zip_files(request: Request, ids: str = Query(max_length=40_000),
                 arc, i = f"{stem} ({i}){ext}", i + 1
             used.add(arc.lower())
             zf.write(s.path(fid), arc)
-    zip_name = safe_filename(strip_ext(Path(name).name, ".zip"), fallback="dosyalar") + ".zip"
+    zip_name = safe_filename(strip_ext(base_name(name), ".zip"), fallback="dosyalar") + ".zip"
     return FileResponse(tmp_name, media_type="application/zip", filename=zip_name,
                         background=BackgroundTask(Path(tmp_name).unlink, missing_ok=True))

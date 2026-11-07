@@ -223,6 +223,7 @@ def create_app(settings: Settings, *, start_background: bool = True) -> FastAPI:
             "log_file": str(settings.logs_dir / "pdfatolye.log"),
             "version": __version__,
             "installed": paths.install_root() is not None,
+            "windows": engines.on_windows(),
             "install_dir": str(paths.install_root()) if paths.install_root() else None,
         }
 

@@ -12,7 +12,11 @@ import pymupdf
 from PIL import Image
 
 TURKISH = "Çağrı ığdır şöyle: ĞÜŞİÖÇ ğüşiöç ı İ"
+# Türkçe metin için gerçek bir TTF: Windows'ta Arial, yoksa (Linux) uygulamayla gelen Noto Sans.
 _WIN_FONT = Path("C:/Windows/Fonts/arial.ttf")
+if not _WIN_FONT.is_file():
+    _WIN_FONT = Path(__file__).resolve().parents[2] / "src" / "pdfatolye" / "assets" / "fonts" \
+        / "NotoSans-Regular.ttf"
 _LABEL = re.compile(r"(?:Sayfa|Ek) \d+")
 
 

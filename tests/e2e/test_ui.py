@@ -5,6 +5,7 @@ Derlenmiş arayüz (web/dist) ya da tarayıcı yoksa atlanır.
 
 from __future__ import annotations
 
+import os
 import socket
 import threading
 import time
@@ -436,7 +437,9 @@ def test_organizer_works_with_keyboard_only(server, page, tmp_path):
     expect(tiles.nth(1)).to_be_focused()
     expect(tiles.nth(1)).to_have_attribute("aria-selected", "true")
     expect(tiles.nth(0)).to_have_attribute("aria-selected", "false")
-    page.keyboard.press("Control+r")  # yenile kısayolu döndürme sayılmamalı (#66)
+    # Yenile kısayolu (Ctrl+R) döndürme sayılmamalı (#66). Gerçek tuş gönderilmez: bazı başsız
+    # tarayıcı sürümleri sayfayı gerçekten yeniliyor, test aralıklı düşüyordu (CI).
+    tiles.nth(1).dispatch_event("keydown", {"key": "r", "ctrlKey": True, "bubbles": True})
     expect(page.get_by_role("button", name="Kaydet", exact=True)).to_be_disabled()
     url = page.url
     page.keyboard.press("Alt+ArrowRight")  # 2. sayfa bir sağa: 1, 3, 2, 4
@@ -481,8 +484,10 @@ def test_jobs_have_turkish_names_and_files_can_be_renamed(server, page, tmp_path
     field.press("Enter")
     page.get_by_text("Yeni ad: Yeni ad ğüş.pdf").wait_for()
     assert app.state.store.get(meta.id).name == "Yeni ad ğüş.pdf"
-    # Bu bilgisayardan açıldığı için "Klasörde göster" var (tıklamıyoruz: Gezgin açılır).
-    assert page.get_by_role("button", name="Klasörde göster").count() >= 1
+    # Bu bilgisayardan ve Windows'ta "Klasörde göster" var (tıklamıyoruz: Gezgin açılır);
+    # Linux'ta Gezgin yok, düğme de yok.
+    reveal = page.get_by_role("button", name="Klasörde göster").count()
+    assert reveal >= 1 if os.name == "nt" else reveal == 0
 
 
 def test_render_error_shows_message_not_white_page(server, page):

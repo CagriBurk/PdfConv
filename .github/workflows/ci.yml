@@ -45,6 +45,41 @@ jobs:
       - name: Testler
         run: uv run python -m pytest --tb=short -rs
 
+  # Linux'ta kaynak koddan çalıştırma (masaüstü paketi yalnızca Windows). Motorlar dağıtımın
+  # paketlerinden; tarayıcı çalıştırıcıdaki Google Chrome.
+  linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Motorlar (LibreOffice, Tesseract + Türkçe, Ghostscript)
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends tesseract-ocr tesseract-ocr-tur             tesseract-ocr-eng ghostscript libreoffice-writer libreoffice-calc libreoffice-impress
+
+      - name: Python bağımlılıkları
+        run: uv sync --locked
+
+      - name: Arayüzü derle
+        run: |
+          npm --prefix web ci --no-fund --no-audit
+          npm --prefix web run build
+
+      - name: Motor durumu
+        run: uv run python -m pdfatolye motorlar
+
+      - name: Testler
+        run: uv run python -m pytest --tb=short -rs
+
   # Masaüstü paketi (motorsuz: CI'da Tesseract/Ghostscript yok). Paket kendi Python'uyla
   # denenir (bağımlılıklar yükleniyor mu, arayüz ve fontlar pakette mi) ve artifact olarak
   # yüklenir. Arkadaşlara verilecek tam paket (OCR dahil) yerelde `paket/derle.py` ile üretilir.

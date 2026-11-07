@@ -62,3 +62,18 @@ def test_python_libraries_are_installed():
     libs = engines.python_libraries()
     assert libs["pymupdf"]
     assert libs["pikepdf"]
+
+
+def test_install_hints_match_the_platform(monkeypatch):
+    """Linux'ta winget yok: ipucu dağıtımın paket adlarıyla."""
+    from pdfatolye.settings import Settings
+
+    monkeypatch.setattr(engines, "on_windows", lambda: False)
+    monkeypatch.setattr(engines, "_find_executable", lambda *a, **k: None)
+    s = Settings()
+    assert "apt install libreoffice" in engines.detect_libreoffice(s).install_hint
+    assert "tesseract-ocr-tur" in engines.detect_tesseract(s).install_hint
+    assert "apt install ghostscript" in engines.detect_ghostscript(s).install_hint
+    assert "Chromium" in engines.detect_browser(s).install_hint
+    monkeypatch.setattr(engines, "on_windows", lambda: True)
+    assert "winget" in engines.detect_libreoffice(s).install_hint
