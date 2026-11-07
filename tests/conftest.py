@@ -31,9 +31,24 @@ def _annotate(nodeid: str, text: str) -> None:
     sys.__stdout__.flush()
 
 
+_annotated = [0]
+
+
 def pytest_runtest_logreport(report):
-    if os.environ.get("GITHUB_ACTIONS") and report.failed:
+    # İlk 8 hata ayrıntılı; GitHub'ın 10'luk sınırında sondaki özete de yer kalsın.
+    if os.environ.get("GITHUB_ACTIONS") and report.failed and _annotated[0] < 8:
+        _annotated[0] += 1
         _annotate(report.nodeid, str(report.longrepr))
+
+
+def pytest_terminal_summary(terminalreporter):
+    """GitHub bir adımda en fazla 10 hata açıklaması gösterir: düşen testlerin hepsi tek bir
+    açıklamada da listelenir."""
+    if not os.environ.get("GITHUB_ACTIONS"):
+        return
+    failed = [r.nodeid for key in ("failed", "error") for r in terminalreporter.stats.get(key, [])]
+    if failed:
+        _annotate(f"{len(failed)} test düştü", "\n".join(failed))
 
 
 def pytest_collectreport(report):

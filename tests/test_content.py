@@ -12,6 +12,10 @@ from pdfatolye.core import content, fonts, geometry
 from pdfatolye.errors import PageRangeError
 from tests.fixtures import make_fixtures as fx
 
+# Bazı testler bilerek bir Windows yazı tipini (Arial) kullanır; Linux'ta yoktur.
+needs_arial = pytest.mark.skipif(not Path("C:/Windows/Fonts/arial.ttf").is_file(),
+                                 reason="Windows yazı tipi (Arial) yok")
+
 OPS = TypeAdapter(list[content.Op])
 TR = "Onaylandı – Çağrı İşçi ğüşıöç İĞÜŞÖÇ"
 
@@ -115,6 +119,7 @@ def test_text_on_cropped_and_rotated_page(tmp_path: Path):
         assert min(sum(p) for p in dark) < 300
 
 
+@needs_arial
 def test_text_spaces_and_subset_size(tmp_path: Path):
     src = fx.numbered(tmp_path / "n.pdf", 2)
     out = tmp_path / "o.pdf"
@@ -154,6 +159,7 @@ def test_rotated_text_box(tmp_path: Path):
         assert 280 < line["bbox"][0] < 320
 
 
+@needs_arial
 def test_missing_glyph_warning(tmp_path: Path):
     src = fx.numbered(tmp_path / "n.pdf", 1)
     result = content.apply_ops(src, tmp_path / "o.pdf", ops(
@@ -427,6 +433,7 @@ def test_encrypted_source(tmp_path: Path):
         assert "Şifreli" in doc[0].get_text()
 
 
+@needs_arial
 def test_fonts_available():
     keys = {f["key"] for f in fonts.available()}
     assert "arial" in keys

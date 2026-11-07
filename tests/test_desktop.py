@@ -219,7 +219,9 @@ def test_restart_moves_to_new_port_and_keeps_window(tmp_path, monkeypatch):
     assert not desktop.is_our_server(old_url, timeout=1)
     assert len(windows) == 1, "yeniden başlatma yeni pencere açmamalı"
     lock = tmp_path / "veri" / desktop.LOCK_NAME
-    assert json.loads(lock.read_text(encoding="utf-8"))["port"] == new_port
+    # Kilit, sunucu yanıt vermeye başladıktan hemen sonra yazılır: kısa bir bekleme.
+    assert wait_until(lambda: lock.is_file()
+                      and json.loads(lock.read_text(encoding="utf-8"))["port"] == new_port, 10)
     assert load_settings(cfg).port == new_port
     windows[0][1].closed.set()
     t.join(20)
@@ -308,6 +310,7 @@ def test_install_copies_without_mark_of_the_web(tmp_path):
     assert marker["version"] == "0.9.0" and "installed" in marker
 
 
+@pytest.mark.skipif(os.name != "nt", reason="kurulum yalnızca Windows")
 def test_uninstall_keeps_or_removes_data(tmp_path, monkeypatch):
     target = tmp_path / "Programs" / "PdfAtolyesi"
     target.mkdir(parents=True)
