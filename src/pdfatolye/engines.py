@@ -202,7 +202,9 @@ def detect_browser(settings: Settings) -> EngineStatus:
     )
     exe = _find_executable(
         settings.engines.browser,
-        [],
+        # Linux / macOS: PATH'teki adlar. Windows'ta bunlar PATH'te olmaz, aşağıdaki yollar aranır.
+        [] if os.name == "nt" else ["microsoft-edge", "microsoft-edge-stable", "google-chrome",
+                                    "google-chrome-stable", "chromium", "chromium-browser"],
         [
             "Microsoft/Edge/Application/msedge.exe",
             "Google/Chrome/Application/chrome.exe",
@@ -212,8 +214,13 @@ def detect_browser(settings: Settings) -> EngineStatus:
         return status
     status.available = True
     status.path = str(exe)
-    status.name = "Microsoft Edge" if exe.name.lower() == "msedge.exe" else "Google Chrome"
+    low = exe.name.lower()
+    status.name = ("Microsoft Edge" if "edge" in low else "Chromium" if "chromium" in low
+                   else "Google Chrome")
     status.version = _file_version(exe)
+    if status.version is None and os.name != "nt" and (
+            m := re.search(r"(\d+\.[\d.]+)", _run([str(exe), "--version"]) or "")):
+        status.version = m.group(1)
     return status
 
 
