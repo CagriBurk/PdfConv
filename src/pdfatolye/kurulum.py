@@ -70,8 +70,10 @@ def _ask(question: str) -> bool:
 
 def _powershell(script: str) -> None:
     encoded = base64.b64encode(script.encode("utf-16-le")).decode("ascii")
+    # PowerShell 7'den devralınan PSModulePath Windows PowerShell'in modüllerini bozar.
+    env = {k: v for k, v in os.environ.items() if k.upper() != "PSMODULEPATH"}
     subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded],
-                   check=True, creationflags=NO_WINDOW, capture_output=True)
+                   check=True, creationflags=NO_WINDOW, capture_output=True, env=env)
 
 
 def _ps_str(value: str | Path) -> str:

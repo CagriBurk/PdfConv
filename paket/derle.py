@@ -141,14 +141,20 @@ def fetch_python(cache: Path) -> Path:
 
 def check_signature(exe: Path) -> None:
     """python.exe python.org (PSF) imzalı mı? Akıllı Uygulama Denetimi buna güvenir."""
-    out = subprocess.run(
+    import os
+
+    # pwsh (PowerShell 7) içinden çağrılınca devralınan PSModulePath, Windows PowerShell 5.1'in
+    # güvenlik modülünü yükletmiyor (CI): temizlenir.
+    env = {k: v for k, v in os.environ.items() if k.upper() != "PSMODULEPATH"}
+    r = subprocess.run(
         ["powershell", "-NoProfile", "-Command",
          f"$s = Get-AuthenticodeSignature '{exe}'; "
          "\"$($s.Status)|$($s.SignerCertificate.Subject)\""],
-        capture_output=True, text=True, check=True).stdout.strip()
+        capture_output=True, text=True, encoding="utf-8", errors="replace", env=env)
+    out = r.stdout.strip()
     status, _, subject = out.partition("|")
     if status != "Valid" or "Python Software Foundation" not in subject:
-        raise SystemExit(f"{exe.name} imzası geçersiz: {out}")
+        raise SystemExit(f"{exe.name} imzası geçersiz: {out} {r.stderr.strip()[-500:]}")
     log(f"  imza: {status} ({subject.split(',')[0]})")
 
 
