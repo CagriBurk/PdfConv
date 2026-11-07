@@ -452,11 +452,26 @@ def test_organizer_works_with_keyboard_only(server, page, tmp_path):
     page.keyboard.press("Escape")
     expect(dialog).to_be_hidden()
     expect(tiles.nth(2)).to_be_focused()  # odak açan sayfaya döndü
+
+    def selected() -> list[str]:
+        return [tiles.nth(i).get_attribute("aria-selected") for i in range(tiles.count())]
+
+    # Sıra artık 1, 3, 2, 4. Her adımda odak ve seçim denetlenir: düşerse hangi tuşta saptığı
+    # görünsün (CI'da yalnızca son adım "3 sayfa seçili" düşüyordu).
     page.keyboard.press("ArrowLeft")  # orijinal 3. sayfa
+    expect(tiles.nth(1)).to_be_focused()
+    expect(tiles.nth(1)).to_have_attribute("aria-selected", "true")
     page.keyboard.press("Shift+ArrowLeft")  # + orijinal 1. sayfa
-    for _ in range(3):  # yalnızca odak taşınır, seçim değişmez
+    expect(tiles.nth(0)).to_be_focused()
+    expect(tiles.nth(0)).to_have_attribute("aria-selected", "true")
+    assert selected() == ["true", "true", "false", "false"], selected()
+    for n in range(3):  # yalnızca odak taşınır, seçim değişmez
         page.keyboard.press("Control+ArrowRight")
+        expect(tiles.nth(n + 1)).to_be_focused()
+    assert selected() == ["true", "true", "false", "false"], selected()
     page.keyboard.press("Space")  # orijinal 4. sayfayı da seçime ekle
+    expect(tiles.nth(3)).to_have_attribute("aria-selected", "true")
+    assert selected() == ["true", "true", "false", "true"], selected()
     page.get_by_text("3 sayfa seçili").wait_for()
     page.keyboard.press("Delete")
     expect(tiles).to_have_count(1)
@@ -464,6 +479,32 @@ def test_organizer_works_with_keyboard_only(server, page, tmp_path):
     page.get_by_role("button", name="Kaydet", exact=True).click()
     out = _wait_version(app, meta.id, 2)
     assert fx.labels(out) == ["Sayfa 2"]
+
+
+def test_closing_preview_does_not_steal_focus_back(server, page, tmp_path):
+    """Esc'te tarayıcı pencereyi hemen kapatır ama `close` olayı sonraki görevde gelir; React
+    pencereyi ancak o zaman kaldırır ve odağı açan sayfaya *yeniden* verirdi. Bu arada oklarla
+    başka sayfaya geçilmişse odak geri çekiliyordu: sonraki tuşlar yanlış sayfaya gidiyor, klavye
+    testi CI'da "3 sayfa seçili"de düşüyordu. Kullanıcının geçişi burada aynı görevde yapılır."""
+    from playwright.sync_api import expect
+
+    base, app = server
+    meta = app.state.store.add_file(fx.numbered(tmp_path / "o.pdf", 3, with_toc=False),
+                                    "odak.pdf", source="upload")
+    page.goto(f"{base}/#/duzenle/{meta.id}")
+    tiles = page.locator(".page-tile")
+    _tile_images(page, 3)
+    tiles.nth(1).focus()
+    page.keyboard.press("Enter")
+    dialog = page.get_by_role("dialog")
+    expect(dialog).to_be_visible()
+    page.evaluate("""() => {
+        document.querySelector('dialog').close();
+        document.querySelectorAll('.page-tile')[2].focus();
+    }""")
+    expect(page.locator("dialog")).to_have_count(0)  # React pencereyi kaldırdı
+    page.wait_for_timeout(100)
+    expect(tiles.nth(2)).to_be_focused()
 
 
 def test_jobs_have_turkish_names_and_files_can_be_renamed(server, page, tmp_path):

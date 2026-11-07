@@ -9,7 +9,11 @@ interface Props {
 
 /** Yerel <dialog>: Esc ile kapanır, odak içeride kalır. Kapanınca (Esc, ×, dışına tıklama ya da
  * ekranın kendisi kaldırınca) odak açılmadan önceki öğeye döner: klavye kullanıcısı yerini
- * kaybetmez. */
+ * kaybetmez.
+ *
+ * Yalnızca odak kaybolduysa döner. Esc'te tarayıcı pencereyi hemen kapatıp odağı kendisi geri
+ * verir, `close` olayı (ve bu bileşenin kaldırılması) ise sonraki görevde gelir. Arada kullanıcı
+ * oklarla başka öğeye geçtiyse odak ondan geri alınmamalı. */
 export default function Modal({ title, onClose, children, wide }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
@@ -18,7 +22,9 @@ export default function Modal({ title, onClose, children, wide }: Props) {
     const d = ref.current;
     if (d && !d.open) d.showModal();
     return () => {
-      if (opener?.isConnected) opener.focus({ preventScroll: true });
+      const active = document.activeElement;
+      const lost = !active || active === document.body || !active.isConnected || !!d?.contains(active);
+      if (lost && opener?.isConnected) opener.focus({ preventScroll: true });
     };
   }, []);
   return (
