@@ -62,15 +62,26 @@ class ParsedMarkdown:
 
 
 class AssetResolver:
-    """Resim yollarını çözer: önce not klasörüne göre, sonra Obsidian kasasında dosya adıyla."""
+    """Resim yollarını çözer: önce not klasörüne göre, sonra Obsidian kasasında dosya adıyla.
+
+    Yalnızca resim uzantıları çözülür. `confine=True` iken (arayüzden gelen, güvenilmeyen not)
+    not klasörü ve kasa dışına çıkılamaz: `C:/...`, `../..`, kasadan dışarı sembolik bağlar.
+    """
 
     def __init__(self, base_dir: Path, vault: Path | None = None,
-                 attachments: dict[str, Path] | None = None) -> None:
+                 attachments: dict[str, Path] | None = None, *, confine: bool = False) -> None:
         self.base_dir = base_dir
         self.vault = vault
+        self.confine = confine
         # Arayüzden notla birlikte yüklenen dosyalar: ad (küçük harf) → yol
         self.attachments = {k.lower(): v for k, v in (attachments or {}).items()}
         self._index: dict[str, Path] | None = None
+
+    def _allowed(self, path: Path) -> bool:
+        if not self.confine:
+            return True
+        roots = [self.base_dir, *([self.vault] if self.vault else [])]
+        return any(path.is_relative_to(root.resolve()) for root in roots)
 
     def _vault_index(self) -> dict[str, Path]:
         if self._index is None:
@@ -84,7 +95,7 @@ class AssetResolver:
 
     def resolve(self, name: str) -> Path | None:
         name = unquote(name.strip())
-        if not name:
+        if not name or Path(name).suffix.lower() not in IMAGE_EXTS:
             return None
         if attached := self.attachments.get(Path(name).name.lower()):
             return attached
@@ -92,10 +103,12 @@ class AssetResolver:
         if self.vault:
             candidates.append(self.vault / name)
         for c in candidates:
-            if c.is_file():
+            if c.is_file() and self._allowed(c.resolve()):
                 return c.resolve()
         found = self._vault_index().get(Path(name).name.lower())
-        return found.resolve() if found else None
+        if found and self._allowed(found.resolve()):
+            return found.resolve()
+        return None
 
 
 def is_remote(src: str) -> bool:
@@ -231,14 +244,17 @@ def parse_markdown(
     breaks: bool = True,
     url_for: Callable[[Path], str] | None = None,
     attachments: dict[str, Path] | None = None,
+    confine: bool = False,
 ) -> ParsedMarkdown:
     """`breaks=True` Obsidian varsayılanıdır: tek satır sonu da satır kırar.
 
     `url_for` yerel resim yolunu HTML'de kullanılacak adrese çevirir. Baskıda file:// adresi,
-    tarayıcı önizlemesinde sunucunun verdiği geçici adres kullanılır.
+    tarayıcı önizlemesinde sunucunun verdiği geçici adres kullanılır. `confine` için bkz.
+    `AssetResolver`.
     """
     md = build_markdown(breaks)
-    env: dict = {"warnings": [], "resolver": AssetResolver(base_dir, vault, attachments),
+    env: dict = {"warnings": [],
+                 "resolver": AssetResolver(base_dir, vault, attachments, confine=confine),
                  "url_for": url_for or (lambda p: p.as_uri())}
     # Windows (CRLF) ve eski Mac (CR) satır sonları: satır sonu düzenli ifadeleri \n bekler.
     text = text.lstrip("﻿").replace("\r\n", "\n").replace("\r", "\n")

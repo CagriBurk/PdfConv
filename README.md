@@ -65,9 +65,10 @@ engelleyebilir; bu yüzden komutlar `python -m pdfatolye` biçiminde.
 ### Telefondan kullanmak (aynı Wi-Fi)
 
 `baslat.bat --lan` ile başlat. Terminalde ve **Ayarlar** sayfasında bir QR kod çıkar; telefonun
-kamerasıyla okut. QR koddaki tek seferlik eşleştirme belirteci olmadan gelen istekler reddedilir.
-Windows güvenlik duvarı ilk seferde izin isteyebilir ("Özel ağlar" yeterli). Adresi bilen herkes
-dosyalara erişebileceği için işin bitince sunucuyu kapat.
+kamerasıyla okut. QR kod tek kullanımlıktır: her cihaz için Ayarlar'da yenisi çıkar ve eşleşmemiş
+cihazların istekleri reddedilir. Bağlı cihazları Ayarlar'da görür, istediğinde hepsinin bağlantısını
+kesersin. Windows güvenlik duvarı ilk seferde izin isteyebilir ("Özel ağlar" yeterli). Bağlantı
+yerel ağda şifresizdir (HTTP): yalnızca güvendiğin Wi-Fi'de kullan, işin bitince sunucuyu kapat.
 
 ### Sorun giderme
 
@@ -91,17 +92,25 @@ dosyalara erişebileceği için işin bitince sunucuyu kapat.
 - **Markdown → PDF**: yazdıkça canlı önizleme (baskıyla aynı tema), seçenekler, uyarılar.
 - **İçerik Ekle** (editör): yazı, resim, imza, vurgu, dikdörtgen/elips/çizgi/ok, karartma, beyazla
   kapat. Nesneler taşınır, boyutlandırılır, döndürülür; `Delete` sil, `Ctrl+Z` / `Ctrl+Y`, oklar kaydırır.
-  "Uygula" yeni sürüm oluşturur. **Karartma** alttaki yazıyı ve resmi dosyadan gerçekten siler; siyah
-  dikdörtgen çizmek karartma değildir. İmzalar ("İmzalarım") kalıcı saklanır.
+  "Uygula" yeni sürüm oluşturur. **Karartma** kutunun altındaki yazıyı, resmi, çizimi, açıklamayı ve
+  form alanını dosyadan gerçekten siler; aynı metin yer imlerinde, belge bilgilerinde ya da başka
+  sayfalarda da geçiyorsa uyarır. Siyah dikdörtgen çizmek karartma değildir. Karartılmamış önceki
+  sürüm bu bilgisayarda (Önceki sürüme dön için) silinene kadar durur. İmzalar ("İmzalarım") kalıcı
+  saklanır.
 - **Filigran** ve **Sayfa Numarası**: önizlemeli ayrı ekranlar.
 - **Sıkıştır**: kayıpsız / dengeli / güçlü; önce-sonra boyutu gösterilir, büyürse orijinal korunur.
 - **OCR**: taranmış PDF'i Türkçe + İngilizce aranabilir yapar; metni olan sayfalar atlanır.
   Sayfa düzenleyici metni olmayan PDF'te bunu kendisi önerir.
 - **Güvenlik ve bakım**: AES-256 şifre + izinler, şifre kaldırma (şifre kırma yok), meta veri
-  temizliği, bozuk PDF onarımı.
+  temizliği, bozuk PDF onarımı. Şifreli bir PDF düzenlenince şifresi korunur; şifreyi yalnızca "Şifre
+  kaldır" kaldırır. Birden çok kaynaktan üretilen dosyada şifre taşınamazsa bu açıkça söylenir.
 - **İşler ve dosyalar**: son işler, tüm dosyalar; sabitlenmeyen dosyalar 24 saat sonra silinir.
 
 Şifreli PDF'lerin şifresi yalnızca açık sekmenin belleğinde tutulur, hiçbir yere kaydedilmez.
+
+**Güvenilmeyen dosyalar**: Markdown ve HTML baskısında ağ tamamen kapalıdır; belge internete bir şey
+gönderemez, diskteki başka dosyaları PDF'e gömemez. Markdown notlarındaki betikler çalışmaz; HTML
+dosyalarındaki betikler çalışır (JS ile üretilen raporlar için) ama dışarı çıkamaz.
 
 ## Komut satırı
 
@@ -185,10 +194,13 @@ pdf:
 ## Geliştirme
 
 ```
-uv run pytest            # testler (tests/e2e: derlenmiş arayüz + Edge ile uçtan uca)
-uv run ruff check .      # kod denetimi
-npm --prefix web run dev # arayüz geliştirme sunucusu (API'yi 8790'e yönlendirir)
+uv run python -m pytest     # testler (tests/e2e: derlenmiş arayüz + Edge ile uçtan uca)
+uv run python -m ruff check . # kod denetimi
+npm --prefix web run dev    # arayüz geliştirme sunucusu (API'yi 8790'e yönlendirir)
 ```
+
+`python -m` şart: Windows'un Akıllı Uygulama Denetimi `pytest.exe` gibi başlatıcıları engelleyebilir.
+Her gönderimde GitHub Actions aynı denetimleri çalıştırır ([ci.yml](.github/workflows/ci.yml)).
 
 ## Ayarlar
 

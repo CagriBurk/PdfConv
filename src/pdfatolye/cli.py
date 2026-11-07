@@ -67,7 +67,20 @@ def _done(path: Path) -> None:
     typer.echo(f"Yazıldı: {path}")
 
 
+def _keeping(pdf: Path, password: str | None, make: Callable[[], Path]) -> Path:
+    """Şifreli girdinin şifresi ve kısıtları çıktıda da kalır; düzenleme onları kaldırmaz.
+    Koruma işlemden önce okunur: çıktı girdinin üstüne yazılıyor olabilir."""
+    from pdfatolye.core.security import apply_protection, read_protection
+
+    protection = read_protection(pdf, password)
+    output = make()
+    for note in apply_protection(output, protection):
+        typer.secho(f"Uyarı: {note}", fg="yellow")
+    return output
+
+
 @app.command()
+@friendly_errors
 def serve(
     port: Annotated[int | None, typer.Option(help="Sunucu portu")] = None,
     no_browser: Annotated[bool, typer.Option("--no-browser", help="Tarayıcıyı açma")] = False,
@@ -107,7 +120,7 @@ def serve(
     application = create_app(settings)
     typer.echo(f"PDF Atölyesi çalışıyor: {url}  (kapatmak için Ctrl+C)")
     if settings.lan:
-        _print_lan(settings.port, application.state.pair_token)
+        _print_lan(settings.port, application.state.sessions.pair_token)
     if browser:
         threading.Timer(1.0, webbrowser.open, args=[url]).start()
     uvicorn.run(application, host=settings.host, port=settings.port, log_level="warning")
@@ -127,8 +140,10 @@ def _print_lan(port: int, pair_token: str) -> None:
     with contextlib.suppress(UnicodeEncodeError):
         typer.echo(qr_text(link))
     typer.echo(f"ya da adresi yaz: {link}")
-    typer.secho("Bu adresi bilen herkes dosyalarına erişir; işin bitince sunucuyu kapat. "
-                "Windows güvenlik duvarı ilk seferde izin isteyebilir.", fg="yellow")
+    typer.secho("Bu kod tek kullanımlık; sonraki cihazlar için Ayarlar sayfasında yenisi çıkar. "
+                "Bağlantı yerel ağda şifresizdir: yalnızca güvendiğin Wi-Fi'de kullan, işin "
+                "bitince sunucuyu kapat. Windows güvenlik duvarı ilk seferde izin isteyebilir.",
+                fg="yellow")
 
 
 def _port_in_use(host: str, port: int) -> bool:
@@ -217,6 +232,9 @@ def birlestir(
         raise ValueError("Birleştirmek için en az iki PDF ver.")
     out = cikti or _default_output(pdfler[0], "birlesik")
     _done(merge(pdfler, out, passwords=[sifre] * len(pdfler), bookmark_per_file=yer_imi_dosya))
+    if sifre:
+        typer.secho("Uyarı: birleşik dosya şifresiz; gerekirse 'sifrele' komutunu kullan.",
+                    fg="yellow")
 
 
 @app.command()
@@ -230,7 +248,8 @@ def sec(
     """Sayfaları verilen sırayla alır: sayfa çıkarma ve yeniden sıralama."""
     from pdfatolye.core.pages import select
 
-    _done(select(pdf, aralik, cikti or _default_output(pdf, "secilen"), password=sifre))
+    out = cikti or _default_output(pdf, "secilen")
+    _done(_keeping(pdf, sifre, lambda: select(pdf, aralik, out, password=sifre)))
 
 
 @app.command()
@@ -244,7 +263,8 @@ def sil(
     """Sayfaları siler."""
     from pdfatolye.core.pages import delete
 
-    _done(delete(pdf, aralik, cikti or _default_output(pdf, "silinmis"), password=sifre))
+    out = cikti or _default_output(pdf, "silinmis")
+    _done(_keeping(pdf, sifre, lambda: delete(pdf, aralik, out, password=sifre)))
 
 
 @app.command()
@@ -260,7 +280,7 @@ def dondur(
     from pdfatolye.core.pages import rotate
 
     out = cikti or _default_output(pdf, "dondurulmus")
-    _done(rotate(pdf, aci, out, spec=sayfalar, password=sifre))
+    _done(_keeping(pdf, sifre, lambda: rotate(pdf, aci, out, spec=sayfalar, password=sifre)))
 
 
 @app.command()
@@ -292,8 +312,8 @@ def bos(
     """Boş sayfa ekler (bir önceki sayfanın boyutunda)."""
     from pdfatolye.core.pages import insert_blank
 
-    _done(insert_blank(pdf, sonra, cikti or _default_output(pdf, "bos-sayfali"),
-                       count=adet, password=sifre))
+    out = cikti or _default_output(pdf, "bos-sayfali")
+    _done(_keeping(pdf, sifre, lambda: insert_blank(pdf, sonra, out, count=adet, password=sifre)))
 
 
 @app.command()
@@ -308,11 +328,14 @@ def bol(
 ) -> None:
     """PDF'i parçalara böler."""
     from pdfatolye.core.pages import SPLIT_MODES, split
+    from pdfatolye.core.security import keep_encryption
 
     if mod not in SPLIT_MODES:
         raise ValueError(f"Mod şunlardan biri olmalı: {', '.join(SPLIT_MODES)}")
     outputs = split(pdf, klasor or _default_dir(pdf, "parcalar"), mode=mod, every=n,
                     spec=aralik, password=sifre)
+    for part in outputs:
+        keep_encryption(pdf, part, sifre)
     typer.echo(f"{len(outputs)} dosya yazıldı: {outputs[0].parent}")
 
 
@@ -506,10 +529,18 @@ def filigran(
                      opacity=opaklik, size=boyut, color=renk, pages=sayfalar,
                      layer="back" if arkada else "front")
     out = cikti or _default_output(pdf, "filigranli")
-    result = apply_ops(pdf, out, [op], password=sifre, assets={"resim": resim} if resim else {})
-    for w in result.warnings:
+    warnings: list[str] = []
+
+    def make() -> Path:
+        result = apply_ops(pdf, out, [op], password=sifre,
+                           assets={"resim": resim} if resim else {})
+        warnings.extend(result.warnings)
+        return result.output
+
+    output = _keeping(pdf, sifre, make)
+    for w in warnings:
         typer.secho(f"Uyarı: {w}", fg="yellow")
-    _done(result.output)
+    _done(output)
 
 
 @app.command("sayfa-no")
@@ -534,7 +565,7 @@ def sayfa_no(
     op = PageNumbersOp(type="page_numbers", format=bicim, position=konum, start=baslangic,
                        skip_first=kapak, pages=sayfalar, size=boyut)
     out = cikti or _default_output(pdf, "numarali")
-    _done(apply_ops(pdf, out, [op], password=sifre).output)
+    _done(_keeping(pdf, sifre, lambda: apply_ops(pdf, out, [op], password=sifre).output))
 
 
 @app.command()
@@ -549,13 +580,17 @@ def sikistir(
 ) -> None:
     """PDF'i küçültür. Sonuç büyük çıkarsa orijinal korunur."""
     from pdfatolye.core.compress import compress
+    from pdfatolye.core.security import apply_protection, read_protection
 
     if cikti and len(pdfler) > 1:
         raise typer.BadParameter("Birden çok dosyada -o kullanılamaz.")
     gs = engines.detect_ghostscript(load_settings(config)).path if seviye == "guclu" else None
     for pdf in pdfler:
+        protection = read_protection(pdf, sifre)
         r = compress(pdf, cikti or _default_output(pdf, "kucuk"), seviye, password=sifre,
                      ghostscript=gs)
+        if not r.kept_original:
+            apply_protection(r.output, protection)
         mb = 1024 * 1024
         typer.echo(f"{pdf.name}: {r.before / mb:.2f} MB → {r.after / mb:.2f} MB"
                    + (" (orijinal korundu)" if r.kept_original
@@ -577,6 +612,7 @@ def ocr_cmd(
 ) -> None:
     """Taranmış PDF'i aranabilir yapar (Türkçe + İngilizce)."""
     from pdfatolye.core.ocr import ocr
+    from pdfatolye.core.security import apply_protection, read_protection
 
     settings = load_settings(config)
     tess = engines.detect_tesseract(settings)
@@ -589,9 +625,11 @@ def ocr_cmd(
             last[0] = msg
             typer.echo(f"  {msg}")
 
+    protection = read_protection(pdf, sifre)
     r = ocr(pdf, cikti or _default_output(pdf, "ocr"), mode=mod, langs=diller.split("+"),
             password=sifre, tesseract=tess.path,
             ghostscript=engines.detect_ghostscript(settings).path, on_progress=progress)
+    apply_protection(r.output, protection)
     typer.echo(f"{r.page_count} sayfanın {r.pages_with_text} tanesinde metin var.")
     for w in r.warnings:
         typer.secho(f"Uyarı: {w}", fg="yellow")
@@ -639,9 +677,17 @@ def meta_temizle(pdf: InPdf, sifre: PwOpt = None, cikti: OutOpt = None) -> None:
     """Yazar, program, XMP, gömülü dosya ve JavaScript'i siler."""
     from pdfatolye.core.security import clean_metadata
 
-    r = clean_metadata(pdf, cikti or _default_output(pdf, "temiz"), sifre)
-    typer.echo(r.notes[0])
-    _done(r.output)
+    out = cikti or _default_output(pdf, "temiz")
+    notes: list[str] = []
+
+    def make() -> Path:
+        r = clean_metadata(pdf, out, sifre)
+        notes.extend(r.notes)
+        return r.output
+
+    output = _keeping(pdf, sifre, make)
+    typer.echo(notes[0])
+    _done(output)
 
 
 @app.command()
@@ -650,9 +696,17 @@ def onar(pdf: InPdf, sifre: PwOpt = None, cikti: OutOpt = None) -> None:
     """Bozuk PDF'i onarmayı dener."""
     from pdfatolye.core.security import repair
 
-    r = repair(pdf, cikti or _default_output(pdf, "onarilmis"), sifre)
-    typer.echo(" ".join(r.notes))
-    _done(r.output)
+    out = cikti or _default_output(pdf, "onarilmis")
+    notes: list[str] = []
+
+    def make() -> Path:
+        r = repair(pdf, out, sifre)
+        notes.extend(r.notes)
+        return r.output
+
+    output = _keeping(pdf, sifre, make)
+    typer.echo(" ".join(notes))
+    _done(output)
 
 
 _IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".tif", ".tiff", ".heic",

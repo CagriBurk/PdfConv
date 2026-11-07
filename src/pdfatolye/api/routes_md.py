@@ -13,6 +13,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
+from pdfatolye.api.security import SANDBOX_CSP
 from pdfatolye.convert.markdown.document import (
     MdOptions,
     build_html,
@@ -66,7 +67,8 @@ def preview(request: Request, body: PreviewBody) -> dict:
     # Not bir klasörde değil: göreli resimler yalnızca eklerden ve (varsa) kasadan çözülür.
     empty = state.settings.data_dir / "bos"
     parsed = parse_markdown(body.text, base_dir=vault or empty, vault=vault,
-                            url_for=state.preview_assets.url_for, attachments=attachments)
+                            url_for=state.preview_assets.url_for, attachments=attachments,
+                            confine=True)
     warnings = list(parsed.warnings)
     opts = resolve_options(MdOptions(**body.options.model_dump()), parsed.front_matter, warnings)
     origin = str(request.base_url).rstrip("/")
@@ -83,4 +85,5 @@ def asset(request: Request, token: str):
     path = request.app.state.preview_assets.get(token)
     if path is None or not path.is_file():
         raise PdfAtolyeError("Önizleme resmi bulunamadı.")
-    return FileResponse(path, headers={"Cache-Control": "no-store"})
+    return FileResponse(path, headers={"Cache-Control": "no-store",
+                                       "Content-Security-Policy": SANDBOX_CSP})

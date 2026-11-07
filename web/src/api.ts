@@ -26,6 +26,7 @@ export interface LanInfo {
   enabled: boolean;
   urls?: string[];
   qr_svg?: string | null;
+  devices?: { ip: string; paired_at: number }[];
 }
 
 export type FileKind = "pdf" | "image" | "markdown" | "text" | "office" | "html" | "other";
@@ -177,6 +178,7 @@ export const api = {
     request<MdPreview>("/api/md/preview", json({ text, attachments, options })),
 
   lan: () => request<LanInfo>("/api/lan"),
+  revokeDevices: () => request<{ revoked: number }>("/api/lan/devices", { method: "DELETE" }),
   info: (id: string) => request<PdfInfo>(`/api/files/${id}/info`),
   fonts: () => request<FontInfo[]>("/api/fonts"),
   signatures: () => request<FileMeta[]>("/api/signatures"),

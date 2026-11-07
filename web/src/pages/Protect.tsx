@@ -33,8 +33,19 @@ export default function Protect({ route }: { route: Route }) {
     if (pdf) setFile(pdf);
   }, [initial.files]);
 
-  const pwError = action === "encrypt" && pw && (pw.length < 4 ? "En az 4 karakter." : pw2 && pw !== pw2 ? "Şifreler aynı değil." : null);
-  const ready = file && (action !== "encrypt" || (pw.length >= 4 && pw === pw2));
+  const restricted = !(allow.print && allow.copy && allow.modify);
+  const ownerClash = restricted && owner !== "" && owner === pw;
+  const pwError =
+    action === "encrypt" &&
+    pw &&
+    (pw.length < 4
+      ? "En az 4 karakter."
+      : pw2 && pw !== pw2
+        ? "Şifreler aynı değil."
+        : ownerClash
+          ? "Sahip şifresi açılış şifresinden farklı olmalı; aynı olursa izin kısıtları uygulanmaz."
+          : null);
+  const ready = file && (action !== "encrypt" || (pw.length >= 4 && pw === pw2 && !ownerClash));
 
   const run = () => {
     if (!file) return;
@@ -115,7 +126,7 @@ export default function Protect({ route }: { route: Route }) {
               </fieldset>
               <label className="field">
                 Sahip şifresi (isteğe bağlı)
-                <input className="input" type="password" autoComplete="new-password" placeholder="açılış şifresiyle aynı" value={owner} onChange={(e) => setOwner(e.target.value)} />
+                <input className="input" type="password" autoComplete="new-password" placeholder={restricted ? "boşsa rastgele üretilir" : "boşsa açılış şifresiyle aynı"} value={owner} onChange={(e) => setOwner(e.target.value)} />
               </label>
               <p className="muted small">
                 Şifreler kaydedilmez; unutursan dosya açılamaz. İzin kısıtlarına her okuyucu uymaz, asıl koruma açılış

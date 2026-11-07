@@ -4,13 +4,15 @@ Akış: md → HTML (geçici klasöre, KaTeX kopyasıyla) → tarayıcıda aç �
 resimler ve fontlar yüklensin → page.pdf(). İçindekiler istendiyse iki geçiş yapılır: ilk
 baskının yer imlerinden başlıkların sayfaları okunur, numaralar yazılıp yeniden basılır.
 
-Ağ erişimi kapalıdır: yalnızca file: ve data: adreslerine izin verilir (çevrimdışı ilkesi ve
-güvenlik). Engellenen uzak kaynaklar uyarı olarak raporlanır.
+Not güvenilir sayılmaz: içerik güvenlik politikası (nonce) notun içindeki betikleri ve gömülü
+çerçeveleri durdurur; ağ kapalıdır, yalnızca KaTeX dosyaları ile çözülen resimler açılır (bkz.
+`browser.py`). Engellenen kaynaklar uyarı olarak raporlanır.
 """
 
 from __future__ import annotations
 
 import re
+import secrets
 import shutil
 import tempfile
 import unicodedata
@@ -19,10 +21,17 @@ from pathlib import Path
 
 import pymupdf
 
+from pdfatolye.convert.browser import (
+    blocked_warnings,
+    file_url_path,
+    launch_offline,
+    new_offline_page,
+)
 from pdfatolye.convert.markdown.document import (
     ASSETS,
     MdOptions,
     build_html,
+    print_csp,
     resolve_options,
     toc_headings,
 )
@@ -93,11 +102,15 @@ class MarkdownPrinter:
             p.convert(Path("not.md"), Path("not.pdf"))
     """
 
-    def __init__(self, browser_path: str | None, vault: Path | None = None) -> None:
+    def __init__(self, browser_path: str | None, vault: Path | None = None,
+                 *, confine: bool = False) -> None:
+        """`confine=True`: notun resimleri yalnızca not klasöründen ve kasadan okunur (arayüzden
+        gelen not). Komut satırında kullanıcı kendi notunu bastığı için göreli `../` serbesttir."""
         if not browser_path or not Path(browser_path).is_file():
             raise BrowserNotFoundError()
         self.browser_path = browser_path
         self.vault = vault
+        self.confine = confine
         self._pw = None
         self._browser = None
         self._tmp: tempfile.TemporaryDirectory | None = None
@@ -110,9 +123,7 @@ class MarkdownPrinter:
         shutil.copytree(ASSETS / "katex", Path(self._tmp.name) / "katex")
         self._pw = sync_playwright().start()
         try:
-            self._browser = self._pw.chromium.launch(
-                executable_path=self.browser_path, headless=True
-            )
+            self._browser = launch_offline(self._pw, self.browser_path)
         except Exception:
             self._pw.stop()
             self._tmp.cleanup()
@@ -135,32 +146,34 @@ class MarkdownPrinter:
         source = Path(source)
         warnings: list[str] = []
         text = read_markdown(source, warnings)
+        # Tarayıcı yalnızca buradan geçen resimleri ve geçici klasörü (KaTeX, belge) açabilir.
+        images: set[Path] = set()
+
+        def url_for(path: Path) -> str:
+            images.add(path.resolve())
+            return path.as_uri()
+
+        parse = dict(base_dir=source.parent, vault=self.vault, url_for=url_for,
+                     confine=self.confine)
         # Satır sonu ayarı ayrıştırmadan önce lazım: ön bilgi için hızlı bir ilk geçiş.
-        first = parse_markdown(text, base_dir=source.parent, vault=self.vault)
+        first = parse_markdown(text, **parse)
         opts = resolve_options(options or MdOptions(), first.front_matter, warnings)
-        parsed = (first if opts.breaks else
-                  parse_markdown(text, base_dir=source.parent, vault=self.vault, breaks=False))
+        parsed = first if opts.breaks else parse_markdown(text, breaks=False, **parse)
         warnings.extend(parsed.warnings)
 
-        html_path = Path(self._tmp.name) / "belge.html"
-        html_path.write_text(build_html(parsed, opts), encoding="utf-8")
+        tmp_root = Path(self._tmp.name).resolve()
+        html_path = tmp_root / "belge.html"
+        nonce = secrets.token_urlsafe(16)
+        html_path.write_text(build_html(parsed, opts, csp=print_csp(nonce), nonce=nonce),
+                             encoding="utf-8")
         if html_out:
             Path(html_out).write_text(build_html(parsed, opts, katex_dir=(
                 ASSETS / "katex").as_uri()), encoding="utf-8")
 
-        page = self._browser.new_page()
         blocked: list[str] = []
-
-        def route(r):
-            url = r.request.url
-            if url.startswith(("file:", "data:", "about:")):
-                r.continue_()
-            else:
-                blocked.append(url)
-                r.abort()
-
+        page = new_offline_page(self._browser,
+                                lambda p: p.is_relative_to(tmp_root) or p in images, blocked)
         try:
-            page.route("**/*", route)
             page.goto(html_path.as_uri(), wait_until="load", timeout=RENDER_TIMEOUT_MS)
             page.wait_for_function("window.__sonuc !== undefined", timeout=RENDER_TIMEOUT_MS)
             result = page.evaluate("window.__sonuc")
@@ -170,10 +183,15 @@ class MarkdownPrinter:
                 where = f"Satır {err['line']}: " if err.get("line") else ""
                 warnings.append(f"{where}formül çizilemedi — {err['message']}")
             for src in result["broken"]:
-                if not src.startswith(("http:", "https:")):
+                if src.startswith(("http:", "https:")):
+                    blocked.append(src)  # CSP istek çıkmadan durdurur, `route`'a hiç ulaşmaz
+                    continue
+                path = file_url_path(src) if src.startswith("file:") else None
+                if path is None:
                     warnings.append(f"Resim açılamadı: {src}")
-            for url in dict.fromkeys(blocked):
-                warnings.append(f"Uzak kaynak çevrimdışı olduğu için yüklenmedi: {url}")
+                elif path.resolve() in images:
+                    warnings.append(f"Resim açılamadı: {path.name}")
+            warnings.extend(blocked_warnings(blocked))
 
             pdf_kwargs = dict(
                 format=opts.paper,
@@ -207,7 +225,7 @@ class MarkdownPrinter:
                               ".forEach(el => el.textContent = '')")
                 pdf_bytes = page.pdf(**pdf_kwargs)
         finally:
-            page.close()
+            page.context.close()
 
         return MdResult(
             output=self._finish(pdf_bytes, output, parsed, headings, heading_pages),

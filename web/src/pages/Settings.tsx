@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { api, type EngineStatus, type EnginesResponse, type LanInfo } from "../api";
 
 interface Props {
@@ -16,12 +16,19 @@ function statusLabel(e: EngineStatus): { text: string; cls: string } {
 function PhoneMode() {
   const [info, setInfo] = useState<LanInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
+  const refresh = useCallback(() => {
     api
       .lan()
       .then(setInfo)
       .catch((e: Error) => setError(e.message));
   }, []);
+
+  // QR kod tek kullanımlık: bir cihaz eşleşince yenisi çıkar, bağlı cihaz listesi de değişir.
+  useEffect(() => {
+    refresh();
+    const timer = window.setInterval(refresh, 3000);
+    return () => window.clearInterval(timer);
+  }, [refresh]);
 
   if (error) return <p className="muted small">{error}</p>;
   if (!info) return null;
@@ -50,9 +57,27 @@ function PhoneMode() {
             {u}
           </p>
         ))}
+        <p className="muted small">Kod tek kullanımlık; her cihaz için yenisi çıkar.</p>
         <p className="warn-line">
-          Bu adresi bilen herkes dosyalarına erişebilir. Başkasıyla paylaşma; işin bitince sunucuyu kapat.
+          Bağlantı yerel ağda şifresizdir. Yalnızca güvendiğin Wi-Fi'de kullan; işin bitince sunucuyu kapat.
         </p>
+        {!!info.devices?.length && (
+          <>
+            <p>Bağlı cihazlar: {info.devices.map((d) => d.ip).join(", ")}</p>
+            <button
+              type="button"
+              className="danger"
+              onClick={() =>
+                api
+                  .revokeDevices()
+                  .then(refresh)
+                  .catch((e: Error) => setError(e.message))
+              }
+            >
+              Hepsinin bağlantısını kes
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

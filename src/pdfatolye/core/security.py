@@ -6,6 +6,7 @@ kısıtlanmış (açılış şifresi olmayan) dosyalarda kısıtlar kaldırılab
 
 from __future__ import annotations
 
+import secrets
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -36,11 +37,19 @@ def _open(src: Path, password: str | None) -> pikepdf.Pdf:
 def encrypt(src: Path, output: Path, user_password: str, *, owner_password: str | None = None,
             allow_print: bool = True, allow_copy: bool = True, allow_modify: bool = True,
             password: str | None = None) -> SecurityResult:
-    """AES-256 ile şifreler. Sahip şifresi verilmezse rastgele değil, açılış şifresiyle aynı
-    olur (kullanıcı kendi dosyasının izinlerini sonra değiştirebilsin)."""
+    """AES-256 ile şifreler.
+
+    Açılış şifresi sahip şifresiyle aynıysa dosyayı açan herkes tam yetkili sayılır ve izin
+    kısıtları uygulanmaz. Bu yüzden kısıt varken ikisi aynı olamaz: sahip şifresi verilmediyse
+    rastgele üretilir (kimseye verilmez). Kısıt yoksa açılış şifresiyle aynı olur.
+    """
     if len(user_password) < MIN_PASSWORD:
         raise PdfAtolyeError(f"Şifre en az {MIN_PASSWORD} karakter olmalı.")
-    owner = owner_password or user_password
+    restricted = not (allow_print and allow_copy and allow_modify)
+    if restricted and owner_password == user_password:
+        raise PdfAtolyeError("Sahip şifresi açılış şifresinden farklı olmalı; aynı olursa izin "
+                             "kısıtları uygulanmaz.")
+    owner = owner_password or (secrets.token_urlsafe(32) if restricted else user_password)
     perms = pikepdf.Permissions(
         print_lowres=allow_print, print_highres=allow_print,
         extract=allow_copy, accessibility=True,
@@ -51,10 +60,76 @@ def encrypt(src: Path, output: Path, user_password: str, *, owner_password: str 
         pdf.save(tmp, encryption=pikepdf.Encryption(user=user_password, owner=owner, R=6,
                                                     aes=True, allow=perms))
     notes = ["AES-256 ile şifrelendi."]
-    if not (allow_print and allow_copy and allow_modify):
+    if restricted:
         notes.append("İzin kısıtları her PDF okuyucusunda uygulanmayabilir; asıl koruma "
                      "açılış şifresidir.")
+        if not owner_password:
+            notes.append("Sahip şifresi vermediğin için rastgele bir tane üretildi. Kısıtları "
+                         "değiştirmek için Şifre kaldır ile şifreyi kaldırıp yeniden şifrele.")
     return SecurityResult(Path(output), notes)
+
+
+@dataclass
+class Protection:
+    """Bir PDF'in şifre ve izin durumu; işlenmiş çıktıya aynen geri uygulanmak için."""
+
+    user: str | None  # None: dosya açılamadı, koruma bilinmiyor
+    owner: str = ""
+    allow: pikepdf.Permissions | None = None
+    notes: list[str] = field(default_factory=list)
+
+
+def read_protection(src: Path, password: str | None = None) -> Protection | None:
+    """Dosya şifreli ya da kısıtlıysa korumasını döndürür; değilse None.
+
+    Açılış şifresi girilerek açıldıysa sahip şifresi bilinmez: kısıtlar varsa bozulmasın diye
+    rastgele bir sahip şifresi kullanılır. Bozuk dosyada (onarım) yalnızca verilen şifre korunur.
+    """
+    try:
+        pdf = pikepdf.open(src, password=password or "")
+    except pikepdf.PasswordError:
+        return Protection(user=None)
+    except (pikepdf.PdfError, OSError, ValueError):
+        return Protection(user=password, owner=password) if password else None
+    with pdf:
+        if not pdf.is_encrypted:
+            return None
+        allow = pdf.allow
+        restricted = not all((allow.print_lowres, allow.print_highres, allow.extract,
+                              allow.modify_annotation, allow.modify_form, allow.modify_other,
+                              allow.modify_assembly))
+        notes = []
+        if pdf.owner_password_matched and not pdf.user_password_matched:
+            notes.append("Sahip şifresiyle açıldı: çıktının açılış şifresi de artık bu şifre.")
+        if pdf.owner_password_matched:
+            owner = password or ""
+        elif restricted or not password:
+            owner = secrets.token_urlsafe(32)
+        else:
+            owner = password
+        return Protection(user=password or "", owner=owner, allow=allow, notes=notes)
+
+
+def apply_protection(output: Path, protection: Protection | None) -> list[str]:
+    """Korumayı `output`'a uygular (AES-256). Söylenmesi gereken notları döndürür."""
+    if protection is None:
+        return []
+    if protection.user is None:
+        return [f"'{Path(output).name}' şifresiz kaldı: kaynağın şifresi verilmedi."]
+    kwargs = {"allow": protection.allow} if protection.allow is not None else {}
+    try:
+        with pikepdf.open(output, allow_overwriting_input=True) as pdf:
+            if not pdf.is_encrypted:  # "orijinal korundu" çıktısı zaten şifreli olabilir
+                pdf.save(encryption=pikepdf.Encryption(user=protection.user, owner=protection.owner,
+                                                       R=6, aes=True, **kwargs))
+    except pikepdf.PasswordError:
+        return []  # çıktı zaten şifreli
+    return protection.notes
+
+
+def keep_encryption(src: Path, output: Path, password: str | None = None) -> list[str]:
+    """`src`'in şifresini/kısıtlarını, ondan üretilen `output`'a uygular."""
+    return apply_protection(output, read_protection(src, password))
 
 
 def decrypt(src: Path, output: Path, password: str | None = None) -> SecurityResult:

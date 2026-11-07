@@ -1,6 +1,8 @@
 """HTML ve düz metin → PDF (kurulu Edge/Chrome ile, çevrimdışı).
 
-Ağ erişimi kapalıdır: yalnızca file: ve data: adresleri yüklenir; uzak kaynaklar uyarı olur.
+Yazdırılan dosya güvenilir sayılmaz; ağ kapalıdır ve belgenin dışındaki yerel dosyalar açılmaz
+(bkz. `browser.py`). Sayfadaki betikler çalışır (JS ile üretilen raporlar için) ama hiçbir yere
+veri gönderemez.
 """
 
 from __future__ import annotations
@@ -12,6 +14,7 @@ from pathlib import Path
 
 import pymupdf
 
+from pdfatolye.convert.browser import blocked_warnings, launch_offline, new_offline_page
 from pdfatolye.convert.markdown.render import BrowserNotFoundError
 from pdfatolye.core.pdfio import atomic_output
 
@@ -55,8 +58,11 @@ def print_html(
     margin_mm: float = 15,
     page_numbers: bool = True,
     display_name: str | None = None,
+    confine: bool = False,
 ) -> HtmlResult:
-    """HTML dosyasını basar. Göreli resim/CSS yolları dosyanın klasörüne göre çözülür."""
+    """HTML dosyasını basar. Göreli resim/CSS yolları dosyanın klasörüne göre çözülür ve yalnızca
+    o klasörün altındaki dosyalar açılır. `confine=True` (arayüzden yüklenen dosya): yalnızca
+    dosyanın kendisi açılır, deponun geri kalanı görünmez."""
     if not browser_path or not Path(browser_path).is_file():
         raise BrowserNotFoundError()
     from playwright.sync_api import sync_playwright
@@ -64,21 +70,16 @@ def print_html(
     name = display_name or Path(source).name
     warnings: list[str] = []
     blocked: list[str] = []
+    source_path = Path(source).resolve()
+
+    def allow_file(path: Path) -> bool:
+        return path == source_path or (not confine and path.is_relative_to(source_path.parent))
+
     with sync_playwright() as pw:
-        browser = pw.chromium.launch(executable_path=browser_path, headless=True)
+        browser = launch_offline(pw, browser_path)
         try:
-            page = browser.new_page()
-
-            def route(r):
-                url = r.request.url
-                if url.startswith(("file:", "data:", "about:")):
-                    r.continue_()
-                else:
-                    blocked.append(url)
-                    r.abort()
-
-            page.route("**/*", route)
-            page.goto(Path(source).resolve().as_uri(), wait_until="load", timeout=TIMEOUT_MS)
+            page = new_offline_page(browser, allow_file, blocked)
+            page.goto(source_path.as_uri(), wait_until="load", timeout=TIMEOUT_MS)
             page.evaluate("document.fonts.ready.then(() => true)")
             pdf_bytes = page.pdf(
                 format=paper, landscape=landscape, print_background=True, outline=True,
@@ -90,8 +91,7 @@ def print_html(
         finally:
             browser.close()
 
-    for url in dict.fromkeys(blocked):
-        warnings.append(f"'{name}': uzak kaynak çevrimdışı olduğu için yüklenmedi: {url}")
+    warnings.extend(blocked_warnings(blocked, f"'{name}': "))
     with pymupdf.open(stream=pdf_bytes, filetype="pdf") as doc:
         pages = doc.page_count
         doc.set_metadata({"title": Path(name).stem, "creator": "PDF Atölyesi"})
@@ -110,6 +110,7 @@ def print_text(source: Path, output: Path, *, browser_path: str | None,
         page = Path(tmp) / "metin.html"
         page.write_text(TEXT_TEMPLATE.format(title=html_lib.escape(Path(name).stem),
                                              body=html_lib.escape(text)), encoding="utf-8")
-        result = print_html(page, output, browser_path=browser_path, display_name=name, **kwargs)
+        result = print_html(page, output, browser_path=browser_path, display_name=name,
+                            confine=True, **kwargs)
     result.warnings[:0] = warnings
     return result

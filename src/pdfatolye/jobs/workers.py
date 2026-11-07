@@ -9,6 +9,7 @@ import shutil
 import tempfile
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from functools import partial
 from pathlib import Path
 
 from pdfatolye import engines
@@ -44,6 +45,24 @@ def _require(store, file_id: str, kind: str) -> tuple[FileMeta, Path]:
         raise UnsupportedFileError(Path(meta.name), {"pdf": "PDF", "image": "resim",
                                                      "markdown": "Markdown"}.get(kind, kind))
     return meta, store.path(file_id)
+
+
+def _protect(store, req, file_id: str, out: Path) -> list[str]:
+    """Şifreli kaynaktan tek çıktı üretilince şifresi çıktıda da korunur; düzenleme bir dosyanın
+    şifresini sessizce kaldırmamalı. Şifreyi yalnızca açıkça "Şifre kaldır" kaldırır."""
+    password = req.passwords.get(file_id)
+    if not store.get(file_id).encrypted and not password:
+        return []
+    return security.keep_encryption(store.path(file_id), out, password)
+
+
+def _unprotected_warning(metas: list[FileMeta], protected_id: str | None = None) -> list[str]:
+    """Birden çok kaynaklı çıktıda tek bir şifre seçilemez: şifresiz kaldığı açıkça söylenir."""
+    names = [m.name for m in metas if m.encrypted and m.id != protected_id]
+    if not names:
+        return []
+    return [f"Şifreli kaynak ({', '.join(names)}) kullanıldı; bu kaynağın şifresi çıktıya "
+            "taşınmadı. Gerekirse Güvenlik ve Bakım → Şifrele ile şifrele."]
 
 
 def run(manager, req, report: Report, job_id: str) -> WorkResult:
@@ -109,10 +128,16 @@ def compose(store, settings, req, report, tmp: Path, job_id) -> WorkResult:
                   keep_bookmarks=req.keep_bookmarks, bookmark_titles=[_stem(m) for m in metas])
     report(0.9, "Kaydediliyor")
     if req.target == "version":
-        return WorkResult([store.new_version(req.base_file, out, "Sayfa düzenleme")])
+        notes = _protect(store, req, req.base_file, out)
+        notes += _unprotected_warning(metas, req.base_file)
+        return WorkResult([store.new_version(req.base_file, out, "Sayfa düzenleme")], notes)
+    if len(metas) == 1:
+        notes = _protect(store, req, metas[0].id, out)
+    else:
+        notes = _unprotected_warning(metas)
     base = _stem(metas[0]) if metas else "belge"
     name = _out_name(req.name, f"{base}_duzenlenmis")
-    return WorkResult([store.add_file(out, name, job_id=job_id)])
+    return WorkResult([store.add_file(out, name, job_id=job_id)], notes)
 
 
 def merge(store, settings, req, report, tmp: Path, job_id) -> WorkResult:
@@ -123,7 +148,8 @@ def merge(store, settings, req, report, tmp: Path, job_id) -> WorkResult:
                 bookmark_per_file=req.bookmark_per_file,
                 bookmark_titles=[_stem(m) for m in metas])
     name = _out_name(req.name, f"{_stem(metas[0])}_birlesik")
-    return WorkResult([store.add_file(out, name, job_id=job_id)])
+    return WorkResult([store.add_file(out, name, job_id=job_id)],
+                      _unprotected_warning(list(metas)))
 
 
 def split(store, settings, req, report, tmp: Path, job_id) -> WorkResult:
@@ -131,11 +157,12 @@ def split(store, settings, req, report, tmp: Path, job_id) -> WorkResult:
     report(0.1, "Bölünüyor")
     parts = pages.split(path, tmp / "parcalar", mode=req.mode, every=req.every, spec=req.spec,
                         password=req.passwords.get(req.file), name_stem=_stem(meta))
-    outputs = []
+    outputs, notes = [], []
     for i, part in enumerate(parts, start=1):
+        notes += _protect(store, req, req.file, part)
         outputs.append(store.add_file(part, part.name, job_id=job_id))
         report(0.1 + 0.9 * i / len(parts), f"{i}/{len(parts)} parça")
-    return WorkResult(outputs)
+    return WorkResult(outputs, list(dict.fromkeys(notes)))
 
 
 def images_to_pdf(store, settings, req, report, tmp: Path, job_id) -> WorkResult:
@@ -158,7 +185,8 @@ def pdf_to_images(store, settings, req, report, tmp: Path, job_id) -> WorkResult
     for i, f in enumerate(files, start=1):
         outputs.append(store.add_file(f, f.name, job_id=job_id))
         report(0.1 + 0.9 * i / len(files), f"{i}/{len(files)} sayfa")
-    return WorkResult(outputs)
+    notes = ["Kaynak PDF şifreli ama resim dosyaları şifre taşımaz."] if meta.encrypted else []
+    return WorkResult(outputs, notes)
 
 
 def md_to_pdf(store, settings, req, report, tmp: Path, job_id) -> WorkResult:
@@ -185,7 +213,7 @@ def md_to_pdf(store, settings, req, report, tmp: Path, job_id) -> WorkResult:
 
     browser = engines.detect_browser(settings).path
     report(0.15, "Tarayıcı başlatılıyor")
-    with MarkdownPrinter(browser, settings.vault_path) as printer:
+    with MarkdownPrinter(browser, settings.vault_path, confine=True) as printer:
         report(0.4, "Basılıyor")
         result = printer.convert(source, tmp / "cikti.pdf",
                                  MdOptions(**req.options.model_dump()))
@@ -224,7 +252,7 @@ def office_to_pdf(store, settings, req, report, tmp: Path, job_id) -> WorkResult
         if m.kind == "office":
             continue
         report(len(results) / total, f"{len(results) + 1}/{total}: {m.name}")
-        printer = print_html if m.kind == "html" else print_text
+        printer = partial(print_html, confine=True) if m.kind == "html" else print_text
         try:
             results[i] = printer(store.path(m.id), outs[i], browser_path=browser,
                                  display_name=m.name).warnings
@@ -264,13 +292,16 @@ def apply(store, settings, req, report, tmp: Path, job_id) -> WorkResult:
     result = content.apply_ops(path, out, req.ops, password=req.passwords.get(req.file),
                                assets=assets)
     report(0.9, "Kaydediliyor")
+    warnings = result.warnings + _protect(store, req, req.file, out)
     kinds = {op.type for op in req.ops}
     note = _APPLY_NOTES.get(next(iter(kinds)), "") if len(kinds) == 1 else ""
     if req.target == "version":
-        return WorkResult([store.new_version(req.file, out, note or "İçerik düzenleme")],
-                          result.warnings)
+        if "redact" in kinds:
+            warnings.append("Karartılmamış önceki sürüm, sen silene ya da otomatik temizliğe kadar "
+                            "bu bilgisayarda durur. İndirdiğin dosyada karartılan içerik yoktur.")
+        return WorkResult([store.new_version(req.file, out, note or "İçerik düzenleme")], warnings)
     name = _out_name(req.name, f"{_stem(meta)}_duzenlenmis")
-    return WorkResult([store.add_file(out, name, job_id=job_id)], result.warnings)
+    return WorkResult([store.add_file(out, name, job_id=job_id)], warnings)
 
 
 def _size(n: int) -> str:
@@ -287,12 +318,19 @@ def compress(store, settings, req, report, tmp: Path, job_id) -> WorkResult:
         out = tmp / f"{i:04d}.pdf"
         r = compresslib.compress(path, out, req.level, password=req.passwords.get(fid),
                                  ghostscript=gs)
-        if r.kept_original:
+        kept, after = r.kept_original, r.after
+        if not kept:
+            warnings += _protect(store, req, fid, out)  # şifre biraz yer tutar: boyut yeniden
+            after = out.stat().st_size
+            if after >= r.before:
+                shutil.copyfile(path, out)
+                kept = True
+        if kept:
             warnings.append(f"{meta.name}: daha fazla küçülmedi, orijinal korundu "
                             f"({_size(r.before)}).")
         else:
-            warnings.append(f"{meta.name}: {_size(r.before)} → {_size(r.after)} "
-                            f"(%{round(r.saved_ratio * 100)} küçüldü)")
+            warnings.append(f"{meta.name}: {_size(r.before)} → {_size(after)} "
+                            f"(%{round((1 - after / r.before) * 100)} küçüldü)")
         outputs.append(store.add_file(out, _out_name(None, f"{_stem(meta)}_kucuk"),
                                       job_id=job_id))
     return WorkResult(outputs, warnings)
@@ -327,8 +365,9 @@ def ocr(store, settings, req, report, tmp: Path, job_id) -> WorkResult:
                    ghostscript=engines.detect_ghostscript(settings).path,
                    on_progress=progress, should_cancel=lambda: cancelled)
     summary = f"{r.page_count} sayfanın {r.pages_with_text} tanesinde metin var."
+    notes = _protect(store, req, req.file, out)
     return WorkResult([_single_output(store, req, meta, out, "OCR", "ocr", job_id)],
-                      [summary, *r.warnings])
+                      [summary, *r.warnings, *notes])
 
 
 def encrypt(store, settings, req, report, tmp: Path, job_id) -> WorkResult:
@@ -353,8 +392,9 @@ def clean_metadata(store, settings, req, report, tmp: Path, job_id) -> WorkResul
     meta, path = _require(store, req.file, "pdf")
     out = tmp / "temiz.pdf"
     r = security.clean_metadata(path, out, req.passwords.get(req.file))
+    notes = r.notes + _protect(store, req, req.file, out)
     return WorkResult([_single_output(store, req, meta, out, "Meta veri temizlendi", "temiz",
-                                      job_id)], r.notes)
+                                      job_id)], notes)
 
 
 def repair(store, settings, req, report, tmp: Path, job_id) -> WorkResult:
@@ -363,5 +403,6 @@ def repair(store, settings, req, report, tmp: Path, job_id) -> WorkResult:
         raise UnsupportedFileError(Path(meta.name), "PDF")
     out = tmp / "onarilmis.pdf"
     r = security.repair(store.path(req.file), out, req.passwords.get(req.file))
+    notes = r.notes + _protect(store, req, req.file, out)
     return WorkResult([_single_output(store, req, meta, out, "Onarıldı", "onarilmis", job_id)],
-                      r.notes)
+                      notes)

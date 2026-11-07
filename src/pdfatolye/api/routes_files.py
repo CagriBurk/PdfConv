@@ -12,6 +12,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from starlette.background import BackgroundTask
 
+from pdfatolye.api.security import SANDBOX_CSP
 from pdfatolye.core.info import inspect_pdf
 from pdfatolye.core.pdfio import safe_filename
 from pdfatolye.errors import PdfAtolyeError
@@ -46,10 +47,16 @@ def _file_response(request: Request, file_id: str, version: int | None, disposit
     s = store(request)
     meta = s.get(file_id)
     path = s.path(file_id, version)
+    headers = {"Cache-Control": "no-store"}
     media = "application/pdf" if meta.kind == "pdf" else None
+    if meta.kind != "pdf":
+        # Yüklenen HTML/SVG uygulamanın kökeninde betik çalıştıramasın: kum havuzu, ve resim
+        # olmayan her şey sayfa olarak değil indirme olarak sunulur.
+        headers["Content-Security-Policy"] = SANDBOX_CSP
+        if meta.kind != "image":
+            disposition = "attachment"
     return FileResponse(path, media_type=media, filename=meta.name,
-                        content_disposition_type=disposition,
-                        headers={"Cache-Control": "no-store"})
+                        content_disposition_type=disposition, headers=headers)
 
 
 @router.get("/files/{file_id}/raw")

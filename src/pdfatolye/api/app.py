@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import secrets
 import threading
 from contextlib import asynccontextmanager
 from logging.handlers import RotatingFileHandler
@@ -18,8 +17,9 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from pdfatolye import __version__, engines, lan
 from pdfatolye.api import routes_content, routes_files, routes_jobs, routes_md
-from pdfatolye.api.security import COOKIE, SessionGuard, new_token
+from pdfatolye.api.security import COOKIE, SecurityHeaders, SessionGuard, Sessions, app_csp
 from pdfatolye.convert.markdown.document import ASSETS as MD_ASSETS
+from pdfatolye.convert.markdown.document import katex_script_hash
 from pdfatolye.errors import PdfAtolyeError, error_id, unexpected_message
 from pdfatolye.jobs import JobManager
 from pdfatolye.settings import PROJECT_ROOT, Settings
@@ -43,8 +43,9 @@ LAN_LOCKED_PAGE = """<!doctype html><html lang="tr"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>PDF Atölyesi</title>
 <body style="font-family:system-ui;max-width:30rem;margin:3rem auto;padding:0 1rem">
 <h1>PDF Atölyesi</h1>
-<p>Bu bilgisayar telefon modunda. Bağlanmak için bilgisayardaki <b>Ayarlar</b> sayfasındaki ya
-da terminaldeki QR kodu telefonun kamerasıyla okut.</p>
+<p>Bu bilgisayar telefon modunda. Bağlanmak için bilgisayardaki <b>Ayarlar</b> sayfasındaki QR
+kodu telefonun kamerasıyla okut. QR kod tek kullanımlıktır; önceden okutulmuşsa Ayarlar'daki yeni
+kodu kullan.</p>
 </body></html>"""
 
 
@@ -90,15 +91,16 @@ def _cleanup_loop(store: FileStore, hours: float, stop: threading.Event) -> None
 
 
 def create_app(settings: Settings, *, start_background: bool = True) -> FastAPI:
+    if not settings.lan and settings.host not in lan.LOOPBACK_HOSTS:
+        # Telefon modu dışında eşleştirme yok: bu bilgisayara özgü oturum herkese verilirdi.
+        raise ValueError(f"host = \"{settings.host}\" güvenli değil: yerel ağdan bağlanmak için "
+                         "host ayarını kaldırıp lan = true kullan.")
     settings.ensure_dirs()
     _setup_logging(settings)
     store = FileStore(settings.files_dir, settings.max_upload_mb)
     jobs = JobManager(store, settings)
     stop = threading.Event()
-    token = new_token()
-    # Telefon modu: QR koddaki eşleştirme belirteci. Oturum çerezinden ayrı tutulur ki adres
-    # çubuğunda / geçmişte kalan değer doğrudan çerez olmasın.
-    pair_token = secrets.token_urlsafe(16)
+    sessions = Sessions()
     if settings.lan:
         settings.allowed_hosts = list(dict.fromkeys([*settings.allowed_hosts, *lan.lan_ips()]))
 
@@ -111,17 +113,19 @@ def create_app(settings: Settings, *, start_background: bool = True) -> FastAPI:
         stop.set()
         jobs.shutdown()
 
-    app = FastAPI(title="PDF Atölyesi", version=__version__, docs_url="/api/docs",
-                  openapi_url="/api/openapi.json", lifespan=lifespan)
-    # Sıra önemli: dıştaki (son eklenen) önce çalışır. Önce Host, sonra oturum.
-    app.add_middleware(SessionGuard, token=token, allowed_hosts=settings.allowed_hosts)
+    # API belgeleri kapalı: CDN'den yüklenir (çevrimdışı açılmaz) ve kullanıcıya gerekmez.
+    app = FastAPI(title="PDF Atölyesi", version=__version__, docs_url=None, redoc_url=None,
+                  openapi_url=None, lifespan=lifespan)
+    # Sıra önemli: dıştaki (son eklenen) önce çalışır. Başlıklar her yanıtta, önce Host, sonra
+    # oturum.
+    app.add_middleware(SessionGuard, sessions=sessions, allowed_hosts=settings.allowed_hosts)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_hosts)
+    app.add_middleware(SecurityHeaders, csp=app_csp(katex_script_hash()))
     app.state.settings = settings
     app.state.store = store
     app.state.jobs = jobs
-    app.state.token = token
-    app.state.pair_token = pair_token
-    app.state.preview_assets = routes_md.PreviewAssets(token)
+    app.state.sessions = sessions
+    app.state.preview_assets = routes_md.PreviewAssets(sessions.local)
     engine_cache = EngineCache(settings)
 
     @app.exception_handler(PdfAtolyeError)
@@ -151,11 +155,13 @@ def create_app(settings: Settings, *, start_background: bool = True) -> FastAPI:
 
     @app.get("/api/session")
     def session(request: Request) -> JSONResponse:
-        if settings.lan and not _trusted(request, token):
+        if settings.lan and not _trusted(request, sessions):
             return JSONResponse({"detail": "Telefon modunda bağlanmak için bilgisayardaki QR "
                                            "kodu okut."}, status_code=403)
         resp = JSONResponse({"ok": True, "version": __version__})
-        _set_cookie(resp, token)
+        # Eşleşmiş cihaz kendi çerezini korur; bu bilgisayarın oturumu ona verilmez.
+        if not settings.lan or _is_local(request):
+            _set_cookie(resp, sessions.local)
         return resp
 
     @app.get("/api/engines")
@@ -176,15 +182,22 @@ def create_app(settings: Settings, *, start_background: bool = True) -> FastAPI:
             return {"enabled": False}
         if not _is_local(request):
             raise PdfAtolyeError("QR kod yalnızca sunucunun çalıştığı bilgisayarda gösterilir.")
-        urls = [f"http://{ip}:{settings.port}/?t={pair_token}" for ip in lan.lan_ips()]
-        return {"enabled": True, "urls": urls, "qr_svg": lan.qr_svg(urls[0]) if urls else None}
+        urls = [f"http://{ip}:{settings.port}/?t={sessions.pair_token}" for ip in lan.lan_ips()]
+        return {"enabled": True, "urls": urls, "qr_svg": lan.qr_svg(urls[0]) if urls else None,
+                "devices": [{"ip": d.ip, "paired_at": d.paired_at} for d in sessions.devices()]}
+
+    @app.delete("/api/lan/devices")
+    def revoke_devices(request: Request) -> dict:
+        if not _is_local(request):
+            raise PdfAtolyeError("Bağlantıları yalnızca sunucunun çalıştığı bilgisayar kesebilir.")
+        return {"revoked": sessions.revoke_devices()}
 
     app.include_router(routes_files.router)
     app.include_router(routes_jobs.router)
     app.include_router(routes_md.router)
     app.include_router(routes_content.router)
     app.mount("/api/md/katex", StaticFiles(directory=MD_ASSETS / "katex"), name="katex")
-    _mount_ui(app, WEB_DIST, token, pair_token if settings.lan else None)
+    _mount_ui(app, WEB_DIST, sessions, lan_mode=settings.lan)
     return app
 
 
@@ -202,16 +215,16 @@ def _is_local(request: Request) -> bool:
     return host in lan.LOOPBACK_HOSTS
 
 
-def _trusted(request: Request, token: str) -> bool:
+def _trusted(request: Request, sessions: Sessions) -> bool:
     """Bu bilgisayardan mı, yoksa daha önce eşleşmiş (geçerli çerezli) bir cihazdan mı?"""
-    return _is_local(request) or secrets.compare_digest(request.cookies.get(COOKIE, ""), token)
+    return _is_local(request) or sessions.is_valid(request.cookies.get(COOKIE))
 
 
 def _set_cookie(resp, token: str) -> None:
     resp.set_cookie(COOKIE, token, httponly=True, samesite="strict", path="/")
 
 
-def _mount_ui(app: FastAPI, dist: Path, token: str, pair_token: str | None) -> None:
+def _mount_ui(app: FastAPI, dist: Path, sessions: Sessions, *, lan_mode: bool) -> None:
     index = dist / "index.html"
     if (dist / "assets").is_dir():
         app.mount("/assets", StaticFiles(directory=dist / "assets"), name="assets")
@@ -224,13 +237,17 @@ def _mount_ui(app: FastAPI, dist: Path, token: str, pair_token: str | None) -> N
         candidate = (dist / path).resolve()
         if path and candidate.is_file() and candidate.is_relative_to(dist.resolve()):
             return FileResponse(candidate)
-        if pair_token and not _trusted(request, token):
-            if not (t and secrets.compare_digest(t, pair_token)):
+        if lan_mode and not _trusted(request, sessions):
+            host = request.client.host if request.client else "?"
+            device_token = sessions.pair(t, host) if t else None
+            if device_token is None:
                 return HTMLResponse(LAN_LOCKED_PAGE, status_code=403)
-            # Eşleşti: çerezi ver, belirteci adres çubuğundan sil.
+            # Eşleşti: cihaza kendi çerezini ver, belirteci adres çubuğundan sil.
+            log.info("Telefon modu: yeni cihaz eşleşti (%s)", host)
             resp = RedirectResponse("/", status_code=303)
-            _set_cookie(resp, token)
+            _set_cookie(resp, device_token)
             return resp
         resp = FileResponse(index) if index.is_file() else HTMLResponse(NO_UI_PAGE)
-        _set_cookie(resp, token)
+        if not lan_mode or _is_local(request):
+            _set_cookie(resp, sessions.local)
         return resp

@@ -364,9 +364,27 @@ def _line(page: pymupdf.Page, op: LineOp) -> None:
     shape.commit()
 
 
+def _strip_overlapping(page: pymupdf.Page, areas: Sequence[pymupdf.Rect]) -> None:
+    """Kutulara değen açıklama (not, serbest metin...) ve form alanlarını siler. Bunlar sayfa
+    içeriğinin üstünde ayrı nesnelerdir: `apply_redactions` onlara dokunmaz, karartılan yerde
+    görünmeye ve dosyada okunmaya devam ederlerdi. Bağlantıları `apply_redactions` kaldırır."""
+    def overlaps(rect: pymupdf.Rect) -> bool:
+        return any(rect.intersects(area) for area in areas)
+
+    for xref in [a.xref for a in page.annots() if overlaps(a.rect)]:
+        page.delete_annot(page.load_annot(xref))
+    for xref in [w.xref for w in page.widgets() if overlaps(w.rect)]:
+        page.delete_widget(page.load_widget(xref))
+
+
 def _remove_under(page: pymupdf.Page, ops: Sequence[RedactOp | WhiteoutOp]) -> None:
     whiteouts = [o for o in ops if isinstance(o, WhiteoutOp)]
     redacts = [o for o in ops if isinstance(o, RedactOp)]
+    _strip_overlapping(page, [geo.view_to_page_rect(page, o.rect) for o in ops])
+    if redacts:
+        # Sayfanın küçük resmi ve üreten programın özel verisi karartılmamış içeriği taşıyabilir.
+        for key in ("Thumb", "PieceInfo"):
+            page.parent.xref_set_key(page.xref, key, "null")
     if whiteouts:
         for o in whiteouts:
             page.add_redact_annot(geo.view_to_page_rect(page, o.rect), fill=_rgb(o.color))
@@ -379,6 +397,44 @@ def _remove_under(page: pymupdf.Page, ops: Sequence[RedactOp | WhiteoutOp]) -> N
         # sayfa boyu bir arka plan çizgisi kutuya değdi diye kaybolmasın.
         page.apply_redactions(images=pymupdf.PDF_REDACT_IMAGE_PIXELS,
                               graphics=pymupdf.PDF_REDACT_LINE_ART_REMOVE_IF_COVERED)
+
+
+def _normalized(text: str) -> str:
+    return " ".join(text.split()).casefold()
+
+
+def _redaction_warnings(doc: pymupdf.Document, redacted: dict[int, list[str]]) -> list[str]:
+    """Karartma yalnızca işaretlenen kutuyu temizler. Aynı metin belgenin başka yerinde geçiyorsa
+    kullanıcı bilmeli: yer imleri, belge bilgileri, öteki sayfalar, gömülü dosyalar."""
+    phrases = {p for texts in redacted.values() for p in map(_normalized, texts) if len(p) >= 3}
+    words = {w for p in phrases for w in p.split() if len(w) >= 4}
+    warnings: list[str] = []
+
+    def mentions(text: str) -> bool:
+        text = _normalized(text)
+        return any(w in text for w in words)
+
+    if any(mentions(str(entry[1])) for entry in doc.get_toc(simple=True)):
+        warnings.append("Karartılan metin yer imlerinde de geçiyor; yer imleri değişmedi.")
+    meta_text = " ".join(str(v) for v in (doc.metadata or {}).values() if v)
+    if mentions(meta_text) or mentions(doc.get_xml_metadata() or ""):
+        warnings.append("Karartılan metin belge bilgilerinde de geçiyor. Güvenlik ve Bakım → "
+                        "Meta veri temizle ile silebilirsin.")
+    others = []
+    for i, page in enumerate(doc):
+        text = _normalized(page.get_text())
+        extras = [str(a.info.get("content", "")) for a in page.annots()]
+        extras += [str(w.field_value or "") for w in page.widgets()]
+        if any(p in text for p in phrases) or any(mentions(x) for x in extras):
+            others.append(i + 1)
+    if others:
+        pages = ", ".join(map(str, others[:10])) + ("…" if len(others) > 10 else "")
+        warnings.append(f"Karartılan metin başka yerlerde de geçiyor (sayfa {pages}); o yerler "
+                        "karartılmadı.")
+    if doc.embfile_count():
+        warnings.append("Bu PDF'te gömülü dosya var; karartma onlara dokunmaz. Güvenlik ve Bakım → "
+                        "Meta veri temizle ile silebilirsin.")
+    return warnings
 
 
 def _watermark(doc: pymupdf.Document, op: WatermarkOp, fonts: fontlib.FontSet,
@@ -473,12 +529,22 @@ def apply_ops(src: Path, output: Path, ops: Sequence, *, password: str | None = 
                 doc_ops.append(op)
         _declare_fonts(ops, fonts, warnings)
 
+        redacted: dict[int, list[str]] = {}
         for idx in sorted(by_page):
             page = doc[idx]
             page_ops = by_page[idx]
             removals = [o for o in page_ops if isinstance(o, (RedactOp, WhiteoutOp))]
+            boxes = [geo.view_to_page_rect(page, o.rect) for o in page_ops
+                     if isinstance(o, RedactOp)]
+            if boxes:
+                redacted[idx] = [page.get_textbox(box) for box in boxes]
             if removals:
                 _remove_under(page, removals)
+            for box in boxes:
+                # Son denetim: kutuda hâlâ yazı varsa sessiz kalınmaz.
+                if page.get_textbox(box).strip():
+                    warnings.append(f"{idx + 1}. sayfada karartılan alanda yazı kaldı; dosyayı "
+                                    "paylaşmadan önce kontrol et.")
             for op in page_ops:
                 if isinstance(op, TextOp):
                     _text(page, op, fonts, warnings)
@@ -492,6 +558,8 @@ def apply_ops(src: Path, output: Path, ops: Sequence, *, password: str | None = 
                 elif isinstance(op, LineOp):
                     _line(page, op)
 
+        if redacted:
+            warnings.extend(_redaction_warnings(doc, redacted))
         for op in doc_ops:
             if isinstance(op, WatermarkOp):
                 _watermark(doc, op, fonts, images)

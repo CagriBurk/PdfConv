@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Python bağımlılıkları (kilit dosyası güncel olmalı)
+        run: uv sync --locked
+
+      - name: Kod denetimi
+        run: uv run python -m ruff check .
+
+      - name: Arayüzü derle (tür denetimi dahil)
+        run: |
+          npm --prefix web ci --no-fund --no-audit
+          npm --prefix web run build
+
+      # Edge çalıştırıcıda hazır: Markdown/HTML baskısı ve arayüz testleri koşar. LibreOffice,
+      # Tesseract ve Ghostscript kurulu değil: onları isteyen testler atlanır.
+      - name: Testler
+        run: uv run python -m pytest --tb=short -rs

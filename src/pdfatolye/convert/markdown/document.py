@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import base64
 import datetime as dt
+import hashlib
 import html
 import json
 from dataclasses import dataclass, field, fields, replace
@@ -238,6 +240,23 @@ def preview_csp(nonce: str, katex_url: str) -> str:
         f"style-src 'unsafe-inline' {katex_url}; font-src {katex_url}; img-src 'self' data:; "
         "base-uri 'none'; form-action 'none'; frame-src 'none'; connect-src 'none'"
     )
+
+
+def print_csp(nonce: str) -> str:
+    """PDF baskısı için aynı politika: belge file: adresinden açılır; resimler ve KaTeX fontları
+    yereldir, ağ ve çerçeve yoktur. Hangi yerel dosyanın açılacağını `browser.py` denetler."""
+    return (
+        f"default-src 'none'; script-src 'nonce-{nonce}'; style-src 'unsafe-inline' file:; "
+        "font-src file: data:; img-src file: data:; base-uri 'none'; form-action 'none'; "
+        "frame-src 'none'; connect-src 'none'; object-src 'none'"
+    )
+
+
+def katex_script_hash() -> str:
+    """Önizleme çerçevesindeki satır içi KaTeX betiğinin CSP özeti. srcdoc çerçevesi uygulamanın
+    politikasını da devralır; uygulama politikası yalnızca bu betiğe izin verir."""
+    digest = hashlib.sha256(KATEX_SCRIPT.encode("utf-8")).digest()
+    return "sha256-" + base64.b64encode(digest).decode("ascii")
 
 
 def build_html(parsed: ParsedMarkdown, opts: MdOptions, katex_dir: str = "katex",

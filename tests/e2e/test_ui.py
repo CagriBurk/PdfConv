@@ -123,6 +123,48 @@ def test_editor_adds_turkish_text_on_rotated_page(server, page, tmp_path):
         assert line["dir"] == pytest.approx((0, -1), abs=1e-3)
 
 
+def test_csp_allows_the_real_app(server, page, tmp_path):
+    """Güvenlik başlıkları uygulamayı bozmasın: pdf.js, küçük resimler, editör tuvali, Markdown
+    önizlemesindeki KaTeX ve resim. Tek bir CSP ihlali bile burada yakalanır."""
+    base, app = server
+    problems: list[str] = []
+    page.on("console", lambda m: problems.append(m.text)
+            if m.type == "error" and "Content Security Policy" in m.text else None)
+    page.on("pageerror", lambda e: problems.append(str(e)))
+    meta = app.state.store.add_file(fx.numbered(tmp_path / "a.pdf", 2, with_toc=False), "a.pdf",
+                                    source="upload")
+    page.goto(f"{base}/#/duzenle/{meta.id}")
+    page.locator(".page-tile img").first.wait_for()
+    page.goto(f"{base}/#/editor/{meta.id}")
+    page.locator(".editor-page canvas").first.wait_for()
+    img = app.state.store.add_file(fx.transparent_png(tmp_path / "res.png"), "res.png",
+                                   source="upload")
+    note = app.state.store.add_file(_note(tmp_path), "n.md", source="upload")
+    page.goto(f"{base}/#/md?dosya={note.id}&ek={img.id}")
+    frame = page.frame_locator("iframe[title='Önizleme']")
+    frame.locator(".katex").first.wait_for()
+    assert frame.locator("img").first.evaluate("i => i.complete && i.naturalWidth > 0")
+    assert problems == []
+
+
+def test_preview_blocks_note_scripts(server, page, tmp_path):
+    base, app = server
+    note = tmp_path / "kotu.md"
+    note.write_text("# Not\n\n$x$\n\n<script>window.parent.document.title='ELEGECIRILDI'</script>"
+                    "\n", encoding="utf-8")
+    meta = app.state.store.add_file(note, "kotu.md", source="upload")
+    page.goto(f"{base}/#/md?dosya={meta.id}")
+    frame = page.frame_locator("iframe[title='Önizleme']")
+    frame.locator(".katex").first.wait_for()
+    assert page.title() != "ELEGECIRILDI"
+
+
+def _note(tmp_path: Path) -> Path:
+    note = tmp_path / "n.md"
+    note.write_text("# Başlık\n\n$E = mc^2$\n\n![[res.png]]\n", encoding="utf-8")
+    return note
+
+
 def test_settings_lists_engines_and_tools_are_live(server, page):
     base, _ = server
     page.goto(f"{base}/#/ayarlar")

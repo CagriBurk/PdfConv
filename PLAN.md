@@ -2,7 +2,7 @@
 
 > Kendi bilgisayarında çalışan, kayıt / reklam / bekleme / dosya yükleme sınırı olmayan PDF araç seti.
 > Dosyalar hiçbir zaman internete çıkmaz.
-> Tarih: 2026-11-01 · Durum: Faz 0–7 tamamlandı (v1)
+> Tarih: 2026-11-07 · Durum: Faz 0–7 tamamlandı (v1). Ürünleşme: Faz A yapıldı, sıradaki Faz B (§10.1)
 
 ---
 
@@ -83,7 +83,7 @@ Elle kurulanlar:
 
 **Fontlar** (`assets/fonts/`, OFL lisanslı, Türkçe karakter tam): Noto Sans, Noto Serif, JetBrains Mono. PDF'e eklenen her yazı bu fontlar gömülerek yazılır (PDF'in yerleşik Helvetica'sında ğ, ş, ı, İ **yoktur** — en sık yapılan hata).
 
-**Lisans notu**: PyMuPDF ve Ghostscript AGPL lisanslıdır. Kişisel kullanımda hiçbir sorun yok. Proje ileride herkese açık bir *hizmet* olarak yayınlanırsa kaynak kodunun da AGPL ile açılması gerekir.
+**Lisans notu**: PyMuPDF ve Ghostscript AGPL ya da ticari lisanslıdır. Kişisel kullanımda sorun yok. Uygulamayı başkalarına *vermek* (arkadaşlara kurulum dosyası dahil) ya da herkese açık *hizmet* olarak sunmak AGPL yükümlülüğü doğurur: kaynak kodu AGPL ile erişilebilir olmalı. Kapalı kaynak satış için Artifex'ten ticari lisans gerekir.
 
 ---
 
@@ -318,7 +318,9 @@ Tarayıcıda açık başka bir web sitesi, `localhost`'taki sunucuna istek atmay
 - Yalnızca `127.0.0.1`'e bağlan (varsayılan).
 - **Host başlığı kontrolü** (yalnızca `127.0.0.1` / `localhost`) → DNS rebinding saldırısını keser.
 - **Origin kontrolü** + açılışta üretilen rastgele **oturum belirteci** (SameSite=Strict çerez) → başka site API'yi çağıramaz.
-- **Telefon / LAN modu** (`baslat.bat --lan`): `0.0.0.0`'a bağlanır, ekranda belirteçli adresin **QR kodu** gösterilir; belirteçsiz istek reddedilir.
+- **Güvenlik başlıkları**: uygulama CSP ile yalnızca kendi betiklerini çalıştırır; `nosniff`, `no-referrer`. Yüklenen HTML/SVG kum havuzunda sunulur, uygulamanın kökeninde betik çalıştıramaz.
+- **Telefon / LAN modu** (`baslat.bat --lan`): `0.0.0.0`'a bağlanır, ekranda belirteçli adresin **QR kodu** gösterilir; belirteçsiz istek reddedilir. QR tek kullanımlık, her cihazın kendi oturumu var, oturumlar kesilebilir. Bağlantı HTTP'dir (yerel ağda şifresiz); bu arayüzde söylenir. Telefon modu dışında loopback dışı `host` reddedilir.
+- **Güvenilmeyen belge baskısı** (`convert/browser.py`): tarayıcı ölü bir vekil sunucuyla başlar, her istek süzülür; belge dışarı veri gönderemez, disk dosyası gömemez.
 - Dosya adları temizlenir; ZIP açarken "zip slip" (../ ile dışarı yazma) engellenir; kullanıcıdan gelen yol yalnızca izin verilen köklerin (kasa yolu) altında okunur.
 - Alt süreçler `shell=False` + argüman listesiyle; zaman aşımlı.
 - pdf.js `isEvalSupported: false` ve ≥ 4.2.67 (bilinen açık CVE-2024-4367 kapalı). PDF içi JavaScript hiçbir yerde çalıştırılmaz.
@@ -369,6 +371,14 @@ Tarayıcıda açık başka bir web sitesi, `localhost`'taki sunucuna istek atmay
 
 | 33 | Bash heredoc içinde `'` geçen Türkçe metin (ör. `İğdır'da`) araç kabuğunda tırnak hatası verdi | Uzun düzenleme betikleri dosyaya yazılıp öyle çalıştırılır |
 | 34 | `_setup_logging` ilk uygulamanın günlük dosyasını tutuyordu; aynı süreçte farklı veri klasörüyle yeni uygulama (testler) eski dosyaya yazıyordu | Var olan dosya işleyicisi hedef yol farklıysa değiştirilir |
+| 35 | **`apply_redactions` açıklamalara ve form alanlarına dokunmaz**: karartılan yerde not ve form değeri dosyada okunabilir kalıyordu | Önce kutuya değen açıklama ve form alanları silinir; sayfanın `Thumb`/`PieceInfo` verisi de kaldırılır (`content.py`) |
+| 36 | **PyMuPDF ve pikepdf `save` varsayılanı şifreyi kaldırır**: şifreli PDF düzenlenince sessizce şifresizleşiyordu | İşlem sonrası `security.keep_encryption`: aynı şifre ve izinler AES-256 ile geri uygulanır; birden çok kaynakta uyarı |
+| 37 | **Açılış şifresi = sahip şifresi ise izin kısıtları uygulanmaz** (dosyayı açan tam yetkili sayılır) | Kısıt varken sahip şifresi rastgele üretilir; ikisi aynı verilirse reddedilir |
+| 38 | **`page.route` WebSocket'i yakalamaz**: belge içeriği dışarı sızabiliyordu. `page.route_web_socket` ise eşzamanlı API'de sayfa açılışını kilitliyor (süreç takılı kalıyor) | Tarayıcı `--proxy-server` ile ölü vekile yönlendirilir, `<-loopback>` ile loopback muafiyeti kalkar |
+| 39 | **Sandbox iframe + `allow-same-origin` üstünden uygulama CSP'si srcdoc'a miras kalır** | Uygulama politikası KaTeX başlatıcısına özetiyle (`sha256-...`) izin verir; çerçevenin kendi nonce politikası da geçerlidir, ikisi birlikte uygulanır |
+| 40 | Python'da `secrets.compare_digest` ASCII dışı `str`'de hata verir: `?t=ğ` isteği 500 dönüyordu | Belirteçler bayta çevrilip karşılaştırılır (`tokens_match`) |
+
+**Faz A notları (güven)**: Denetimde çalıştırılarak bulunan açıklar kapatıldı; her biri `tests/test_trust.py`'de testli, en riskli dört koruma bilerek kapatılıp testlerin başarısız olduğu doğrulandı. Karartma açıklama ve form alanlarını da siler, başka yerde geçen metni uyarır. Şifreli dosya düzenlenince şifresi korunur (web ve CLI). Web'den gelen notun resmi yalnızca not klasöründen ve kasadan okunur (`confine`), önizleme resimleri artık oturum ister; CLI'da göreli `../` serbest ama yalnızca resim uzantıları çözülür. Baskıda ağ kapalı, yalnızca belgenin kendi dosyaları açılır; Markdown'da CSP notun betiklerini de durdurur, HTML'de betik çalışır ama dışarı çıkamaz. LibreOffice uzak resim bağlantısını varsayılan olarak çekmiyor (testli). Telefon modu: tek kullanımlık QR, cihaz başına oturum, kesme. API belgeleri kapalı. Bilinçli kalanlar: telefon modu HTTP; karartılmamış önceki sürüm depoda durur (söylenir).
 
 **Faz 7 notları**: Beklenmeyen hatalar (iş ya da HTTP 500) 8 haneli **hata kimliği**yle kullanıcıya kısa, günlüğe ayrıntılı (yığın izi) yazılır. **Telefon modu** (`--lan` / `lan = true`): sunucu 0.0.0.0'da dinler, yerel ağ IP'leri izinli Host listesine eklenir; oturum çerezi yalnızca loopback'ten gelen isteğe ya da QR koddaki eşleştirme belirteciyle (`/?t=...`, oturum çerezinden ayrı) gelen cihaza verilir, ardından adres çubuğundan belirteç silinir (303). QR yalnızca bilgisayarda gösterilir (`/api/lan` loopback dışına kapalı). **Gönder → PDF'e çevir**: `gonder` komutu dosyaları türüne göre `md` / `resimden` / `cevir`'e dağıtır; `pdfe-cevir.bat` + `kurulum\kisayollar.ps1` (BOM'lu UTF-8, PowerShell 5.1 için) masaüstü ve SendTo kısayollarını kullanıcı klasörüne yazar. **E2E**: `tests/e2e` gerçek sunucuyu iş parçacığında, Edge'i başsız açar: yükle → sil → kaydet, editörde döndürülmüş sayfaya Türkçe yazı, ayarlar/araçlar. Sistem tepsisi simgesi ve PyInstaller paketi yapılmadı (isteğe bağlıydı; `baslat.bat` + kısayol yeterli görüldü).
 
@@ -437,6 +447,16 @@ Boyut: **K** küçük · **O** orta · **B** büyük. Her faz sonunda çalışan
 - Windows kolaylıkları: masaüstü kısayolu, **Sağ tık → Gönder → "PDF'e çevir"** (CLI çağırır), isteğe bağlı sistem tepsisi simgesi.
 - İsteğe bağlı: PyInstaller ile tek klasörlük paket.
 - **Bitti sayılır**: temiz bir Windows kullanıcı hesabında README'deki adımlarla 10 dakikada kurulur ve çalışır.
+
+### 10.1 Ürünleşme yol haritası
+
+**Hedef**: Windows masaüstü uygulaması. İlk kitle: geliştirici ve arkadaşları; tek düğmeyle kurulup çalışacak. Para kazanma kararı sonraya bırakıldı. İlk sürüm: Türkçe, yeni büyük özellik yok. Çekirdek, API ve arayüz yeniden yazılmaz; masaüstü üstüne bir paketleme katmanıdır.
+
+- **Faz A — Güven** ✅: karartma, şifre koruması, izin kısıtları, disk erişimi, ağ yalıtımı, güvenlik başlıkları, telefon modu, CI.
+- **Faz B — Sağlamlık**: uzun dosya adında uzantı kaybı; uygulama içi gezinmede kaydedilmemiş iş kaybı; geri al + kaydet sonrası eski küçük resim; bozuk `meta.json`'ın listeyi ve temizliği durdurması; iş kayıtlarındaki not metni ve kayıtların temizlenmemesi; sayfa düzenlemede başlık/yazar/etiket/gömülü dosya kaybı; CSV ve makrolu Office türleri; gerçek iptal ve kuyruk; açık dosyanın temizlikte silinmesi; Windows-1254 notlar; HTML baskısında sonsuz döngüye zaman aşımı.
+- **Faz C — Paket**: hazır arayüz, kurulum programı, uygulama penceresi, gömülü Tesseract + Türkçe paket ve Noto fontları, isteğe bağlı LibreOffice, kodu proje klasörüne bağlayan yerler (`settings.PROJECT_ROOT`, `WEB_DIST`, `fonts`), imzalama, güncelleme.
+- **Faz D — Ürün deneyimi**: düzenlenebilir ayarlar, ilk kullanım akışı, hata sınırı, önizleme kaydırma konumu, işlerde Türkçe adlar, yeniden adlandırma, vitest + eslint.
+- **Faz E — Yayın**: LICENSE (AGPL), gizlilik metni, CHANGELOG, sürümleme, tanıtım sayfası.
 
 ### Sonraki sürüm adayları
 PDF → Word (`pdf2docx`), form doldurma, iki PDF'i karşılaştırma, not gömme (`![[Not]]`), Pandoc/LaTeX alternatif MD motoru, PDF/A doğrulama, İngilizce arayüz.

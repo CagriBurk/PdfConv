@@ -39,7 +39,7 @@ def test_local_computer_gets_session_and_qr(lan_app):
 
 
 def test_phone_needs_pair_token(lan_app):
-    pair = lan_app.state.pair_token
+    pair = lan_app.state.sessions.pair_token
     with TestClient(lan_app, client=("192.168.1.50", 5000), follow_redirects=False) as phone:
         assert phone.get("/api/session").status_code == 403
         assert phone.get("/").status_code == 403
@@ -53,6 +53,56 @@ def test_phone_needs_pair_token(lan_app):
         assert phone.get("/api/files").status_code == 200
         # QR (eşleştirme belirteci) telefona verilmez.
         assert phone.get("/api/lan").status_code == 400
+
+
+def test_qr_code_works_once_and_rotates(lan_app):
+    first = lan_app.state.sessions.pair_token
+    client = {"follow_redirects": False}
+    with TestClient(lan_app, client=("192.168.1.50", 5000), **client) as phone:
+        assert phone.get(f"/?t={first}").status_code == 303
+    with TestClient(lan_app, client=("192.168.1.51", 5000), **client) as second:
+        assert second.get(f"/?t={first}").status_code == 403  # aynı kod ikinci cihazda geçmez
+        second_token = lan_app.state.sessions.pair_token
+        assert second_token != first
+        assert second.get(f"/?t={second_token}").status_code == 303  # yeni kod geçer
+
+
+def test_each_device_has_its_own_session_and_can_be_revoked(lan_app):
+    sessions = lan_app.state.sessions
+    with TestClient(lan_app, client=("127.0.0.1", 5000)) as local, TestClient(
+        lan_app, client=("192.168.1.50", 5000), follow_redirects=False
+    ) as phone:
+        local.get("/api/session")
+        phone.get(f"/?t={sessions.pair_token}")
+        phone_cookie = phone.cookies["pa_oturum"]
+        assert phone_cookie != sessions.local  # bu bilgisayarın oturumu telefona verilmez
+        phone.get("/")
+        phone.get("/api/session")
+        assert phone.cookies["pa_oturum"] == phone_cookie
+        assert [d["ip"] for d in local.get("/api/lan").json()["devices"]] == ["192.168.1.50"]
+
+        # Yalnızca bu bilgisayar kesebilir.
+        assert phone.delete("/api/lan/devices").status_code == 400
+        assert local.delete("/api/lan/devices").json() == {"revoked": 1}
+        assert phone.get("/api/files").status_code == 403
+        assert phone.get("/").status_code == 403
+        assert local.get("/api/files").status_code == 200
+        assert local.get("/api/lan").json()["devices"] == []
+
+
+def test_non_ascii_tokens_are_rejected_not_crash(lan_app):
+    with TestClient(lan_app, client=("192.168.1.50", 5000), raise_server_exceptions=False) as phone:
+        assert phone.get("/?t=%C4%9F").status_code == 403
+        r = phone.get("/api/files", headers=[(b"cookie", "pa_oturum=ğ".encode())])
+        assert r.status_code == 403
+
+
+def test_open_host_without_lan_mode_is_refused(settings, monkeypatch):
+    # Eşleştirme yokken 0.0.0.0'a bağlanmak, oturum çerezini ağdaki herkese vermek demektir.
+    monkeypatch.setattr(engines, "detect_all", lambda _s: [])
+    settings.host = "0.0.0.0"
+    with pytest.raises(ValueError, match="lan = true"):
+        app_module.create_app(settings, start_background=False)
 
 
 def test_without_lan_mode_qr_is_off(settings, monkeypatch):
