@@ -28,10 +28,17 @@ jobs:
       - name: Kod denetimi
         run: uv run python -m ruff check .
 
+      - name: Arayüz bağımlılıkları
+        run: npm --prefix web ci --no-fund --no-audit
+
+      - name: Arayüz kod denetimi (eslint)
+        run: npm --prefix web run lint
+
+      - name: Arayüz birim testleri (vitest)
+        run: npm --prefix web test
+
       - name: Arayüzü derle (tür denetimi dahil)
-        run: |
-          npm --prefix web ci --no-fund --no-audit
-          npm --prefix web run build
+        run: npm --prefix web run build
 
       # Edge çalıştırıcıda hazır: Markdown/HTML baskısı ve arayüz testleri koşar. LibreOffice,
       # Tesseract ve Ghostscript kurulu değil: onları isteyen testler atlanır.

@@ -65,24 +65,14 @@ export default function Home({ engines }: { engines: EnginesResponse | null }) {
           <div className="tool-grid">
             {TOOLS.filter((t) => t.group === group).map((t) => {
               const lacking = missing(t.needs);
-              const body = (
-                <>
+              return (
+                <a key={t.id} className="tool-card active" href={`#/${t.route}`}>
                   <div className="tool-card-head">
                     <h3>{t.title}</h3>
-                    {!t.route && <span className="phase">Faz {t.phase}</span>}
                   </div>
                   <p>{t.description}</p>
                   {lacking.length > 0 && <p className="warn-line">Eksik: {lacking.join(", ")}</p>}
-                </>
-              );
-              return t.route ? (
-                <a key={t.id} className="tool-card active" href={`#/${t.route}`}>
-                  {body}
                 </a>
-              ) : (
-                <article key={t.id} className="tool-card" aria-disabled="true">
-                  {body}
-                </article>
               );
             })}
           </div>

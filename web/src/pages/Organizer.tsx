@@ -2,7 +2,6 @@ import {
   closestCenter,
   DndContext,
   DragOverlay,
-  KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
@@ -13,7 +12,6 @@ import {
   arrayMove,
   rectSortingStrategy,
   SortableContext,
-  sortableKeyboardCoordinates,
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -27,6 +25,7 @@ import PasswordDialog from "../components/PasswordDialog";
 import Thumb from "../components/Thumb";
 import { useJob, useKeepAlive, useUpload } from "../hooks";
 import { passwords } from "../passwords";
+import { columnsOf, focusAfterDelete, moveSelected, nextIndex, rangeKeys } from "../organizer";
 import { forgetPdf } from "../pdf";
 import { navigate, useLeaveGuard } from "../router";
 import { ACCEPT } from "../tools";
@@ -55,6 +54,11 @@ export default function Organizer({ fileId }: { fileId?: string }) {
   const [future, setFuture] = useState<Item[][]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [anchor, setAnchor] = useState<string | null>(null);
+  // Klavye: odaktaki sayfa (tek sekme durağı) ve ekran okuyucuya duyurulan son işlem.
+  const [focusKey, setFocusKey] = useState<string | null>(null);
+  const [announce, setAnnounce] = useState("");
+  const wantFocus = useRef(false);
+  const grid = useRef<HTMLUListElement>(null);
   const [locked, setLocked] = useState<FileMeta | null>(null); // şifre bekleyen dosya
   const pendingUnlock = useRef<((ok: boolean) => void) | null>(null);
   const [preview, setPreview] = useState<Item | null>(null);
@@ -143,13 +147,28 @@ export default function Organizer({ fileId }: { fileId?: string }) {
   };
 
   const targets = () => (selected.size ? items.filter((i) => selected.has(i.key)) : []);
-  const rotateSel = (deg: number) =>
+  const gridHasFocus = () => !!grid.current?.contains(document.activeElement);
+  const rotateSel = (deg: number) => {
     commit(items.map((i) => (selected.has(i.key) ? { ...i, rotate: (i.rotate + deg + 360) % 360 } : i)));
+    setAnnounce(`${selected.size} sayfa ${deg > 0 ? "sağa" : "sola"} döndürüldü`);
+  };
   const deleteSel = () => {
     const next = items.filter((i) => !selected.has(i.key));
     if (!next.length) return setError("Bütün sayfalar silinemez; en az bir sayfa kalmalı.");
+    const focusNext = focusAfterDelete(items, next, selected);
+    if (gridHasFocus()) wantFocus.current = true;
     commit(next);
+    setAnnounce(`${selected.size} sayfa silindi. ${next.length} sayfa kaldı.`);
     setSelected(new Set());
+    setFocusKey(focusNext);
+  };
+  /** Seçili sayfaları bir konum taşır (Alt+ok). */
+  const moveSel = (sel: Set<string>, delta: -1 | 1) => {
+    const next = moveSelected(items, sel, delta);
+    if (!next) return setAnnounce(delta < 0 ? "Seçim zaten başta" : "Seçim zaten sonda");
+    commit(next);
+    wantFocus.current = true;
+    setAnnounce(`${sel.size} sayfa taşındı: ${next.findIndex((i) => sel.has(i.key)) + 1}. konum`);
   };
   const insertAt = () => {
     const idx = items.reduce((m, it, i) => (selected.has(it.key) ? i : m), -1);
@@ -192,6 +211,7 @@ export default function Organizer({ fileId }: { fileId?: string }) {
   };
 
   const onItemClick = (e: React.MouseEvent, key: string) => {
+    setFocusKey(key);
     if (e.shiftKey && anchor) {
       const a = items.findIndex((i) => i.key === anchor);
       const b = items.findIndex((i) => i.key === key);
@@ -210,20 +230,74 @@ export default function Organizer({ fileId }: { fileId?: string }) {
     setAnchor(key);
   };
 
+  // Izgarada klavyeyle gezinme ve seçim (bkz. organizer.ts).
+  const onTileKey = (e: React.KeyboardEvent, key: string, index: number) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const it = items[index];
+      if (!it.blank) setPreview(it);
+      return;
+    }
+    if (e.key === " ") {
+      e.preventDefault();
+      const next = new Set(selected);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      setSelected(next);
+      setAnchor(key);
+      setAnnounce(`Sayfa ${index + 1} ${next.has(key) ? "seçildi" : "seçimden çıkarıldı"} (${next.size} seçili)`);
+      return;
+    }
+    if (e.altKey && ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) {
+      e.preventDefault(); // Alt+← tarayıcıda "geri"dir: sayfa taşırken gezinme olmasın
+      const sel = selected.has(key) ? selected : new Set([key]);
+      if (sel !== selected) setSelected(sel);
+      moveSel(sel, e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 1);
+      return;
+    }
+    const tops = Array.from(grid.current?.children ?? []).map((c) => (c as HTMLElement).offsetTop);
+    const to = nextIndex(e.key, index, items.length, columnsOf(tops));
+    if (to === null) return;
+    e.preventDefault();
+    const target = items[to].key;
+    setFocusKey(target);
+    wantFocus.current = true;
+    if (e.shiftKey) {
+      setSelected(new Set(rangeKeys(items, anchor ?? key, target)));
+      if (!anchor) setAnchor(key);
+    } else if (!(e.ctrlKey || e.metaKey)) {
+      setSelected(new Set([target]));
+      setAnchor(target);
+    }
+  };
+
+  // Odak, klavyeyle seçilen sayfaya (yeniden çizimden sonra).
+  const tabKey = items.some((i) => i.key === focusKey) ? focusKey : (items[0]?.key ?? null);
+  useEffect(() => {
+    if (!wantFocus.current || !tabKey) return;
+    wantFocus.current = false;
+    grid.current?.querySelector<HTMLElement>(`[data-key="${tabKey}"]`)?.focus();
+  });
+
   // Klavye kısayolları (yazı alanında değilken).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
       if (t.closest("input, textarea, select, dialog")) return;
       const mod = e.ctrlKey || e.metaKey;
-      if (mod && e.key.toLowerCase() === "z" && !e.shiftKey) (e.preventDefault(), undo());
-      else if (mod && (e.key.toLowerCase() === "y" || (e.shiftKey && e.key.toLowerCase() === "z")))
-        (e.preventDefault(), redo());
-      else if (mod && e.key.toLowerCase() === "a") (e.preventDefault(), selectWhere(() => true));
+      const key = e.key.toLowerCase();
+      let action: (() => void) | null = null;
+      if (mod && key === "z" && !e.shiftKey) action = undo;
+      else if (mod && (key === "y" || (e.shiftKey && key === "z"))) action = redo;
+      else if (mod && key === "a") action = () => selectWhere(() => true);
       else if (!selected.size) return;
-      else if (e.key === "Delete" || e.key === "Backspace") (e.preventDefault(), deleteSel());
-      else if (e.key.toLowerCase() === "r") (e.preventDefault(), rotateSel(e.shiftKey ? -90 : 90));
-      else if (e.key === "Escape") setSelected(new Set());
+      else if (e.key === "Delete" || e.key === "Backspace") action = deleteSel;
+      else if (key === "r" && !mod && !e.altKey) action = () => rotateSel(e.shiftKey ? -90 : 90);
+      else if (e.key === "Escape") action = () => setSelected(new Set());
+      if (action) {
+        e.preventDefault();
+        action();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -231,8 +305,8 @@ export default function Organizer({ fileId }: { fileId?: string }) {
 
   // --- sürükle-bırak (seçili sayfalar blok hâlinde taşınır) ---
   const sensors = useSensors(
+    // Klavyeyle taşıma dnd-kit'in sensörüyle değil Alt+ok ile (onTileKey): Boşluk seçim içindir.
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
   const keys = useMemo(() => items.map((i) => i.key), [items]);
   const onDragStart = ({ active }: DragStartEvent) => {
@@ -435,14 +509,25 @@ export default function Organizer({ fileId }: { fileId?: string }) {
       <JobPanel job={saveJob.job?.status === "hata" ? saveJob.job : null} error={saveJob.error} />
       {selected.size > 0 && (
         <p className="muted small selection-line">
-          {selected.size} sayfa seçili · sürükleyerek taşı, R ile döndür, Delete ile sil
+          {selected.size} sayfa seçili · sürükleyerek ya da Alt+oklarla taşı, R ile döndür, Delete ile sil
         </p>
       )}
+      <p className="sr-only" id="sayfa-ipucu">
+        Oklarla sayfalar arasında gez. Boşluk seçer ya da seçimden çıkarır, Shift ile oklar seçimi genişletir, Ctrl ile
+        oklar yalnızca odağı taşır. Alt ve oklar seçili sayfaları taşır. Enter büyütür, Delete siler, R döndürür.
+      </p>
+      <p className="sr-only" aria-live="polite">
+        {announce}
+      </p>
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={onDragStart} onDragEnd={onDragEnd}>
         <SortableContext items={keys} strategy={rectSortingStrategy}>
           <ul
+            ref={grid}
             className="page-grid"
+            role="listbox"
+            aria-multiselectable="true"
+            aria-label="Sayfalar"
             onClick={(e) => e.target === e.currentTarget && setSelected(new Set())}
             onDragOver={(e) => e.dataTransfer.types.includes("Files") && e.preventDefault()}
             onDrop={(e) => {
@@ -462,7 +547,9 @@ export default function Organizer({ fileId }: { fileId?: string }) {
                   hidden={dragging !== null && dragging !== item.key && selected.size > 1 && selected.has(item.key)}
                   color={multiSource ? colorOf(item.file) : "transparent"}
                   label={label(item, index)}
+                  focusable={item.key === tabKey}
                   onClick={(e) => onItemClick(e, item.key)}
+                  onKeyDown={(e) => onTileKey(e, item.key, index)}
                   onOpen={() => setPreview(item)}
                 />
               );
@@ -474,7 +561,8 @@ export default function Organizer({ fileId }: { fileId?: string }) {
         </DragOverlay>
       </DndContext>
       <p className="muted small hint-line">
-        Başka PDF'leri bu alana sürükleyerek sayfalarını ekleyebilirsin. Çift tıklayınca sayfa büyür.
+        Başka PDF'leri bu alana sürükleyerek sayfalarını ekleyebilirsin. Çift tıklayınca (ya da Enter) sayfa büyür.
+        Klavye: oklar gezer, Boşluk seçer, Alt+oklar taşır.
       </p>
 
       {preview && !preview.blank && preview.file && (
@@ -507,23 +595,33 @@ interface TileProps {
   hidden: boolean;
   color: string;
   label: string;
+  focusable: boolean;
   onClick: (e: React.MouseEvent) => void;
+  onKeyDown: (e: React.KeyboardEvent) => void;
   onOpen: () => void;
 }
 
-function PageTile({ item, file, selected, hidden, color, label, onClick, onOpen }: TileProps) {
+function PageTile({ item, file, selected, hidden, color, label, focusable, onClick, onKeyDown, onOpen }: TileProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.key });
   return (
     <li
       ref={setNodeRef}
       className={`page-tile${selected ? " selected" : ""}${isDragging ? " dragging" : ""}${hidden ? " ghost" : ""}`}
       style={{ transform: CSS.Transform.toString(transform), transition, borderColor: selected ? undefined : color }}
-      onClick={onClick}
-      onDoubleClick={onOpen}
-      aria-selected={selected}
-      aria-label={`Sayfa ${label}`}
       {...attributes}
       {...listeners}
+      // dnd-kit "sürüklenebilir düğme" der; burada seçim listesinin öğesidir (tek sekme durağı).
+      role="option"
+      tabIndex={focusable ? 0 : -1}
+      aria-roledescription={undefined}
+      aria-pressed={undefined}
+      aria-describedby="sayfa-ipucu"
+      aria-selected={selected}
+      aria-label={`Sayfa ${label}${item.rotate ? `, ${item.rotate}° döndürülmüş` : ""}`}
+      data-key={item.key}
+      onClick={onClick}
+      onKeyDown={onKeyDown}
+      onDoubleClick={onOpen}
     >
       {item.blank || !file ? (
         <div className="thumb-box">

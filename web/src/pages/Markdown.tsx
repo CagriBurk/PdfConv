@@ -3,8 +3,10 @@ import { api, errorMessage, type EnginesResponse, type FileMeta, type MdPreview 
 import DropZone from "../components/DropZone";
 import JobPanel from "../components/JobPanel";
 import PageHeader from "../components/PageHeader";
+import PreviewFrame from "../components/PreviewFrame";
 import { useJob, useKeepAlive, useUpload } from "../hooks";
 import { drafts, draftKey, formatDraftTime, type Draft } from "../drafts";
+import { createSequencer } from "../mdpreview";
 import { idsFrom, LEAVE_MESSAGE, useLeaveGuard, type Route } from "../router";
 
 interface Options {
@@ -59,6 +61,7 @@ export default function Markdown({ route, engines }: { route: Route; engines: En
   const { upload, uploading, error: uploadError, setError } = useUpload();
   const job = useJob();
   const timer = useRef<number>(undefined);
+  const previewSeq = useRef(createSequencer());
   const builtText = useRef<string | null>(null);
   const browserMissing = engines?.engines.find((e) => e.key === "browser")?.ok === false;
   const dirty = text !== null && saved !== null && text !== saved;
@@ -135,16 +138,20 @@ export default function Markdown({ route, engines }: { route: Route; engines: En
   const attachmentIds = attachments.map((a) => a.id);
   const attachmentKey = attachmentIds.join(",");
 
-  // Yazdıkça önizleme (yarım saniye bekleyerek).
+  // Yazdıkça önizleme (yarım saniye bekleyerek). Yanıtlar sırasız gelebilir (büyük not, yavaş
+  // istek): yalnızca en son isteğin yanıtı gösterilir.
   useEffect(() => {
     if (text === null) return;
     window.clearTimeout(timer.current);
     timer.current = window.setTimeout(async () => {
+      const n = previewSeq.current.next();
       try {
-        setPreview(await api.mdPreview(text, attachmentIds, options));
+        const result = await api.mdPreview(text, attachmentIds, options);
+        if (!previewSeq.current.isLatest(n)) return;
+        setPreview(result);
         setPreviewError(null);
       } catch (e) {
-        setPreviewError(errorMessage(e));
+        if (previewSeq.current.isLatest(n)) setPreviewError(errorMessage(e));
       }
     }, 450);
     return () => window.clearTimeout(timer.current);
@@ -390,7 +397,7 @@ export default function Markdown({ route, engines }: { route: Route; engines: En
             )}
             {/* Önizleme HTML'i içerik güvenlik politikası taşır: yalnızca sunucunun nonce verdiği
                 KaTeX betikleri çalışır, notun içindeki betikler ve ağ istekleri engellenir. */}
-            <iframe title="Önizleme" sandbox="allow-scripts allow-same-origin" srcDoc={preview?.html ?? ""} />
+            <PreviewFrame html={preview?.html ?? ""} />
           </section>
         </div>
       )}
