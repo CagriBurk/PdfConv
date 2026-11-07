@@ -25,7 +25,9 @@ def _annotate(nodeid: str, text: str) -> None:
         v = v.replace("%", "%25").replace("\r", "").replace("\n", "%0A")
         return v.replace(":", "%3A").replace(",", "%2C") if prop else v
 
-    sys.__stdout__.write(f"::error title={esc(nodeid, True)}::{esc(text[-1500:])}\n")
+    # Başta satır sonu: pytest ilerleme satırı ("....F") satır sonu olmadan biter; komut satır
+    # başında olmalı, yoksa GitHub tanımaz.
+    sys.__stdout__.write(f"\n::error title={esc(nodeid, True)}::{esc(text[-1500:])}\n")
     sys.__stdout__.flush()
 
 
