@@ -305,6 +305,11 @@ def main() -> None:
 if __name__ == "__main__":
     import traceback
 
+    # CI'da konsol cp1252: "→", "ö" yazdırmak UnicodeEncodeError verir (hata yakalayıcısı da).
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
+
     try:
         main()
     except SystemExit as e:
