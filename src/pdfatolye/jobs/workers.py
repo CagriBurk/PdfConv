@@ -81,6 +81,8 @@ def run(manager, req, report: Report, job_id: str) -> WorkResult:
         "split": split,
         "images_to_pdf": images_to_pdf,
         "pdf_to_images": pdf_to_images,
+        "pdf_to_word": pdf_to_word,
+        "pdf_to_excel": pdf_to_excel,
         "md_to_pdf": md_to_pdf,
         "office_to_pdf": office_to_pdf,
         "apply": apply,
@@ -196,6 +198,34 @@ def pdf_to_images(store, settings, req, report, tmp: Path, job_id) -> WorkResult
         report(0.1 + 0.9 * i / len(files), f"{i}/{len(files)} sayfa")
     notes = ["Kaynak PDF şifreli ama resim dosyaları şifre taşımaz."] if meta.encrypted else []
     return WorkResult(outputs, notes)
+
+
+_NO_PASSWORD_NOTE = "Kaynak PDF şifreli ama {} dosyası şifre taşımaz."
+
+
+def pdf_to_word(store, settings, req, report, tmp: Path, job_id) -> WorkResult:
+    from pdfatolye.convert.to_word import pdf_to_word as convert
+
+    meta, path = _require(store, req.file, "pdf")
+    out = tmp / "cikti.docx"
+    r = convert(path, out, spec=req.spec, password=req.passwords.get(req.file),
+                on_progress=report)
+    notes = [_NO_PASSWORD_NOTE.format("Word")] if meta.encrypted else []
+    return WorkResult([store.add_file(r.output, _out_name(None, _stem(meta), ".docx"),
+                                      job_id=job_id)], r.warnings + notes)
+
+
+def pdf_to_excel(store, settings, req, report, tmp: Path, job_id) -> WorkResult:
+    from pdfatolye.convert.to_excel import pdf_to_excel as convert
+
+    meta, path = _require(store, req.file, "pdf")
+    out = tmp / "cikti.xlsx"
+    r = convert(path, out, spec=req.spec, layout=req.layout, numbers=req.numbers,
+                password=req.passwords.get(req.file), on_progress=report)
+    summary = f"{r.pages_with_tables} sayfada {r.table_count} tablo bulundu."
+    notes = [_NO_PASSWORD_NOTE.format("Excel")] if meta.encrypted else []
+    return WorkResult([store.add_file(r.output, _out_name(None, _stem(meta), ".xlsx"),
+                                      job_id=job_id)], [summary, *r.warnings, *notes])
 
 
 def md_to_pdf(store, settings, req, report, tmp: Path, job_id) -> WorkResult:

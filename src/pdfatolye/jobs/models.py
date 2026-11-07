@@ -7,6 +7,7 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, Field, model_validator
 
 from pdfatolye.core.content import MAX_OPS, Op
+from pdfatolye.core.paper import PAPERS
 
 FileId = Annotated[str, Field(pattern=r"^[0-9a-f]{32}$")]
 Passwords = dict[FileId, str]
@@ -69,7 +70,7 @@ class SplitRequest(_Base):
 class ImagesToPdfRequest(_Base):
     type: Literal["images_to_pdf"]
     files: list[FileId] = Field(min_length=1, max_length=2000)
-    page_size: Literal["A4", "A3", "A5", "Letter", "Legal", "resim"] = "A4"
+    page_size: Literal[(*PAPERS, "resim")] = "A4"  # type: ignore[valid-type]
     orientation: Literal["otomatik", "dikey", "yatay"] = "otomatik"
     margin_mm: float = Field(default=0, ge=0, le=50)
     name: str | None = None
@@ -83,10 +84,24 @@ class PdfToImagesRequest(_Base):
     spec: str = Field(default="", max_length=2000)
 
 
+class PdfToWordRequest(_Base):
+    type: Literal["pdf_to_word"]
+    file: FileId
+    spec: str = Field(default="", max_length=2000)
+
+
+class PdfToExcelRequest(_Base):
+    type: Literal["pdf_to_excel"]
+    file: FileId
+    spec: str = Field(default="", max_length=2000)
+    layout: Literal["tek", "ayri"] = "tek"
+    numbers: bool = True
+
+
 class MdOptionsModel(BaseModel):
     model_config = {"extra": "forbid"}
     theme: Literal["ders", "rapor", "sade"] | None = None
-    paper: Literal["A4", "A5", "A3", "Letter", "Legal"] | None = None
+    paper: Literal[PAPERS] | None = None  # type: ignore[valid-type]
     landscape: bool | None = None
     margin_mm: float | None = Field(default=None, ge=0, le=60)
     toc: bool | None = None
@@ -194,7 +209,8 @@ class InstallEngineRequest(_Base):
 
 JobRequest = Annotated[
     ComposeRequest | MergeRequest | SplitRequest | ImagesToPdfRequest | PdfToImagesRequest
-    | MdToPdfRequest | OfficeToPdfRequest | ApplyRequest | CompressRequest | OcrRequest
+    | PdfToWordRequest | PdfToExcelRequest | MdToPdfRequest | OfficeToPdfRequest | ApplyRequest
+    | CompressRequest | OcrRequest
     | EncryptRequest | DecryptRequest | CleanMetadataRequest | RepairRequest
     | InstallEngineRequest,
     Field(discriminator="type"),

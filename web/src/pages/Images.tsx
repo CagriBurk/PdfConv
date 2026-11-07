@@ -7,7 +7,7 @@ import SortableList from "../components/SortableList";
 import { useFiles, useJob } from "../hooks";
 import { passwords } from "../passwords";
 import { idsFrom, type Route } from "../router";
-import { ACCEPT } from "../tools";
+import { ACCEPT, PAPERS } from "../tools";
 
 // Tarayıcının doğrudan gösterebildiği biçimler (HEIC/TIFF için yalnızca ad gösterilir).
 const VIEWABLE = /\.(jpe?g|png|webp|gif|bmp|svg)$/i;
@@ -77,11 +77,11 @@ export function ImagesToPdf({ route }: { route: Route }) {
           <label className="field">
             Sayfa boyutu
             <select value={pageSize} onChange={(e) => setPageSize(e.target.value)}>
-              <option value="A4">A4</option>
-              <option value="A5">A5</option>
-              <option value="A3">A3</option>
-              <option value="Letter">Letter</option>
-              <option value="Legal">Legal</option>
+              {PAPERS.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
               <option value="resim">Resmin kendi boyutu</option>
             </select>
           </label>

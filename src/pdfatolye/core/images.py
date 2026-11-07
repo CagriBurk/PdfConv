@@ -10,6 +10,7 @@ from pathlib import Path
 import pymupdf
 from PIL import Image, ImageOps, UnidentifiedImageError
 
+from pdfatolye.core.paper import PAPERS, PT_PER_MM, size_pt
 from pdfatolye.core.pdfio import opened, save_pdf
 from pdfatolye.core.ranges import parse_ranges
 from pdfatolye.errors import ImageTooLargeError, PageRangeError, UnsupportedFileError
@@ -21,18 +22,12 @@ try:  # iPhone fotoğrafları (HEIC/HEIF)
 except ImportError:  # pragma: no cover - isteğe bağlı
     pass
 
-PT_PER_MM = 72 / 25.4
-PAGE_SIZES_PT = {
-    "A4": (595.0, 842.0),
-    "A3": (842.0, 1191.0),
-    "A5": (420.0, 595.0),
-    "Letter": (612.0, 792.0),
-    "Legal": (612.0, 1008.0),
-}
+PAGE_SIZES_PT = {name: size_pt(name) for name in PAPERS}
 # "resim" sayfa boyutunda DPI bilgisi olmayan/saçma olan resimler için varsayım.
 DEFAULT_DPI = 150
-# Tek sayfa için üretilecek en büyük resim (piksel). 300 DPI'da A3 ≈ 17,4 MP.
-MAX_RENDER_PIXELS = 60_000_000
+# Tek sayfa için üretilecek en büyük resim (piksel). 300 DPI'da A0 ≈ 139 MP (RGB ≈ 420 MB
+# bellek); pafta çizimleri baskı kalitesinde çıkabilsin.
+MAX_RENDER_PIXELS = 150_000_000
 
 
 @dataclass
@@ -106,7 +101,7 @@ def images_to_pdf(
 ) -> Path:
     """Resimleri sırayla PDF sayfası yapar.
 
-    page_size: 'A4', 'A3', 'A5', 'Letter', 'Legal' veya 'resim' (sayfa = resim boyutu).
+    page_size: `paper.PAPERS`'tan biri (A0–A5, Letter, Legal) veya 'resim' (sayfa = resim boyutu).
     orientation: 'otomatik' (resme göre), 'dikey', 'yatay'. 'resim' boyutunda yok sayılır.
     Resim sayfaya oranı korunarak sığdırılır ve ortalanır.
     """
@@ -159,8 +154,10 @@ def pdf_to_images(
             scale = dpi / 72
             pixels = page.rect.width * scale * page.rect.height * scale
             if pixels > MAX_RENDER_PIXELS:
+                fits = int(dpi * (MAX_RENDER_PIXELS / pixels) ** 0.5)
                 raise PageRangeError(
-                    f"{p + 1}. sayfa {dpi} DPI'da çok büyük bir resim olur; daha düşük DPI seç."
+                    f"{p + 1}. sayfa {dpi} DPI'da çok büyük bir resim olur; en fazla {fits} DPI "
+                    "seç."
                 )
             pix = page.get_pixmap(dpi=dpi, alpha=False)
             target = output_dir / f"{name_stem or input.stem}_{p + 1:0{width}d}.{fmt}"

@@ -26,7 +26,7 @@
 
 ### 1.3 Kapsam dışı (v1)
 - PDF içindeki **mevcut yazıyı yerinde düzenleme** (Acrobat seviyesi iş; v1'de "beyazla kapat + üstüne yaz" yöntemi olacak ve öyle etiketlenecek).
-- PDF → Word (sonraki sürüm adayı, `pdf2docx` ile).
+- ~~PDF → Word~~: eklendi (`pdf2docx`), PDF → Excel ile birlikte (Faz F).
 - Sertifikalı dijital imza (e-imza). v1'deki imza, imza *görüntüsü* eklemedir.
 - Bulut, kullanıcı hesapları, çoklu kullanıcı.
 
@@ -413,6 +413,10 @@ Tarayıcıda açık başka bir web sitesi, `localhost`'taki sunucuna istek atmay
 | 74 | Linux'ta `Path("..\a.pdf").name` ters eğik çizgiyi adın parçası sayar: yüklenen ad `_.._kötü.md` oluyordu | `pdfio.base_name` (`PureWindowsPath`): iki ayırıcı her platformda |
 | 75 | Gerçek Ctrl+R bazı başsız tarayıcı sürümlerinde sayfayı yeniliyor: klavye e2e testi CI'da aralıklı düşüyordu | Kısayol testi olayı `dispatch_event` ile gönderir |
 | 76 | GitHub `::error` komutu satır başında olmalı (pytest ilerleme satırı satır sonsuz biter), özellikte `:` kaçırılmalı; adım başına en fazla 10 açıklama gösterilir | `conftest.py`: komuttan önce satır sonu, `%3A`; ilk 8 hata ayrıntılı, sonda "N test düştü" özeti |
+| 77 | PyMuPDF `Table.extract()` harf kutularını kesin (glyph) ölçüyle alır: nokta/virgül satır çizgisinde kaldığı için ayrı satır sayılır, kelime arası boşluk kaybolur ("1.250,50" → "125050\n. ,", tarayıcı çıktısında da) | `to_excel._cell_text`: hücre sınırı tablodan, metin `get_text("words")` kelimelerinden (merkezi hücrede olanlar) |
+| 78 | PyMuPDF 2'de `find_tables` varsayılan olarak her sayfada onnx sayfa düzeni modelini çalıştırır (~0,7 sn/sayfa; 100 sayfalık döküm 90 sn) | `use_layout=False` (~0,05 sn/sayfa; 7,5 sn) + çizgisizde hizaya göre arama; tek hücreli çerçeve elenir (≥ 2 × 2) |
+| 79 | pdf2docx içe aktarılırken kök günlükleyiciye `basicConfig` uygular ve her sayfada köke yazar ("Ignore Line ... due to overlap"); `Converter.convert` ilerleme vermez, iptal edilemez, sayfa hatasını yutar | `to_word._import_pdf2docx`: kök eski hâline, pdf2docx kayıtları süzülür; dört aşama sayfa sayfa yürütülür (ilerleme + iptal), atlanan sayfa uyarı olur. İç yapıya bağlı: `pdf2docx<0.6` |
+| 80 | openpyxl "=" ile başlayan yazıyı formül yapar: PDF'teki metin Excel'de formül olarak çalışırdı (`=HYPERLINK(...)`) | Hücre `data_type = "s"`; test xlsx içinde `<f>` olmadığını denetler |
 | 67 | Python `Path.write_text` Windows'ta `\n`'i `\r\n` yazar: betikle düzenlenen kaynaklar CRLF'e döndü (git uyarısı) | Düzenleme betikleri `newline="\n"` ile yazar |
 
 **Faz D3 notları (Linux)**: Masaüstü paketi yalnızca Windows; Linux'ta kaynak koddan çalışır ve CI'da `linux` işi (ubuntu-latest; LibreOffice, Tesseract + Türkçe, Ghostscript apt ile; tarayıcı Google Chrome) bütün testleri koşar. Tarayıcı Linux'ta PATH'te aranır (Edge, Chrome, Chromium); kurulum ipuçları platforma göre (apt); Windows'a özgü düğmeler (Klasör seç, Klasörde göster, LibreOffice'i kur) yalnızca Windows'ta. Testler platformdan bağımsız: Arial yoksa fixture'lar Noto kullanır, Windows'a özgü testler atlanır. İlk Linux koşusunda düşen 10+ testin hepsi test varsayımıydı, bir tanesi gerçek uyumsuzluk (tuzak #74).
@@ -506,6 +510,7 @@ Boyut: **K** küçük · **O** orta · **B** büyük. Her faz sonunda çalışan
 - **Faz C — Paket** ✅: hazır arayüz, kurulum programı, uygulama penceresi, gömülü Tesseract + Türkçe paket ve Noto fontları, isteğe bağlı LibreOffice, kodu proje klasörüne bağlayan yerler (`settings.PROJECT_ROOT`, `WEB_DIST`, `fonts`), imzalama, güncelleme.
 - **Faz D — Ürün deneyimi** ✅: düzenlenebilir ayarlar (masaüstünde yeniden başlatma, telefon modu), ilk kullanım akışı, hata sınırı + bildirimler, önizleme kaydırma konumu ve sırasız yanıtlar, işlerde Türkçe adlar, yeniden adlandırma, klasörde göster, klavye ve ekran okuyucu erişilebilirliği, vitest + eslint (CI), AGPL-3.0 LICENSE.
 - **Faz E — Yayın**: gizlilik metni, CHANGELOG, sürümleme (1.0.0), GitHub Releases, tanıtım sayfası. (LICENSE Faz D'de eklendi.)
+- **Faz F — PDF'ten Office'e ve büyük kağıt** ✅: PDF → Word (`convert/to_word.py`, pdf2docx; sayfa sayfa ilerleme ve iptal), PDF → Excel (`convert/to_excel.py`, PyMuPDF `find_tables` + openpyxl; çizgisiz tablo, sayfalara bölünmüş tabloyu birleştirme, TR/EN sayı biçimi, "=..." hücresi yazı), kağıt boyutları tek kaynak `core/paper.py` (A0–A5, Letter, Legal; arayüz `tools.ts` PAPERS, test denetler), PDF → Resim sınırı A0 @ 300 DPI.
 
 ### 10.2 Kullanıcı kararı bekleyenler
 
@@ -523,7 +528,7 @@ Bu kararlar verilene kadar yapılan, maddede yazılı; hiçbiri ücretli bir şe
 5. **1.0.0 sürüm numarası**: şimdilik 0.9.1. 1.0.0'ı arkadaş denemesi 0.9.1 ile sorunsuz geçtikten sonra vermeni öneririm.
 
 ### Sonraki sürüm adayları
-PDF → Word (`pdf2docx`), form doldurma, iki PDF'i karşılaştırma, not gömme (`![[Not]]`), Pandoc/LaTeX alternatif MD motoru, PDF/A doğrulama, İngilizce arayüz.
+Form doldurma (AcroForm alanları), iki PDF'i karşılaştırma, not gömme (`![[Not]]`), Pandoc/LaTeX alternatif MD motoru, PDF/A doğrulama, İngilizce arayüz.
 
 ---
 

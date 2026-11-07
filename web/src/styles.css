@@ -513,6 +513,7 @@ a.tool-card:hover {
 .field > select,
 .field > .input {
   color: var(--text);
+  max-width: 100%;
 }
 
 .check {
@@ -520,6 +521,15 @@ a.tool-card:hover {
   gap: 0.5rem;
   align-items: flex-start;
   font-size: 0.92rem;
+}
+
+.tool-intro {
+  max-width: 62ch;
+  margin-top: 1rem;
+}
+
+.tool-intro p {
+  margin: 0 0 0.6rem;
 }
 
 .radio-cards {

@@ -11,6 +11,7 @@ import Compress from "./pages/Compress";
 import Ocr from "./pages/Ocr";
 import Protect from "./pages/Protect";
 import { ImagesToPdf, PdfToImages } from "./pages/Images";
+import { PdfToExcel, PdfToWord } from "./pages/PdfToOffice";
 import Settings from "./pages/Settings";
 import Split from "./pages/Split";
 import Welcome from "./pages/Welcome";
@@ -152,6 +153,8 @@ export default function App() {
     content = <Office route={route} engines={engines} onEnginesChanged={() => void loadEngines(true)} />;
   else if (section === "resimden") content = <ImagesToPdf route={route} />;
   else if (section === "resme") content = <PdfToImages route={route} />;
+  else if (section === "word") content = <PdfToWord route={route} />;
+  else if (section === "excel") content = <PdfToExcel route={route} />;
   else if (section === "isler") content = <Jobs />;
   else if (section === "ayarlar")
     content = (

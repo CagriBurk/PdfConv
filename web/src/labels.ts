@@ -6,6 +6,8 @@ export const JOB_TYPE_LABEL: Record<string, string> = {
   split: "Bölme",
   images_to_pdf: "Resim → PDF",
   pdf_to_images: "PDF → Resim",
+  pdf_to_word: "PDF → Word",
+  pdf_to_excel: "PDF → Excel",
   md_to_pdf: "Markdown → PDF",
   office_to_pdf: "Office → PDF",
   apply: "İçerik ekleme",

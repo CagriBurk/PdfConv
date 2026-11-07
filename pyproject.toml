@@ -24,6 +24,8 @@ dependencies = [
     "fonttools>=4.55",
     "ocrmypdf>=16",
     "qrcode>=8.0",
+    "pdf2docx>=0.5.13,<0.6",  # convert/to_word.py iç yapısına bağlı
+    "openpyxl>=3.1.5",
 ]
 
 [project.scripts]

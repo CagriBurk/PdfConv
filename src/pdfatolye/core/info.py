@@ -5,15 +5,13 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
+from pdfatolye.core.paper import PAPER_SIZES_MM
 from pdfatolye.core.pdfio import open_pdf, opened
 from pdfatolye.errors import EncryptedPdfError
 
 # Metin katmanı kontrolü için bakılacak en fazla sayfa (büyük belgede hızlı kalsın).
 TEXT_SAMPLE_PAGES = 10
 MM_PER_PT = 25.4 / 72
-
-PAPER_SIZES_MM = {"A3": (297, 420), "A4": (210, 297), "A5": (148, 210), "Letter": (216, 279),
-                  "Legal": (216, 356)}
 
 
 @dataclass

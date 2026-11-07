@@ -1,5 +1,22 @@
 # Değişiklikler
 
+## Yayımlanmamış
+
+### Yeni araçlar
+- **PDF → Word**: yazı, paragraf, tablo ve resimler düzenlenebilir bir Word belgesine (.docx)
+  aktarılıyor. Sayfa aralığı seçilebiliyor.
+- **PDF → Excel**: PDF'teki tablolar (çizgili ya da çizgisiz) Excel dosyasına (.xlsx) yazılıyor.
+  Sayfadan sayfaya süren tablo tek tablo olarak birleşiyor; "1.234,56" gibi tutarlar Excel'de
+  toplanabilir sayı oluyor, telefon / hesap numarası ve tarihler olduğu gibi kalıyor.
+
+### Büyük kağıtlar
+- Resim → PDF ve Markdown → PDF'te **A2, A1 ve A0** kağıt seçilebiliyor (önce en büyüğü A3'tü).
+- PDF → Resim A0 paftayı 300 DPI'da da çıkarabiliyor; sayfa çok büyükse seçilebilecek en yüksek
+  DPI söyleniyor.
+
+### Diğer
+- Linux'ta kaynak koddan çalışma (README'de "Linux" bölümü).
+
 ## 0.9.1 — 2026-11-07
 
 İlk arkadaş denemesinden gelenler ve ürün deneyimi.
