@@ -62,15 +62,16 @@ function RestartLine({ settings }: { settings: SettingsResponse }) {
   if (!settings.restart_pending) return null;
   if (!settings.restart_available) {
     return (
-      <p className="warn-line" role="status">
-        Bu değişiklik sunucu yeniden başlatılınca geçerli olur: sunucuyu kapatıp <code>baslat.bat</code> ile yeniden aç.
-      </p>
+      <div className="banner warn" role="status">
+        Port ya da telefon modu değişikliği sunucu yeniden başlatılınca geçerli olur: sunucuyu kapatıp{" "}
+        <code>baslat.bat</code> ile yeniden aç.
+      </div>
     );
   }
   return (
-    <p className="warn-line" role="status">
-      Değişikliğin geçerli olması için uygulama yeniden başlamalı (pencere açık kalır, açık işler varsa bitmesini
-      bekle).{" "}
+    <div className="banner warn restart-banner" role="status">
+      Port ya da telefon modu değişikliğinin geçerli olması için uygulama yeniden başlamalı (pencere açık kalır,
+      açık işler varsa bitmesini bekle).{" "}
       <button
         type="button"
         className="primary small"
@@ -85,7 +86,7 @@ function RestartLine({ settings }: { settings: SettingsResponse }) {
       >
         {restarting ? "Yeniden başlatılıyor…" : "Şimdi yeniden başlat"}
       </button>
-    </p>
+    </div>
   );
 }
 
@@ -301,7 +302,6 @@ function PhoneMode({ settings, onSettings }: { settings: SettingsResponse; onSet
         güvenlik duvarı ilk seferde izin isteyebilir ("Özel ağlar" yeterli). Bağlantı yerel ağda şifresizdir (HTTP):
         yalnızca güvendiğin Wi-Fi'de aç, işin bitince kapat.
       </p>
-      <RestartLine settings={settings} />
       {running && <PhoneQr />}
     </section>
   );
@@ -426,6 +426,8 @@ function PortSetting({ settings, onSettings }: { settings: SettingsResponse; onS
 export default function Settings({ data, refreshing, onRefresh, settings, onSettings, onShowWelcome }: Props) {
   return (
     <>
+      {/* Yapışkan: port "Gelişmiş" altında değişse de uyarı ekranda kalır. */}
+      {settings && <RestartLine settings={settings} />}
       {data && <VersionInfo data={data} />}
       {settings && <GeneralSettings key={settings.config_file} settings={settings} onSettings={onSettings} />}
       {settings && <PhoneMode settings={settings} onSettings={onSettings} />}

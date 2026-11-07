@@ -547,3 +547,57 @@ def test_in_place_preview_update_still_blocks_note_scripts(server, page, tmp_pat
     page.wait_for_timeout(500)
     assert page.title() != "ELEGECIRILDI"
     assert frame.locator("img[onerror]").count() == 1  # yerinde güncellendi, ama çalışmadı
+
+
+def test_restart_button_moves_window_to_new_port(browser, tmp_path, monkeypatch):
+    """Masaüstü uygulamasında port değişip "Şimdi yeniden başlat" denince pencere yeni adrese
+    geçmeli. (Kurulu pakette denendi: sunucu yeni portta açılıyordu ama arayüz, uygulamanın
+    `connect-src 'self'` politikası başka portu yoklamayı engellediği için eski adreste
+    kalıyordu.)"""
+    from playwright.sync_api import expect
+
+    from pdfatolye import desktop
+
+    monkeypatch.setattr(desktop, "kill_children_on_exit", lambda: False)
+    port, new_port = _free_port(), _free_port()
+    cfg = tmp_path / "config.toml"
+    data = str(tmp_path / "veri").replace("\\", "/")
+    cfg.write_text(f'data_dir = "{data}"\nport = {port}\nwelcome_done = true\n',
+                   encoding="utf-8")
+    closed = threading.Event()
+    opened: list[str] = []
+
+    class Window:
+        def poll(self):
+            return 0 if closed.is_set() else None
+
+    def fake_open(s, url):
+        opened.append(url)
+        return Window()
+
+    monkeypatch.setattr(desktop, "open_window", fake_open)
+    result: list[int] = []
+    t = threading.Thread(target=lambda: result.append(desktop.run(cfg)), daemon=True)
+    t.start()
+    for _ in range(300):
+        if opened:
+            break
+        time.sleep(0.1)
+    assert opened, "uygulama açılmadı"
+    ctx = browser.new_context(viewport={"width": 1400, "height": 1000}, locale="tr-TR")
+    page = ctx.new_page()
+    page.set_default_timeout(TIMEOUT_MS)
+    try:
+        page.goto(f"{opened[0]}/#/ayarlar")
+        page.get_by_text("Gelişmiş", exact=True).click()
+        page.get_by_label("Port").fill(str(new_port))
+        page.locator("form.setting-row").get_by_role("button", name="Kaydet").click()
+        page.get_by_role("button", name="Şimdi yeniden başlat").click()
+        page.wait_for_url(f"http://127.0.0.1:{new_port}/#/ayarlar", timeout=30_000)
+        expect(page.get_by_text(f"Şu an {new_port} portunda çalışıyor")).to_be_attached()
+        assert len(opened) == 1  # yeni pencere açılmadı
+    finally:
+        ctx.close()
+        closed.set()
+        t.join(20)
+    assert result == [0]

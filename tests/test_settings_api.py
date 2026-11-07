@@ -250,3 +250,11 @@ def test_every_job_type_has_a_turkish_label():
     block = labels.split("JOB_TYPE_LABEL")[1].split("};")[0]
     keys = set(re.findall(r"^\s*(\w+):", block, re.M))
     assert len(types) >= 15 and types <= keys, types - keys
+
+
+def test_app_may_probe_only_local_ports():
+    """Yeniden başlatmada yeni portu yoklamak için `connect-src` yalnızca 127.0.0.1'e genişler."""
+    from pdfatolye.api.security import app_csp
+
+    connect = next(d for d in app_csp("sha256-x").split("; ") if d.startswith("connect-src"))
+    assert connect.split() == ["connect-src", "'self'", "http://127.0.0.1:*"]
