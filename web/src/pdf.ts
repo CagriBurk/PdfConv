@@ -14,14 +14,25 @@ export class PasswordNeededError extends Error {
   }
 }
 
+/** Önbellek anahtarı için sürüm kimliği. Sürüm NUMARASI yeniden kullanılır (Kaydet → v2, Önceki
+ * sürüme dön → v1, Kaydet → yeni v2); `updated` (sürümün oluşturulma zamanı) her sürümde farklıdır.
+ * `FileMeta` bu alanları taşır. */
+export interface PdfRef {
+  id: string;
+  version: number;
+  updated: number;
+}
+
+const refKey = (ref: PdfRef) => `${ref.id}@${ref.version}:${ref.updated}`;
+
 const docs = new Map<string, { task: ReturnType<typeof pdfjs.getDocument>; doc: Promise<PDFDocumentProxy> }>();
 
 /** Aynı dosya + sürüm bir kez açılır, sonra önbellekten verilir. */
-export function openPdf(fileId: string, version: number, password?: string): Promise<PDFDocumentProxy> {
-  const key = `${fileId}@${version}`;
+export function openPdf(ref: PdfRef, password?: string): Promise<PDFDocumentProxy> {
+  const key = refKey(ref);
   let entry = docs.get(key);
   if (!entry) {
-    const task = pdfjs.getDocument({ url: api.rawUrl(fileId, version), password, withCredentials: true });
+    const task = pdfjs.getDocument({ url: api.rawUrl(ref.id, ref.version), password, withCredentials: true });
     const doc = task.promise.catch((e: { name?: string; code?: number }) => {
       docs.delete(key);
       if (e?.name === "PasswordException") throw new PasswordNeededError(e.code === 2);
@@ -33,13 +44,17 @@ export function openPdf(fileId: string, version: number, password?: string): Pro
   return entry.doc;
 }
 
-/** Dosyanın açık belgelerini kapatır (yeni sürüm kaydedilince). */
+/** Dosyanın açık belgelerini ve küçük resimlerini bırakır (yeni sürüm kaydedilince, geri alınınca).
+ * Anahtarlar zaten sürüme özgü; bu bellek içindir. */
 export function forgetPdf(fileId: string): void {
   for (const [key, entry] of [...docs.entries()]) {
     if (key.startsWith(`${fileId}@`)) {
       void entry.task.destroy().catch(() => undefined);
       docs.delete(key);
     }
+  }
+  for (const key of [...thumbs.keys()]) {
+    if (key.startsWith(`${fileId}@`)) thumbs.delete(key);
   }
 }
 
@@ -66,18 +81,12 @@ function slot<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 /** Sayfanın küçük resmi (data URL). Kaynaktaki döndürme pdf.js tarafından uygulanır. */
-export function thumbnail(
-  fileId: string,
-  version: number,
-  pageIndex: number,
-  width: number,
-  password?: string,
-): Promise<string> {
-  const key = `${fileId}@${version}#${pageIndex}w${width}`;
+export function thumbnail(ref: PdfRef, pageIndex: number, width: number, password?: string): Promise<string> {
+  const key = `${refKey(ref)}#${pageIndex}w${width}`;
   let p = thumbs.get(key);
   if (!p) {
     p = slot(async () => {
-      const doc = await openPdf(fileId, version, password);
+      const doc = await openPdf(ref, password);
       const page = await doc.getPage(pageIndex + 1);
       const base = page.getViewport({ scale: 1 });
       const ratio = window.devicePixelRatio || 1;

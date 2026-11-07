@@ -25,10 +25,10 @@ import Modal from "../components/Modal";
 import PageHeader from "../components/PageHeader";
 import PasswordDialog from "../components/PasswordDialog";
 import Thumb from "../components/Thumb";
-import { useJob, useUpload } from "../hooks";
+import { useJob, useKeepAlive, useUpload } from "../hooks";
 import { passwords } from "../passwords";
 import { forgetPdf } from "../pdf";
-import { navigate } from "../router";
+import { navigate, useLeaveGuard } from "../router";
 import { ACCEPT } from "../tools";
 
 interface Item {
@@ -116,13 +116,9 @@ export default function Organizer({ fileId }: { fileId?: string }) {
     if (fileId) void load(fileId);
   }, [fileId, load]);
 
-  // Kaydedilmemiş değişiklik varken sekmeyi kapatmaya karşı uyarı.
-  useEffect(() => {
-    if (!dirty) return;
-    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty]);
+  // Kaydedilmemiş değişiklik: başka ekrana geçerken ve sekmeyi kapatırken sorulur.
+  useLeaveGuard(dirty);
+  useKeepAlive(Object.keys(sources)); // açıkken otomatik temizlik silmesin
 
   const commit = useCallback(
     (next: Item[]) => {
@@ -288,7 +284,7 @@ export default function Organizer({ fileId }: { fileId?: string }) {
       forgetPdf(base.id);
       void load(base.id);
     } else {
-      navigate(`duzenle/${out}`);
+      navigate(`duzenle/${out}`, undefined, { force: true }); // değişiklikler yeni dosyada
     }
     saveJob.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -461,7 +457,7 @@ export default function Organizer({ fileId }: { fileId?: string }) {
                 <PageTile
                   key={item.key}
                   item={item}
-                  version={src?.version ?? 1}
+                  file={src}
                   selected={selected.has(item.key)}
                   hidden={dragging !== null && dragging !== item.key && selected.size > 1 && selected.has(item.key)}
                   color={multiSource ? colorOf(item.file) : "transparent"}
@@ -484,7 +480,9 @@ export default function Organizer({ fileId }: { fileId?: string }) {
       {preview && !preview.blank && preview.file && (
         <Modal title={label(preview, items.indexOf(preview))} onClose={() => setPreview(null)} wide>
           <div className="preview-page">
-            <Thumb fileId={preview.file} version={sources[preview.file]?.version ?? 1} page={preview.page} rotate={preview.rotate} width={720} />
+            {sources[preview.file] && (
+              <Thumb file={sources[preview.file]} page={preview.page} rotate={preview.rotate} width={720} />
+            )}
           </div>
         </Modal>
       )}
@@ -504,7 +502,7 @@ export default function Organizer({ fileId }: { fileId?: string }) {
 
 interface TileProps {
   item: Item;
-  version: number;
+  file?: FileMeta;
   selected: boolean;
   hidden: boolean;
   color: string;
@@ -513,7 +511,7 @@ interface TileProps {
   onOpen: () => void;
 }
 
-function PageTile({ item, version, selected, hidden, color, label, onClick, onOpen }: TileProps) {
+function PageTile({ item, file, selected, hidden, color, label, onClick, onOpen }: TileProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.key });
   return (
     <li
@@ -527,14 +525,14 @@ function PageTile({ item, version, selected, hidden, color, label, onClick, onOp
       {...attributes}
       {...listeners}
     >
-      {item.blank || !item.file ? (
+      {item.blank || !file ? (
         <div className="thumb-box">
           <span className="blank-page" style={{ transform: `rotate(${item.rotate}deg)` }}>
             Boş sayfa
           </span>
         </div>
       ) : (
-        <Thumb fileId={item.file} version={version} page={item.page} rotate={item.rotate} />
+        <Thumb file={file} page={item.page} rotate={item.rotate} />
       )}
       <span className="page-label">{label}</span>
     </li>

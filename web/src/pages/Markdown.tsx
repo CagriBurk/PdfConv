@@ -3,8 +3,9 @@ import { api, errorMessage, type EnginesResponse, type FileMeta, type MdPreview 
 import DropZone from "../components/DropZone";
 import JobPanel from "../components/JobPanel";
 import PageHeader from "../components/PageHeader";
-import { useJob, useUpload } from "../hooks";
-import { idsFrom, type Route } from "../router";
+import { useJob, useKeepAlive, useUpload } from "../hooks";
+import { drafts, draftKey, formatDraftTime, type Draft } from "../drafts";
+import { idsFrom, LEAVE_MESSAGE, useLeaveGuard, type Route } from "../router";
 
 interface Options {
   theme: string;
@@ -40,9 +41,6 @@ $$
 > Obsidian callout'ları desteklenir.
 `;
 
-/** Dosyayı metin olarak okur; satır sonlarını \n'e çevirir (Windows dosyaları \r\n içerir). */
-const fetchText = (url: string) => fetch(url).then((r) => r.text()).then((t) => t.replace(/\r\n?/g, "\n"));
-
 const triState = (v: boolean | null) => (v === null ? "" : v ? "1" : "0");
 const fromTri = (v: string) => (v === "" ? null : v === "1");
 
@@ -50,6 +48,10 @@ export default function Markdown({ route, engines }: { route: Route; engines: En
   const [mdFile, setMdFile] = useState<FileMeta | null>(null);
   const [attachments, setAttachments] = useState<FileMeta[]>([]);
   const [text, setText] = useState<string | null>(null);
+  // Kaydedilmiş sayılan metin: dosyadan okunan, son PDF'i üretilen ya da indirilen hâli.
+  const [saved, setSaved] = useState<string | null>(null);
+  const [encodingNote, setEncodingNote] = useState<string | null>(null);
+  const [draftOffer, setDraftOffer] = useState<Draft | null>(null);
   const [opts, setOpts] = useState<Override<Options>>(AUTO);
   const [preview, setPreview] = useState<MdPreview | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
@@ -57,7 +59,50 @@ export default function Markdown({ route, engines }: { route: Route; engines: En
   const { upload, uploading, error: uploadError, setError } = useUpload();
   const job = useJob();
   const timer = useRef<number>(undefined);
+  const builtText = useRef<string | null>(null);
   const browserMissing = engines?.engines.find((e) => e.key === "browser")?.ok === false;
+  const dirty = text !== null && saved !== null && text !== saved;
+  const key = draftKey(mdFile?.id);
+
+  // Kaydedilmemiş not: başka ekrana geçerken / sekmeyi kapatırken sorulur.
+  useLeaveGuard(dirty);
+  useKeepAlive([mdFile?.id, ...attachments.map((a) => a.id)]);
+
+  /** Not açıldı: metin ve (varsa) bu not için kalmış taslak. */
+  const opened = (meta: FileMeta | null, body: string, note: string | null) => {
+    setMdFile(meta);
+    setText(body);
+    setSaved(body);
+    setEncodingNote(note);
+    const d = drafts.get(draftKey(meta?.id));
+    setDraftOffer(d && d.text !== body ? d : null);
+  };
+
+  // Yeni not ekranında: önceki oturumdan kalmış adsız taslak var mı?
+  useEffect(() => {
+    if (!idsFrom(route)[0]) setDraftOffer(drafts.get(draftKey(null)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Taslak: her değişiklikte (biraz bekleyerek) yerel depoya; kaydedilmiş hâle dönünce silinir.
+  useEffect(() => {
+    if (text === null) return;
+    if (!dirty) {
+      if (!draftOffer) drafts.remove(key);
+      return;
+    }
+    const t = window.setTimeout(
+      () => drafts.set(key, { text, at: Date.now(), name: mdFile?.name ?? `${preview?.title ?? "belge"}.md` }),
+      600,
+    );
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [text, dirty, key]);
+
+  // PDF üretildi: o anki metin kaydedilmiş sayılır.
+  useEffect(() => {
+    if (job.job?.status === "bitti" && builtText.current !== null) setSaved(builtText.current);
+  }, [job.job?.status]);
 
   // URL'den gelen dosyalar (ana sayfadan yönlendirme ya da sayfa yenileme).
   const mainId = idsFrom(route)[0];
@@ -68,10 +113,9 @@ export default function Markdown({ route, engines }: { route: Route; engines: En
       try {
         if (mainId) {
           const meta = await api.file(mainId);
-          const body = await fetchText(api.rawUrl(mainId));
+          const body = await api.text(mainId);
           if (!alive) return;
-          setMdFile(meta);
-          setText(body);
+          opened(meta, body.text, body.note);
         }
         if (extraIds) {
           const ek = await Promise.all(extraIds.split(",").map((id) => api.file(id)));
@@ -112,14 +156,34 @@ export default function Markdown({ route, engines }: { route: Route; engines: En
     const md = metas.find((m) => m.kind === "markdown" || m.kind === "text");
     const rest = metas.filter((m) => m !== md);
     if (md) {
-      setMdFile(md);
-      setText(await fetchText(api.rawUrl(md.id)));
+      if (dirty && !window.confirm(LEAVE_MESSAGE)) return;
+      try {
+        const body = await api.text(md.id);
+        opened(md, body.text, body.note);
+      } catch (e) {
+        setError(errorMessage(e));
+        return;
+      }
       job.reset();
     }
     if (rest.length) setAttachments((a) => [...a, ...rest.filter((r) => !a.some((x) => x.name === r.name))]);
   };
 
   const set = <K extends keyof Options>(key: K, value: Options[K] | null) => setOpts((o) => ({ ...o, [key]: value }));
+  const noteName = mdFile?.name ?? `${preview?.title ?? "belge"}.md`;
+
+  /** Düzenlenmiş notu .md olarak indirir (UTF-8); indirilen hâl kaydedilmiş sayılır. */
+  const downloadNote = () => {
+    if (text === null) return;
+    const blob = new Blob([text], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${noteName.replace(/\.(md|markdown|txt)$/i, "")}.md`;
+    a.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setSaved(text);
+  };
   const effective = preview?.options;
 
   return (
@@ -130,6 +194,34 @@ export default function Markdown({ route, engines }: { route: Route; engines: En
       {browserMissing && (
         <div className="banner error">Edge/Chrome bulunamadı; PDF oluşturulamaz. Ayarlar sayfasına bak.</div>
       )}
+      {draftOffer && (
+        <div className="banner warn" role="status">
+          {formatDraftTime(draftOffer.at)} tarihli kaydedilmemiş bir taslak var ({draftOffer.name}).{" "}
+          <button
+            type="button"
+            className="link-button"
+            onClick={() => {
+              // Yeni not ekranından açılırsa "kaydedilmiş" hâl örnek nottur: taslak kirli sayılır.
+              if (text === null) setSaved(SAMPLE);
+              setText(draftOffer.text);
+              setDraftOffer(null);
+            }}
+          >
+            Taslağı aç
+          </button>{" "}
+          <button
+            type="button"
+            className="link-button"
+            onClick={() => {
+              drafts.remove(key);
+              setDraftOffer(null);
+            }}
+          >
+            Sil
+          </button>
+        </div>
+      )}
+      {encodingNote && <div className="banner warn">{encodingNote} İndirirken UTF-8 kullanılır.</div>}
 
       {text === null ? (
         <>
@@ -141,7 +233,7 @@ export default function Markdown({ route, engines }: { route: Route; engines: En
             hint="Notta ![[resim.png]] varsa resmi de birlikte bırak; ya da Ayarlar'da Obsidian kasası yolunu tanımla."
           />
           <p className="center">
-            <button type="button" className="link-button" onClick={() => setText(SAMPLE)}>
+            <button type="button" className="link-button" onClick={() => opened(null, SAMPLE, null)}>
               ya da boş bir notla başla
             </button>
           </p>
@@ -257,19 +349,30 @@ export default function Markdown({ route, engines }: { route: Route; engines: En
               type="button"
               className="primary block"
               disabled={job.running || browserMissing}
-              onClick={() =>
-                job.start({
+              onClick={() => {
+                builtText.current = text;
+                void job.start({
                   type: "md_to_pdf",
                   file: mdFile?.id,
                   text,
-                  name: mdFile?.name ?? `${preview?.title ?? "belge"}.md`,
+                  name: noteName,
                   attachments: attachmentIds,
                   options,
-                })
-              }
+                });
+              }}
             >
               {job.running ? "PDF oluşturuluyor…" : "PDF oluştur"}
             </button>
+            <p className="md-save-line small">
+              {dirty ? (
+                <span className="warn-line">Kaydedilmemiş değişiklik var (taslak bu tarayıcıda tutuluyor).</span>
+              ) : (
+                <span className="muted">Değişiklik yok.</span>
+              )}{" "}
+              <button type="button" className="link-button" onClick={downloadNote}>
+                Notu indir (.md)
+              </button>
+            </p>
             <JobPanel job={job.job} error={job.error} />
           </section>
 

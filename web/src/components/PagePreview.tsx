@@ -19,20 +19,21 @@ export default function PagePreview({ file, page = 0, width = 320, children }: P
   useEffect(() => {
     let alive = true;
     const pw = passwords.get(file.id);
-    void openPdf(file.id, file.version, pw)
+    void openPdf(file, pw)
       .then((doc) => doc.getPage(page + 1))
       .then((p) => {
         const v = p.getViewport({ scale: 1 });
         if (alive) setSize({ w: v.width, h: v.height });
       })
       .catch(() => undefined);
-    thumbnail(file.id, file.version, page, width, pw)
+    thumbnail(file, page, width, pw)
       .then((u) => alive && setSrc(u))
       .catch(() => undefined);
     return () => {
       alive = false;
     };
-  }, [file.id, file.version, page, width]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [file.id, file.version, file.updated, page, width]);
 
   if (!size || !src) return <div className="page-preview loading" style={{ width, height: width * 1.41 }} />;
   const scale = width / size.w;

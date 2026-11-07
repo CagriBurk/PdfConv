@@ -21,10 +21,10 @@ import {
 } from "../editor/model";
 import PageCanvas from "../editor/PageCanvas";
 import SignatureDialog from "../editor/SignatureDialog";
-import { useJob, useUpload } from "../hooks";
+import { useJob, useKeepAlive, useUpload } from "../hooks";
 import { passwords } from "../passwords";
 import { forgetPdf, openPdf } from "../pdf";
-import { navigate } from "../router";
+import { navigate, useLeaveGuard } from "../router";
 import { ACCEPT } from "../tools";
 
 const TOOL_GROUPS: Tool[][] = [
@@ -73,7 +73,7 @@ export default function Editor({ fileId }: { fileId?: string }) {
 
   const open = useCallback(async (m: FileMeta) => {
     try {
-      setDoc(await openPdf(m.id, m.version, passwords.get(m.id)));
+      setDoc(await openPdf(m, passwords.get(m.id)));
       setMeta(m);
     } catch (e) {
       setError(errorMessage(e));
@@ -112,12 +112,9 @@ export default function Editor({ fileId }: { fileId?: string }) {
     return () => ro.disconnect();
   }, [pageSize.w, doc]);
 
-  useEffect(() => {
-    if (!dirty) return;
-    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty]);
+  // Uygulanmamış nesneler: başka ekrana geçerken ve sekmeyi kapatırken sorulur.
+  useLeaveGuard(dirty);
+  useKeepAlive([meta?.id]); // açıkken otomatik temizlik silmesin
 
   const commit = useCallback(
     (next: EditorObj[]) => {
@@ -230,7 +227,7 @@ export default function Editor({ fileId }: { fileId?: string }) {
       forgetPdf(meta.id);
       void load(meta.id);
     } else {
-      navigate(`editor/${out}`);
+      navigate(`editor/${out}`, undefined, { force: true }); // değişiklikler yeni dosyada
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [job.job?.status]);
@@ -370,7 +367,7 @@ export default function Editor({ fileId }: { fileId?: string }) {
                 onClick={() => setPageIndex(i)}
                 aria-current={i === pageIndex}
               >
-                <Thumb fileId={meta.id} version={meta.version} page={i} rotate={0} width={110} />
+                <Thumb file={meta} page={i} rotate={0} width={110} />
                 <span className="page-label">
                   {i + 1}
                   {counts[i] ? <span className="badge">{counts[i]}</span> : null}

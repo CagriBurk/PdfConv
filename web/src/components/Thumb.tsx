@@ -1,17 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { passwords } from "../passwords";
-import { thumbnail } from "../pdf";
+import { thumbnail, type PdfRef } from "../pdf";
 
 interface Props {
-  fileId: string;
-  version: number;
+  file: PdfRef;
   page: number;
   rotate: number;
   width?: number;
 }
 
 /** Görünür olunca çizilen sayfa küçük resmi. Ek döndürme CSS ile gösterilir. */
-export default function Thumb({ fileId, version, page, rotate, width = 150 }: Props) {
+export default function Thumb({ file, page, rotate, width = 150 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const [src, setSrc] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
@@ -30,13 +29,14 @@ export default function Thumb({ fileId, version, page, rotate, width = 150 }: Pr
   useEffect(() => {
     if (!visible) return;
     let alive = true;
-    thumbnail(fileId, version, page, width, passwords.get(fileId))
+    thumbnail(file, page, width, passwords.get(file.id))
       .then((u) => alive && setSrc(u))
       .catch(() => alive && setFailed(true));
     return () => {
       alive = false;
     };
-  }, [visible, fileId, version, page, width]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, file.id, file.version, file.updated, page, width]);
 
   return (
     <div ref={ref} className="thumb-box">

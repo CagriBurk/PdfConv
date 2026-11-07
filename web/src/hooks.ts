@@ -77,3 +77,17 @@ export function useFiles(ids: string[]) {
 
   return { files, setFiles, error };
 }
+
+const KEEPALIVE_MS = 10 * 60 * 1000;
+
+/** Ekranda açık dosyaları düzenli aralıklarla yoklar: sunucu bunları "kullanımda" sayar ve otomatik
+ * temizlik (saklama süresi) açık bir düzenleyicinin altından dosyayı silmez. */
+export function useKeepAlive(ids: (string | null | undefined)[]) {
+  const key = ids.filter(Boolean).join(",");
+  useEffect(() => {
+    if (!key) return;
+    const ping = () => key.split(",").forEach((id) => void api.file(id).catch(() => undefined));
+    const t = window.setInterval(ping, KEEPALIVE_MS);
+    return () => window.clearInterval(t);
+  }, [key]);
+}

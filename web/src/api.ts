@@ -157,6 +157,8 @@ export const api = {
   upload: uploadFiles,
   files: () => request<FileMeta[]>("/api/files"),
   file: (id: string) => request<FileMeta>(`/api/files/${id}`),
+  /** Not / metin dosyası; kod çözümü sunucuda (UTF-8 değilse Windows-1254 ve `note`). */
+  text: (id: string) => request<{ text: string; note: string | null }>(`/api/files/${id}/text`),
   undo: (id: string) => request<FileMeta>(`/api/files/${id}/undo`, { method: "POST" }),
   pin: (id: string, pinned: boolean) => request<FileMeta>(`/api/files/${id}/pin`, json({ pinned })),
   rename: (id: string, name: string) => request<FileMeta>(`/api/files/${id}/rename`, json({ name })),
