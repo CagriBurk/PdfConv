@@ -97,10 +97,14 @@ def test_settings_api_round_trip(tmp_path):
         assert load_settings(settings_file(s)).default_theme == "rapor"
 
 
+# Yollar işletim sisteminin biçiminde: "C:/..." Linux'ta göreli sayılır.
+_ROOT = Path(Path.cwd().anchor)
+
+
 @pytest.mark.parametrize(("body", "message"), [
     ({"vault_path": "göreli/klasör"}, "tam bir klasör"),
-    ({"vault_path": "C:/kesinlikle/olmayan/klasör"}, "bulunamadı"),
-    ({"vault_path": "C:\\"}, "sürücünün tamamı"),
+    ({"vault_path": str(_ROOT / "kesinlikle" / "olmayan" / "klasör")}, "bulunamadı"),
+    ({"vault_path": str(_ROOT)}, "sürücünün tamamı"),
     ({"default_theme": "koyu"}, "default_theme"),
     ({"retention_hours": 0}, "retention_hours"),
     ({"port": 80}, "port"),

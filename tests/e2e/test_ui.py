@@ -436,7 +436,9 @@ def test_organizer_works_with_keyboard_only(server, page, tmp_path):
     expect(tiles.nth(1)).to_be_focused()
     expect(tiles.nth(1)).to_have_attribute("aria-selected", "true")
     expect(tiles.nth(0)).to_have_attribute("aria-selected", "false")
-    page.keyboard.press("Control+r")  # yenile kısayolu döndürme sayılmamalı (#66)
+    # Yenile kısayolu (Ctrl+R) döndürme sayılmamalı (#66). Gerçek tuş gönderilmez: bazı başsız
+    # tarayıcı sürümleri sayfayı gerçekten yeniliyor, test aralıklı düşüyordu (CI).
+    tiles.nth(1).dispatch_event("keydown", {"key": "r", "ctrlKey": True, "bubbles": True})
     expect(page.get_by_role("button", name="Kaydet", exact=True)).to_be_disabled()
     url = page.url
     page.keyboard.press("Alt+ArrowRight")  # 2. sayfa bir sağa: 1, 3, 2, 4

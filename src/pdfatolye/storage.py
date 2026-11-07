@@ -20,7 +20,7 @@ from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 from typing import BinaryIO
 
-from pdfatolye.core.pdfio import safe_filename, safe_name_with_ext, split_ext, strip_ext
+from pdfatolye.core.pdfio import base_name, safe_filename, safe_name_with_ext, split_ext, strip_ext
 from pdfatolye.errors import PdfAtolyeError, disk_full_error, is_disk_full
 from pdfatolye.formats import KINDS
 
@@ -88,7 +88,7 @@ class FileMeta:
 
 
 def kind_of(name: str) -> str:
-    return KINDS.get(split_ext(Path(name).name)[1].lower(), "other")
+    return KINDS.get(split_ext(base_name(name))[1].lower(), "other")
 
 
 def _pdf_facts(path: Path) -> tuple[int | None, bool]:
@@ -164,7 +164,7 @@ class FileStore:
 
     def _new(self, name: str, source: str, job_id: str | None) -> tuple[FileMeta, Path]:
         # Uzantı ayrı korunur: uzun adda kök kısalır, ".pdf" asla kesilmez (tür ondan anlaşılır).
-        name = safe_name_with_ext(Path(name).name, fallback="dosya")
+        name = safe_name_with_ext(base_name(name), fallback="dosya")
         meta = FileMeta(id=uuid.uuid4().hex, name=name, kind=kind_of(name),
                         created=time.time(), source=source, job_id=job_id)
         d = self._dir(meta.id)
@@ -305,7 +305,7 @@ class FileStore:
         bitiyorsa ("yeni.txt") o atılır; "Sürüm 1.2 son" ya da "Rapor v1.2" olduğu gibi kalır."""
         with self._lock:
             meta = self.get(file_id)
-            given = Path(name).name
+            given = base_name(name)
             stem, ext = split_ext(given)
             if ext.lower() not in KINDS:
                 stem = strip_ext(given, meta.ext)

@@ -17,7 +17,7 @@ from pdfatolye import engines
 from pdfatolye.convert.markdown.render import BrowserNotFoundError
 from pdfatolye.core import compress as compresslib
 from pdfatolye.core import content, images, pages, security
-from pdfatolye.core.pdfio import safe_filename, split_ext, strip_ext
+from pdfatolye.core.pdfio import base_name, safe_filename, split_ext, strip_ext
 from pdfatolye.errors import EncryptedPdfError, PdfAtolyeError, UnsupportedFileError
 from pdfatolye.storage import FileMeta
 
@@ -217,7 +217,7 @@ def md_to_pdf(store, settings, req, report, tmp: Path, job_id) -> WorkResult:
             notes += [note] if note else []
     else:
         name, text = req.name, req.text or ""
-    md_name = safe_filename(split_ext(Path(name).name)[0], fallback="belge") + ".md"
+    md_name = safe_filename(split_ext(base_name(name))[0], fallback="belge") + ".md"
     source = work / md_name
     # newline="": Windows'ta \n → \r\n çevrilmesin; metin zaten \r\n içeriyorsa \r\r\n olur ve
     # satır numaraları iki katına çıkar (uyarılardaki "Satır N" yanlış gösterilir).

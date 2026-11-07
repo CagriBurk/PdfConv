@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import pytest
@@ -34,7 +35,9 @@ def test_load_overrides_and_engines(tmp_path: Path):
 
 def test_data_dir_expands_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("PDFTEST_ROOT", str(tmp_path))
-    cfg = write(tmp_path / "c.toml", 'data_dir = "%PDFTEST_ROOT%\\\\x"\n')
+    # Ortam değişkeni işletim sisteminin sözdizimiyle: Windows %AD%, Linux $AD.
+    ref = "%PDFTEST_ROOT%\\\\x" if os.name == "nt" else "$PDFTEST_ROOT/x"
+    cfg = write(tmp_path / "c.toml", f'data_dir = "{ref}"\n')
     assert load_settings(cfg).data_dir == tmp_path / "x"
 
 
