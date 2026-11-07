@@ -75,6 +75,9 @@ yerel ağda şifresizdir (HTTP): yalnızca güvendiğin Wi-Fi'de kullan, işin b
 - Beklenmeyen bir hatada mesajda **hata kimliği** (ör. `3fa2c1b9`) yazar; aynı kimlik günlük
   dosyasında (`%LOCALAPPDATA%\PdfAtolye\logs\pdfatolye.log`, yolu Ayarlar'da da var) ayrıntısıyla
   bulunur.
+- "Diskte yer yok": yükleme, diske sığmayacaksa hiç başlamaz. Yer aç ya da İşler ve dosyalar'dan eski
+  dosyaları sil. Tek seferde en fazla `max_request_mb` (varsayılan 4096 MB), dosya başına
+  `max_upload_mb` (1024 MB) yüklenir.
 - "8790 portu başka bir program tarafından kullanılıyor": `config.toml`'da `port` değiştir ya da
   `baslat.bat --port 8800`.
 - Proje klasörünün yolu çok uzunsa (260+ karakter) LibreOffice ve Ghostscript bozulabilir; projeyi
@@ -89,7 +92,10 @@ yerel ağda şifresizdir (HTTP): yalnızca güvendiğin Wi-Fi'de kullan, işin b
   başka PDF'leri alana bırakarak sayfalarını ekle, çift tıkla büyüt. "Kaydet" yeni sürüm oluşturur,
   "Önceki sürüme dön" ile geri alınır.
 - **Birleştir, Böl, Resim → PDF, PDF → Resim**: çok dosyalı çıktılar tek ZIP olarak indirilebilir.
-- **Markdown → PDF**: yazdıkça canlı önizleme (baskıyla aynı tema), seçenekler, uyarılar.
+- **Markdown → PDF**: yazdıkça canlı önizleme (baskıyla aynı tema), seçenekler, uyarılar. Düzenlediğin
+  not bu tarayıcıda taslak olarak tutulur (sekme kapansa da kaybolmaz, sonraki açılışta "Taslağı aç"
+  önerilir); "Notu indir (.md)" düzenlenmiş notu UTF-8 olarak indirir. Windows'un eski "ANSI"
+  (Windows-1254) biçimindeki notlar da doğru okunur.
 - **İçerik Ekle** (editör): yazı, resim, imza, vurgu, dikdörtgen/elips/çizgi/ok, karartma, beyazla
   kapat. Nesneler taşınır, boyutlandırılır, döndürülür; `Delete` sil, `Ctrl+Z` / `Ctrl+Y`, oklar kaydırır.
   "Uygula" yeni sürüm oluşturur. **Karartma** kutunun altındaki yazıyı, resmi, çizimi, açıklamayı ve
@@ -104,7 +110,12 @@ yerel ağda şifresizdir (HTTP): yalnızca güvendiğin Wi-Fi'de kullan, işin b
 - **Güvenlik ve bakım**: AES-256 şifre + izinler, şifre kaldırma (şifre kırma yok), meta veri
   temizliği, bozuk PDF onarımı. Şifreli bir PDF düzenlenince şifresi korunur; şifreyi yalnızca "Şifre
   kaldır" kaldırır. Birden çok kaynaktan üretilen dosyada şifre taşınamazsa bu açıkça söylenir.
-- **İşler ve dosyalar**: son işler, tüm dosyalar; sabitlenmeyen dosyalar 24 saat sonra silinir.
+- **İşler ve dosyalar**: son işler, tüm dosyalar; sabitlenmeyen dosyalar 24 saat sonra silinir (son
+  açılıştan itibaren; açık bir ekranda ya da bir işte kullanılan dosya silinmez). Çalışan iş
+  (LibreOffice, OCR, baskı dahil) "İptal" ile birkaç saniyede durur. Uzun süren OCR/Office işleri
+  sıradayken basit işler beklemeden çalışır.
+- **Kaydedilmemiş iş**: sayfa düzenleyicide, editörde ve Markdown ekranında kaydetmeden başka
+  ekrana geçmek ya da sekmeyi kapatmak önce sorar.
 
 Şifreli PDF'lerin şifresi yalnızca açık sekmenin belleğinde tutulur, hiçbir yere kaydedilmez.
 
@@ -149,7 +160,8 @@ uv run python -m pdfatolye cevir a.docx b.xlsx --birlestir  # tek PDF, dosya ba�
 uv run python -m pdfatolye cevir tez.docx --pdfa            # arşiv için PDF/A-2b
 ```
 
-Word, Excel, PowerPoint, ODT/ODS/ODP, RTF, CSV LibreOffice ile; HTML ve TXT Edge ile çevrilir.
+Word, Excel, PowerPoint (makrolu `.docm/.xlsm/.pptm` dahil), ODT/ODS/ODP, RTF,
+CSV, WordPerfect LibreOffice ile; HTML ve TXT Edge ile çevrilir.
 Bozuk bir dosya diğerlerini durdurmaz. Bilgisayarda olmayan fontlar (ör. Aptos) uyarılır.
 
 ### Markdown → PDF

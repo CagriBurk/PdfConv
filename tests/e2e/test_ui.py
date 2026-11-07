@@ -111,6 +111,104 @@ def test_upload_reorder_delete_save(server, page, tmp_path):
     assert fx.labels(out) == ["Sayfa 2", "Sayfa 3"]
 
 
+def _tile_images(page, n: int) -> list[str]:
+    from playwright.sync_api import expect
+
+    tiles = page.locator(".page-tile")
+    expect(tiles).to_have_count(n)  # wait_for_function dize değerlendirir: CSP engeller
+    for i in range(n):
+        tiles.nth(i).locator("img").wait_for()
+    return [tiles.nth(i).locator("img").get_attribute("src") for i in range(n)]
+
+
+def test_thumbnails_follow_version_after_undo_and_resave(server, page, tmp_path):
+    """Kaydet (v2) → Önceki sürüme dön → başka değişiklik → Kaydet (yeni v2): küçük resimler
+    eski v2'ninkiler olmamalı (sürüm numarası yeniden kullanılıyor)."""
+    base, app = server
+    meta = app.state.store.add_file(fx.numbered(tmp_path / "s.pdf", 3, with_toc=False),
+                                    "sürümler.pdf", source="upload")
+    page.goto(f"{base}/#/duzenle/{meta.id}")
+    original = _tile_images(page, 3)
+    assert len(set(original)) == 3
+    page.locator(".page-tile").first.click()
+    page.keyboard.press("Delete")
+    page.get_by_role("button", name="Kaydet", exact=True).click()
+    from playwright.sync_api import expect
+
+    _wait_version(app, meta.id, 2)
+    expect(page.get_by_role("button", name="Önceki sürüme dön")).to_be_visible()
+    assert _tile_images(page, 2) == original[1:]  # v2: 2, 3
+    undo = page.get_by_role("button", name="Önceki sürüme dön")
+    undo.click()
+    expect(undo).to_be_hidden()
+    assert _tile_images(page, 3) == original
+    page.locator(".page-tile").nth(2).click()
+    page.keyboard.press("Delete")
+    page.get_by_role("button", name="Kaydet", exact=True).click()
+    out = _wait_version(app, meta.id, 2)
+    assert fx.labels(out) == ["Sayfa 1", "Sayfa 2"]
+    # Düzenleyici yeni sürümü yükleyene kadar bekle (öncesinde ekranda hâlâ v1'in resimleri
+    # durur ve test yanlışlıkla geçer): geri alma düğmesi yalnızca sürüm > 1 iken görünür.
+    expect(undo).to_be_visible()
+    page.wait_for_timeout(500)
+    assert _tile_images(page, 2) == original[:2]  # yeni v2: 1, 2 (eski v2'nin 2, 3'ü değil)
+
+
+def test_unsaved_changes_ask_before_in_app_navigation(server, page, tmp_path):
+    base, app = server
+    meta = app.state.store.add_file(fx.numbered(tmp_path / "k.pdf", 3, with_toc=False),
+                                    "kayıt.pdf", source="upload")
+    page.goto(f"{base}/#/duzenle/{meta.id}")
+    _tile_images(page, 3)
+    page.locator(".page-tile").first.click()
+    page.keyboard.press("Delete")
+    asked: list[str] = []
+
+    def dismiss(d):
+        asked.append(d.message)
+        d.dismiss()
+
+    page.once("dialog", dismiss)
+    page.get_by_role("link", name="Araçlar", exact=True).click()
+    page.wait_for_timeout(300)
+    assert asked and "Kaydedilmemiş" in asked[0]
+    assert "#/duzenle/" in page.url and page.locator(".page-tile").count() == 2  # iş duruyor
+    page.go_back()  # geri düğmesi de sorar
+    page.wait_for_timeout(300)
+    assert len(asked) == 1 or "Kaydedilmemiş" in asked[-1]
+    page.once("dialog", lambda d: d.accept())
+    page.get_by_role("link", name="Araçlar", exact=True).click()
+    page.wait_for_url("**/#/araclar")
+
+
+def test_markdown_unsaved_text_and_cp1254_note(server, page, tmp_path):
+    base, app = server
+    note = tmp_path / "eski.md"
+    note.write_bytes("# Çalışma\n\nığdır şöyle: ĞÜŞİÖÇ\n".encode("cp1254"))
+    meta = app.state.store.add_file(note, "eski.md", source="upload")
+    page.goto(f"{base}/#/md?dosya={meta.id}")
+    editor = page.get_by_label("Markdown metni")
+    editor.wait_for()
+    assert "ığdır şöyle: ĞÜŞİÖÇ" in editor.input_value()  # sunucu cp1254'ü çözdü
+    page.get_by_text("Windows-1254").first.wait_for()
+    editor.press("End")
+    editor.type("\n\nYeni satır: çok önemli")
+    page.get_by_text("Kaydedilmemiş değişiklik var").wait_for()
+    asked: list[str] = []
+    page.once("dialog", lambda d: (asked.append(d.message), d.dismiss()))
+    page.get_by_role("link", name="İşler ve dosyalar").click()
+    page.wait_for_timeout(300)
+    assert asked and "#/md" in page.url
+    # Sekme kapanmış gibi: aynı tarayıcı profilinde yeni sekme taslağı önerir.
+    page.wait_for_timeout(800)  # taslak yazımı (gecikmeli)
+    other = page.context.new_page()
+    other.goto(f"{base}/#/md?dosya={meta.id}")
+    other.get_by_text("kaydedilmemiş bir taslak var").wait_for()
+    other.get_by_role("button", name="Taslağı aç").click()
+    assert "Yeni satır: çok önemli" in other.get_by_label("Markdown metni").input_value()
+    other.close()
+
+
 def test_editor_adds_turkish_text_on_rotated_page(server, page, tmp_path):
     base, app = server
     meta = app.state.store.add_file(fx.rotated(tmp_path / "r.pdf"), "döndürülmüş.pdf",

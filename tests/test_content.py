@@ -201,7 +201,7 @@ def test_prepare_signature_makes_paper_transparent(tmp_path: Path):
         assert im.mode == "RGBA"
         assert im.getpixel((0, 0))[3] == 0  # köşe: kâğıt saydam
         assert im.width < 600 and im.height < 300  # boşluk kırpıldı
-        assert max(im.getchannel("A").getdata()) == 255  # mürekkep opak
+        assert im.getchannel("A").getextrema()[1] == 255  # mürekkep opak
 
 
 def test_prepare_signature_rejects_blank(tmp_path: Path):
