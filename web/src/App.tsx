@@ -91,7 +91,8 @@ export default function App() {
   else if (section === "birlestir") content = <Merge route={route} />;
   else if (section === "bol") content = <Split route={route} />;
   else if (section === "md") content = <Markdown route={route} engines={engines} />;
-  else if (section === "office") content = <Office route={route} engines={engines} />;
+  else if (section === "office")
+    content = <Office route={route} engines={engines} onEnginesChanged={() => void loadEngines(true)} />;
   else if (section === "resimden") content = <ImagesToPdf route={route} />;
   else if (section === "resme") content = <PdfToImages route={route} />;
   else if (section === "isler") content = <Jobs />;

@@ -10,11 +10,17 @@ from fastapi import APIRouter, Body, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import TypeAdapter
 
+from pdfatolye.errors import PdfAtolyeError
 from pdfatolye.jobs import JobRequest
+from pdfatolye.lan import LOOPBACK_HOSTS
 from pdfatolye.storage import FileNotInStoreError
 
 router = APIRouter(prefix="/api")
 _adapter = TypeAdapter(JobRequest)
+
+
+def _is_local(request: Request) -> bool:
+    return (request.client.host if request.client else "") in LOOPBACK_HOSTS
 
 
 def job_view(request: Request, job) -> dict:
@@ -31,6 +37,9 @@ def job_view(request: Request, job) -> dict:
 @router.post("/jobs")
 def submit(request: Request, payload: Annotated[dict, Body()]) -> dict:
     req = _adapter.validate_python(payload)
+    if req.type == "install_engine" and not _is_local(request):
+        # Telefon modunda eşleşmiş bir cihaz bu bilgisayara program kurduramaz.
+        raise PdfAtolyeError("Program kurulumu yalnızca bu bilgisayardan başlatılabilir.")
     return job_view(request, request.app.state.jobs.submit(req))
 
 

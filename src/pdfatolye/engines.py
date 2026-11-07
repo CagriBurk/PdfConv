@@ -1,6 +1,7 @@
 """Dış araçları (LibreOffice, Tesseract, Ghostscript, Edge/Chrome) bulur ve raporlar.
 
-Her motor için: ayardaki yol → PATH → bilinen Windows kurulum klasörleri sırasıyla aranır.
+Her motor için: ayardaki yol → uygulamayla gelen motor (kurulumun `motorlar/` klasörü) → PATH →
+bilinen Windows kurulum klasörleri sırasıyla aranır.
 Sürüm bilgisi mümkünse .exe'nin sürüm kaynağından okunur; LibreOffice'i sırf sürüm için
 başlatmak birkaç saniye sürdüğü için onu çalıştırmayız.
 """
@@ -16,6 +17,7 @@ from dataclasses import asdict, dataclass, field
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
+from pdfatolye import paths
 from pdfatolye.settings import Settings
 
 # İlk çalıştırmada Windows Defender taraması birkaç saniye sürebiliyor.
@@ -50,10 +52,20 @@ def _program_files() -> list[Path]:
     return dirs
 
 
-def _find_executable(override: str, names: list[str], relative_paths: list[str]) -> Path | None:
+def _bundled(*rel: str) -> list[Path]:
+    """Kurulumla gelen motorun olası yerleri (geliştirmede boş)."""
+    root = paths.engines_dir()
+    return [root / r for r in rel] if root else []
+
+
+def _find_executable(override: str, names: list[str], relative_paths: list[str],
+                     bundled: list[Path] | None = None) -> Path | None:
     if override:
         p = Path(override)
         return p if p.is_file() else None
+    for p in bundled or []:
+        if p.is_file():
+            return p
     for name in names:
         if found := shutil.which(name):
             return Path(found)
@@ -138,7 +150,8 @@ def detect_tesseract(settings: Settings) -> EngineStatus:
         install_hint="winget install UB-Mannheim.TesseractOCR",
     )
     exe = _find_executable(
-        settings.engines.tesseract, ["tesseract"], ["Tesseract-OCR/tesseract.exe"]
+        settings.engines.tesseract, ["tesseract"], ["Tesseract-OCR/tesseract.exe"],
+        _bundled("tesseract/tesseract.exe"),
     )
     if exe is None:
         return status
@@ -168,6 +181,7 @@ def detect_ghostscript(settings: Settings) -> EngineStatus:
         settings.engines.ghostscript,
         ["gswin64c", "gswin32c", "gs"],
         ["gs/gs*/bin/gswin64c.exe"],
+        _bundled("ghostscript/bin/gswin64c.exe"),
     )
     if exe is None:
         return status

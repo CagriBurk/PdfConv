@@ -287,8 +287,14 @@ def test_blank_signature_rejected(client, tmp_path):
 
 
 def test_fonts_endpoint(client):
-    keys = [f["key"] for f in client.get("/api/fonts").json()]
-    assert "segoe" in keys
+    fonts_list = client.get("/api/fonts").json()
+    keys = [f["key"] for f in fonts_list]
+    # Gömülü Noto ailesi her bilgisayarda ve önce gelir; Windows fontları varsa ek seçenek.
+    assert keys[:3] == ["noto-sans", "noto-serif", "noto-mono"]
+    assert all(f["bold"] for f in fonts_list[:3])
+    r = client.get("/api/fonts/noto-sans/file?bold=true")
+    assert r.status_code == 200 and r.content[:4] == b"\x00\x01\x00\x00"
+    assert client.get("/api/fonts/segoe/file").status_code == 400
 
 
 # --- Markdown ---------------------------------------------------------------------------

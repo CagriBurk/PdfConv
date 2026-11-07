@@ -4,7 +4,7 @@ import FilePicker, { FileRow } from "../components/FilePicker";
 import JobPanel from "../components/JobPanel";
 import PagePreview from "../components/PagePreview";
 import PageHeader from "../components/PageHeader";
-import { FONT_CSS } from "../fonts";
+import { FONT_CSS, loadBundledFonts } from "../fonts";
 import { useFiles, useJob } from "../hooks";
 import { passwords } from "../passwords";
 import { idsFrom, type Route } from "../router";
@@ -18,7 +18,7 @@ export default function Watermark({ route }: { route: Route }) {
   const [mode, setMode] = useState<"text" | "image">("text");
   const [text, setText] = useState("TASLAK");
   const [image, setImage] = useState<FileMeta | null>(null);
-  const [font, setFont] = useState("segoe");
+  const [font, setFont] = useState("noto-sans");
   const [bold, setBold] = useState(true);
   const [size, setSize] = useState(72);
   const [color, setColor] = useState("#888888");
@@ -36,7 +36,10 @@ export default function Watermark({ route }: { route: Route }) {
   }, [initial.files]);
 
   useEffect(() => {
-    api.fonts().then(setFonts).catch(() => undefined);
+    // Gömülü fontlar yüklenmeden çizilen önizleme yedek fonta düşerdi.
+    Promise.all([api.fonts(), loadBundledFonts()])
+      .then(([f]) => setFonts(f))
+      .catch(() => undefined);
   }, []);
 
   const ready = file && (mode === "text" ? text.trim() : image);

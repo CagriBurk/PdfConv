@@ -20,6 +20,17 @@ export interface EnginesResponse {
   vault_path: string | null;
   retention_hours: number;
   log_file: string;
+  version: string;
+  installed: boolean;
+  install_dir: string | null;
+}
+
+export interface UpdateInfo {
+  current: string;
+  latest: string | null;
+  newer: boolean;
+  url: string;
+  message: string;
 }
 
 export interface LanInfo {
@@ -180,6 +191,7 @@ export const api = {
     request<MdPreview>("/api/md/preview", json({ text, attachments, options })),
 
   lan: () => request<LanInfo>("/api/lan"),
+  checkUpdate: () => request<UpdateInfo>("/api/update"),
   revokeDevices: () => request<{ revoked: number }>("/api/lan/devices", { method: "DELETE" }),
   info: (id: string) => request<PdfInfo>(`/api/files/${id}/info`),
   fonts: () => request<FontInfo[]>("/api/fonts"),

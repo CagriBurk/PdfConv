@@ -5,7 +5,9 @@ yazılır. Font, belgede kullanılan karakterlere indirgenir (alt küme): tam Ar
 alt kümesi birkaç KB. Alt küme ayrıca boşluğun metin çıkarmada NBSP (U+00A0) olarak
 okunmasını önler (çoğu fontta ikisi aynı glifi paylaşır).
 
-Fontlar önce projenin `assets/fonts` klasöründe, sonra Windows font klasörlerinde aranır.
+Varsayılan fontlar Noto Sans / Serif / Sans Mono (OFL) ve paketin içinde gelir
+(`pdfatolye/assets/fonts`): editör Windows fontlarına bağımlı değildir. Windows fontları (Segoe UI,
+Arial...) bilgisayarda varsa ek seçenek olarak listelenir.
 """
 
 from __future__ import annotations
@@ -19,12 +21,15 @@ from pathlib import Path
 
 import pymupdf
 
+from pdfatolye import paths
 from pdfatolye.errors import PdfAtolyeError
-from pdfatolye.settings import PROJECT_ROOT
 
 # anahtar: (görünen ad, normal dosya, kalın dosya). Görünen ad tarayıcıdaki CSS adıyla aynı;
 # editör önizlemesi aynı fontla çizer.
 FAMILIES: dict[str, tuple[str, str, str]] = {
+    "noto-sans": ("Noto Sans", "NotoSans-Regular.ttf", "NotoSans-Bold.ttf"),
+    "noto-serif": ("Noto Serif", "NotoSerif-Regular.ttf", "NotoSerif-Bold.ttf"),
+    "noto-mono": ("Noto Sans Mono", "NotoSansMono-Regular.ttf", "NotoSansMono-Bold.ttf"),
     "segoe": ("Segoe UI", "segoeui.ttf", "segoeuib.ttf"),
     "arial": ("Arial", "arial.ttf", "arialbd.ttf"),
     "calibri": ("Calibri", "calibri.ttf", "calibrib.ttf"),
@@ -32,7 +37,8 @@ FAMILIES: dict[str, tuple[str, str, str]] = {
     "georgia": ("Georgia", "georgia.ttf", "georgiab.ttf"),
     "consolas": ("Consolas", "consola.ttf", "consolab.ttf"),
 }
-DEFAULT_FAMILY = "segoe"
+DEFAULT_FAMILY = "noto-sans"
+BUNDLED = ("noto-sans", "noto-serif", "noto-mono")
 
 logging.getLogger("fontTools").setLevel(logging.ERROR)
 
@@ -40,13 +46,13 @@ logging.getLogger("fontTools").setLevel(logging.ERROR)
 class FontNotFoundError(PdfAtolyeError):
     def __init__(self, family: str, filename: str) -> None:
         super().__init__(
-            f"'{family}' fontu ({filename}) bulunamadı. Başka bir font seç ya da dosyayı "
-            f"{PROJECT_ROOT / 'assets' / 'fonts'} klasörüne kopyala."
+            f"'{family}' fontu ({filename}) bu bilgisayarda yok. Noto Sans gibi uygulamayla "
+            "gelen bir font seç."
         )
 
 
 def _search_dirs() -> list[Path]:
-    dirs = [PROJECT_ROOT / "assets" / "fonts"]
+    dirs = [paths.fonts_dir()]
     windir = os.environ.get("WINDIR", r"C:\Windows")
     dirs.append(Path(windir) / "Fonts")
     if local := os.environ.get("LOCALAPPDATA"):

@@ -38,7 +38,8 @@ from pdfatolye.errors import (
 )
 
 Color = Annotated[str, Field(pattern=r"^#[0-9a-fA-F]{6}$")]
-FontKey = Literal["segoe", "arial", "calibri", "times", "georgia", "consolas"]
+FontKey = Literal["noto-sans", "noto-serif", "noto-mono", "segoe", "arial", "calibri", "times",
+                  "georgia", "consolas"]
 Coord = Annotated[float, Field(ge=-20_000, le=20_000)]
 Opacity = Annotated[float, Field(ge=0, le=1)]
 
@@ -77,7 +78,7 @@ class _BoxOp(_PageOp):
 class TextOp(_BoxOp):
     type: Literal["text"]
     text: str = Field(min_length=1, max_length=20_000)
-    font: FontKey = "segoe"
+    font: FontKey = "noto-sans"
     bold: bool = False
     size: float = Field(default=12, ge=4, le=400)
     color: Color = "#1a1a1a"
@@ -148,7 +149,7 @@ class WatermarkOp(_Op):
     pages: str = Field(default="", max_length=2000, description="1 tabanlı aralık; boş = tümü")
     text: str | None = Field(default=None, max_length=200)
     asset: str | None = Field(default=None, max_length=260)
-    font: FontKey = "segoe"
+    font: FontKey = "noto-sans"
     bold: bool = True
     size: float = Field(default=72, ge=6, le=400)
     color: Color = "#888888"
@@ -177,7 +178,7 @@ class PageNumbersOp(_Op):
     start: int = Field(default=1, ge=0, le=1_000_000)
     skip_first: bool = False
     pages: str = Field(default="", max_length=2000)
-    font: FontKey = "segoe"
+    font: FontKey = "noto-sans"
     bold: bool = False
     size: float = Field(default=11, ge=4, le=72)
     color: Color = "#333333"

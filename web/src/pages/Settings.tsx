@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, type EngineStatus, type EnginesResponse, type LanInfo } from "../api";
+import { api, errorMessage, type EngineStatus, type EnginesResponse, type LanInfo, type UpdateInfo } from "../api";
+import InstallLibreOffice from "../components/InstallLibreOffice";
 
 interface Props {
   data: EnginesResponse | null;
@@ -83,9 +84,58 @@ function PhoneMode() {
   );
 }
 
+function VersionInfo({ data }: { data: EnginesResponse }) {
+  const [info, setInfo] = useState<UpdateInfo | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const check = async () => {
+    setChecking(true);
+    setError(null);
+    try {
+      setInfo(await api.checkUpdate());
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setChecking(false);
+    }
+  };
+  return (
+    <>
+      <div className="section-head">
+        <h2>Sürüm</h2>
+        <button type="button" onClick={() => void check()} disabled={checking}>
+          {checking ? "Denetleniyor…" : "Güncellemeleri denetle"}
+        </button>
+      </div>
+      <p>
+        PDF Atölyesi <strong>{data.version}</strong>
+        {data.installed ? " (masaüstü kurulumu)" : " (geliştirme)"}
+      </p>
+      <p className="muted small">
+        Denetim yalnızca bu düğmeye basınca yapılır: GitHub'a tek bir istek gider, hiçbir dosya gönderilmez.
+      </p>
+      {error && <p className="error-text">{error}</p>}
+      {info && (
+        <p className={info.newer ? "warn-line" : "muted"}>
+          {info.message}{" "}
+          {info.newer && (
+            <>
+              <a href={info.url} target="_blank" rel="noreferrer">
+                Sürüm sayfası
+              </a>
+              : yeni paketi indir, içindeki <strong>Kur</strong>'a çift tıkla (belgelerin ve ayarların korunur).
+            </>
+          )}
+        </p>
+      )}
+    </>
+  );
+}
+
 export default function Settings({ data, refreshing, onRefresh }: Props) {
   return (
     <>
+      {data && <VersionInfo data={data} />}
       <h2>Telefon modu</h2>
       <PhoneMode />
 
@@ -116,9 +166,10 @@ export default function Settings({ data, refreshing, onRefresh }: Props) {
                     {p}
                   </p>
                 ))}
+                {!e.available && e.key === "libreoffice" && <InstallLibreOffice onInstalled={onRefresh} />}
                 {!e.available && e.install_hint && (
                   <p className="small">
-                    Kurulum: <code>{e.install_hint}</code>
+                    Elle kurulum: <code>{e.install_hint}</code>
                   </p>
                 )}
               </article>

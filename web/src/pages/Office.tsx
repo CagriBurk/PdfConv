@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { EnginesResponse, FileMeta } from "../api";
 import FilePicker, { FileRow } from "../components/FilePicker";
 import JobPanel from "../components/JobPanel";
+import InstallLibreOffice from "../components/InstallLibreOffice";
 import PageHeader from "../components/PageHeader";
 import SortableList from "../components/SortableList";
 import { useFiles, useJob } from "../hooks";
@@ -10,7 +11,13 @@ import { ACCEPT } from "../tools";
 
 const KINDS: FileMeta["kind"][] = ["office", "html", "text"];
 
-export default function Office({ route, engines }: { route: Route; engines: EnginesResponse | null }) {
+interface Props {
+  route: Route;
+  engines: EnginesResponse | null;
+  onEnginesChanged: () => void;
+}
+
+export default function Office({ route, engines, onEnginesChanged }: Props) {
   const initial = useFiles(idsFrom(route));
   const [files, setFiles] = useState<FileMeta[]>([]);
   const [merge, setMerge] = useState(false);
@@ -29,7 +36,8 @@ export default function Office({ route, engines }: { route: Route; engines: Engi
       <PageHeader title="Office → PDF" />
       {lo && !lo.ok && needsLo && (
         <div className="banner error">
-          LibreOffice bulunamadı; Word/Excel/PowerPoint dosyaları çevrilemez. Kurulum: <code>{lo.install_hint}</code>
+          LibreOffice bulunamadı; Word/Excel/PowerPoint dosyaları çevrilemez. HTML ve TXT çevrilebilir.
+          <InstallLibreOffice onInstalled={onEnginesChanged} />
         </div>
       )}
       <div className="tool-layout">

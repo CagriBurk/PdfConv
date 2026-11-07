@@ -37,3 +37,34 @@ jobs:
       # Tesseract ve Ghostscript kurulu değil: onları isteyen testler atlanır.
       - name: Testler
         run: uv run python -m pytest --tb=short -rs
+
+  # Masaüstü paketi (motorsuz: CI'da Tesseract/Ghostscript yok). Paket kendi Python'uyla
+  # denenir (bağımlılıklar yükleniyor mu, arayüz ve fontlar pakette mi) ve artifact olarak
+  # yüklenir. Arkadaşlara verilecek tam paket (OCR dahil) yerelde `paket/derle.py` ile üretilir.
+  paket:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Arayüzü derle
+        run: |
+          npm --prefix web ci --no-fund --no-audit
+          npm --prefix web run build
+
+      - name: Paketi üret ve dene
+        run: uv run python paket/derle.py --motorsuz
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PdfAtolyesi-motorsuz
+          path: build/PdfAtolyesi-*.zip
+          retention-days: 14

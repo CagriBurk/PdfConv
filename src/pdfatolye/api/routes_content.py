@@ -7,9 +7,11 @@ import tempfile
 from pathlib import Path
 
 from fastapi import APIRouter, Request, UploadFile
+from fastapi.responses import FileResponse
 
 from pdfatolye.core import fonts
 from pdfatolye.core.content import prepare_signature
+from pdfatolye.errors import PdfAtolyeError
 from pdfatolye.storage import UploadTooLargeError
 
 router = APIRouter(prefix="/api")
@@ -21,6 +23,16 @@ MAX_SIGNATURE_MB = 20
 @router.get("/fonts")
 def list_fonts() -> list[dict]:
     return fonts.available()
+
+
+@router.get("/fonts/{key}/file")
+def font_file(key: str, bold: bool = False):
+    """Uygulamayla gelen fontun TTF'i: editör önizlemesi PDF'e gömülen fontla aynı çizilsin
+    (Windows fontları tarayıcıda zaten var, yalnızca gömülü olanlar sunulur)."""
+    if key not in fonts.BUNDLED:
+        raise PdfAtolyeError(f"Bilinmeyen font: {key}")
+    return FileResponse(fonts.font_path(key, bold), media_type="font/ttf",
+                        headers={"Cache-Control": "max-age=86400"})
 
 
 @router.get("/signatures")

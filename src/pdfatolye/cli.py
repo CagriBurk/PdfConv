@@ -126,6 +126,23 @@ def serve(
     uvicorn.run(application, host=settings.host, port=settings.port, log_level="warning")
 
 
+@app.command()
+def uygulama(config: ConfigOpt = None) -> None:
+    """Masaüstü uygulaması: sunucuyu ve uygulama penceresini açar; pencere kapanınca kapanır.
+    Masaüstü kısayolu bunu `pythonw` ile (konsolsuz) çalıştırır."""
+    from pdfatolye import desktop
+
+    try:
+        code = desktop.run(config)
+    except Exception as e:  # konsol yok: kullanıcı en azından nedenini görsün
+        import logging
+
+        logging.getLogger("pdfatolye").exception("Masaüstü uygulaması açılamadı")
+        desktop.message_box(f"PDF Atölyesi açılamadı:\n{e}")
+        code = 1
+    raise typer.Exit(code)
+
+
 def _print_lan(port: int, pair_token: str) -> None:
     from pdfatolye.lan import lan_ips, qr_text
 

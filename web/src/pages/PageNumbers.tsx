@@ -4,7 +4,7 @@ import FilePicker, { FileRow } from "../components/FilePicker";
 import JobPanel from "../components/JobPanel";
 import PagePreview from "../components/PagePreview";
 import PageHeader from "../components/PageHeader";
-import { FONT_CSS } from "../fonts";
+import { FONT_CSS, loadBundledFonts } from "../fonts";
 import { useFiles, useJob } from "../hooks";
 import { passwords } from "../passwords";
 import { idsFrom, type Route } from "../router";
@@ -32,7 +32,7 @@ export default function PageNumbers({ route }: { route: Route }) {
   const [start, setStart] = useState(1);
   const [skipFirst, setSkipFirst] = useState(false);
   const [pages, setPages] = useState("");
-  const [font, setFont] = useState("segoe");
+  const [font, setFont] = useState("noto-sans");
   const [size, setSize] = useState(11);
   const [color, setColor] = useState("#333333");
   const [margin, setMargin] = useState(28);
@@ -45,7 +45,10 @@ export default function PageNumbers({ route }: { route: Route }) {
   }, [initial.files]);
 
   useEffect(() => {
-    api.fonts().then(setFonts).catch(() => undefined);
+    // Gömülü fontlar yüklenmeden çizilen önizleme yedek fonta düşerdi.
+    Promise.all([api.fonts(), loadBundledFonts()])
+      .then(([f]) => setFonts(f))
+      .catch(() => undefined);
   }, []);
 
   const validFormat = format.includes("{n}");

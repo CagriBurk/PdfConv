@@ -19,6 +19,7 @@ import {
   type TextObj,
   type Tool,
 } from "../editor/model";
+import { loadBundledFonts } from "../fonts";
 import PageCanvas from "../editor/PageCanvas";
 import SignatureDialog from "../editor/SignatureDialog";
 import { useJob, useKeepAlive, useUpload } from "../hooks";
@@ -100,7 +101,10 @@ export default function Editor({ fileId }: { fileId?: string }) {
   }, [fileId, load]);
 
   useEffect(() => {
-    api.fonts().then(setFonts).catch(() => undefined);
+    // Gömülü fontlar yüklenmeden çizilen önizleme yedek fonta düşerdi.
+    Promise.all([api.fonts(), loadBundledFonts()])
+      .then(([f]) => setFonts(f))
+      .catch(() => undefined);
   }, []);
 
   // Sayfa genişliğine sığdır; pencere boyu değişince yeniden hesapla.

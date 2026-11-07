@@ -185,9 +185,17 @@ class RepairRequest(_SingleFile):
     type: Literal["repair"]
 
 
+class InstallEngineRequest(_Base):
+    """Eksik motoru kullanıcının onayıyla kurar (winget). Yalnızca bu bilgisayardan istenebilir."""
+
+    type: Literal["install_engine"]
+    engine: Literal["libreoffice"]
+
+
 JobRequest = Annotated[
     ComposeRequest | MergeRequest | SplitRequest | ImagesToPdfRequest | PdfToImagesRequest
     | MdToPdfRequest | OfficeToPdfRequest | ApplyRequest | CompressRequest | OcrRequest
-    | EncryptRequest | DecryptRequest | CleanMetadataRequest | RepairRequest,
+    | EncryptRequest | DecryptRequest | CleanMetadataRequest | RepairRequest
+    | InstallEngineRequest,
     Field(discriminator="type"),
 ]

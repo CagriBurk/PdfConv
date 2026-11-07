@@ -1,6 +1,7 @@
 """Ayarlar: varsayılanlar + config.toml.
 
-Arama sırası: PDFATOLYE_CONFIG ortam değişkeni → proje kökündeki config.toml →
+Arama sırası: PDFATOLYE_CONFIG ortam değişkeni → (yalnızca geliştirmede) proje kökündeki
+config.toml →
 %LOCALAPPDATA%\\PdfAtolye\\config.toml. Bulunamazsa varsayılanlar kullanılır.
 """
 
@@ -11,7 +12,10 @@ import tomllib
 from dataclasses import dataclass, field, fields
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+from pdfatolye import paths
+
+# Geliştirmede depo kökü. Kurulu pakette anlamsızdır; dosya yolları için `paths` kullan.
+PROJECT_ROOT = paths.SOURCE_ROOT
 
 
 def default_data_dir() -> Path:
@@ -64,7 +68,8 @@ def _candidate_config_files() -> list[Path]:
     out: list[Path] = []
     if env := os.environ.get("PDFATOLYE_CONFIG"):
         out.append(Path(env))
-    out.append(PROJECT_ROOT / "config.toml")
+    if paths.is_dev_checkout():
+        out.append(PROJECT_ROOT / "config.toml")
     out.append(default_data_dir() / "config.toml")
     return out
 

@@ -5,6 +5,7 @@ Her çalışan: geçici klasöre (kısa yol) yazar, sonuçları depoya ekler, `W
 
 from __future__ import annotations
 
+import re
 import shutil
 import tempfile
 from collections.abc import Callable
@@ -89,6 +90,7 @@ def run(manager, req, report: Report, job_id: str) -> WorkResult:
         "decrypt": decrypt,
         "clean_metadata": clean_metadata,
         "repair": repair,
+        "install_engine": install_engine,
     }[req.type]
     with tempfile.TemporaryDirectory(prefix="pa-is-") as tmp:
         try:
@@ -412,3 +414,38 @@ def repair(store, settings, req, report, tmp: Path, job_id) -> WorkResult:
     notes = r.notes + _protect(store, req, req.file, out)
     return WorkResult([_single_output(store, req, meta, out, "Onarıldı", "onarilmis", job_id)],
                       notes)
+
+
+WINGET_IDS = {"libreoffice": "TheDocumentFoundation.LibreOffice"}
+INSTALL_TIMEOUT_S = 45 * 60
+
+
+def install_engine(store, settings, req, report, tmp: Path, job_id) -> WorkResult:
+    """LibreOffice'i winget ile kurar (uygulamaya gömülmez: ~350 MB). Windows kurulum için izin
+    (UAC) isteyebilir. Kurulum bitince motorlar yeniden taranır."""
+    from pdfatolye import proc
+
+    winget = shutil.which("winget")
+    if not winget:
+        raise PdfAtolyeError("winget bulunamadı. Microsoft Store'dan \"Uygulama Yükleyicisi\"ni "
+                             "güncelle ya da LibreOffice'i libreoffice.org'dan indirip kur.")
+    report(0.05, "LibreOffice indiriliyor ve kuruluyor (birkaç dakika; Windows izin "
+                 "isteyebilir)")
+    try:
+        done = proc.run([winget, "install", "--id", WINGET_IDS[req.engine], "--exact",
+                         "--silent", "--accept-package-agreements",
+                         "--accept-source-agreements", "--disable-interactivity"],
+                        timeout=INSTALL_TIMEOUT_S)
+    except proc.TimedOut:
+        raise PdfAtolyeError("LibreOffice kurulumu 45 dakikada bitmedi; yeniden dene.") from None
+    text = (done.stdout or b"").decode("utf-8", "replace") + \
+        (done.stderr or b"").decode("utf-8", "replace")
+    lines = [ln.strip() for ln in re.split(r"[\r\n]+", text) if ln.strip()]
+    if done.returncode != 0 and not any("already installed" in ln.lower() or
+                                        "zaten yüklü" in ln.lower() for ln in lines):
+        detail = lines[-1] if lines else ""
+        raise PdfAtolyeError(f"LibreOffice kurulamadı (winget çıkış kodu {done.returncode})."
+                             + (f" {detail}" if detail else ""))
+    report(0.98, "Motorlar yeniden taranıyor")
+    return WorkResult([], ["LibreOffice kuruldu. Word / Excel / PowerPoint → PDF artık "
+                           "kullanılabilir."])

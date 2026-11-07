@@ -166,7 +166,7 @@ export function createBox(tool: Tool, page: number, x: number, y: number, w: num
         ...base,
         kind: "text",
         text: "Yazı",
-        font: "segoe",
+        font: "noto-sans",
         bold: false,
         size: 14,
         color: "#1a1a1a",

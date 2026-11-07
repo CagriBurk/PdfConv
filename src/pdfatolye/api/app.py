@@ -16,7 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from pdfatolye import __version__, engines, lan
+from pdfatolye import __version__, engines, lan, paths
 from pdfatolye.api import routes_content, routes_files, routes_jobs, routes_md
 from pdfatolye.api.limits import RequestLimits
 from pdfatolye.api.security import COOKIE, SecurityHeaders, SessionGuard, Sessions, app_csp
@@ -24,10 +24,10 @@ from pdfatolye.convert.markdown.document import ASSETS as MD_ASSETS
 from pdfatolye.convert.markdown.document import katex_script_hash
 from pdfatolye.errors import DiskFullError, PdfAtolyeError, error_id, unexpected_message
 from pdfatolye.jobs import JobManager
-from pdfatolye.settings import PROJECT_ROOT, Settings
+from pdfatolye.settings import Settings
 from pdfatolye.storage import FileNotInStoreError, FileStore
 
-WEB_DIST = PROJECT_ROOT / "web" / "dist"
+WEB_DIST = paths.web_dist()  # pakette pdfatolye/web, geliştirmede web/dist
 CLEANUP_INTERVAL_S = 3600
 log = logging.getLogger("pdfatolye")
 
@@ -200,7 +200,17 @@ def create_app(settings: Settings, *, start_background: bool = True) -> FastAPI:
             "vault_path": str(settings.vault_path) if settings.vault_path else None,
             "retention_hours": settings.retention_hours,
             "log_file": str(settings.logs_dir / "pdfatolye.log"),
+            "version": __version__,
+            "installed": paths.install_root() is not None,
+            "install_dir": str(paths.install_root()) if paths.install_root() else None,
         }
+
+    @app.get("/api/update")
+    def check_update() -> dict:
+        """Yalnızca kullanıcı isteyince: GitHub'daki son sürümle karşılaştırır (dosya gitmez)."""
+        from pdfatolye import update
+
+        return update.check(__version__)
 
     @app.get("/api/lan")
     def lan_info(request: Request) -> dict:
