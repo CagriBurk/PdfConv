@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, errorMessage, watchJob, type FileMeta, type Job } from "./api";
+import { toast } from "./toast";
 
-/** Dosya yükleme durumu: ilerleme ve hata. */
-export function useUpload() {
+/** Dosya yükleme durumu: ilerleme ve hata. `toastErrors`: hatayı ekranında göstermeyen
+ * ekranlar için bildirim (sayfa düzenleyiciye çok büyük dosya bırakılınca hiçbir şey olmuyor
+ * sanılıyordu: sunucu reddediyor ama hata görünmüyordu). */
+export function useUpload({ toastErrors = false }: { toastErrors?: boolean } = {}) {
   const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -13,11 +16,12 @@ export function useUpload() {
       return await api.upload(files, setProgress);
     } catch (e) {
       setError(errorMessage(e));
+      if (toastErrors) toast.error(errorMessage(e));
       return [];
     } finally {
       setProgress(null);
     }
-  }, []);
+  }, [toastErrors]);
 
   return { upload, uploading: progress !== null, progress, error, setError };
 }

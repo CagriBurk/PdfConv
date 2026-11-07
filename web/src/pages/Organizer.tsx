@@ -66,7 +66,7 @@ export default function Organizer({ fileId }: { fileId?: string }) {
   const [error, setError] = useState<string | null>(null);
   const [noText, setNoText] = useState(false);
   const addInput = useRef<HTMLInputElement>(null);
-  const { upload, uploading } = useUpload();
+  const { upload, uploading, progress } = useUpload({ toastErrors: true });
   const saveJob = useJob();
   const dirty = past.length > 0;
 
@@ -383,7 +383,7 @@ export default function Organizer({ fileId }: { fileId?: string }) {
           multiple={false}
           accept={ACCEPT.pdf}
           disabled={uploading}
-          title={uploading ? "Yükleniyor…" : "Düzenlenecek PDF'i bırak"}
+          title={uploading ? `Yükleniyor… %${Math.round((progress ?? 0) * 100)}` : "Düzenlenecek PDF'i bırak"}
           onFiles={async (files) => {
             const [m] = await upload(files);
             if (m) navigate(`duzenle/${m.id}`);

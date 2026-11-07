@@ -11,9 +11,17 @@ import { ACCEPT } from "../tools";
 type Level = "kayipsiz" | "dengeli" | "guclu";
 
 const LEVELS: { value: Level; label: string; hint: string }[] = [
-  { value: "kayipsiz", label: "Kayıpsız", hint: "Kalite hiç değişmez. Genelde %5–30 küçülür." },
-  { value: "dengeli", label: "Dengeli", hint: "Resimler 150 DPI. Taranmış belgelerde %50–80." },
-  { value: "guclu", label: "Güçlü", hint: "Resimler 100 DPI, düşük kalite. En küçük dosya." },
+  {
+    value: "kayipsiz",
+    label: "Kayıpsız",
+    hint: "Kalite hiç değişmez: gereksiz veri atılır, yazı tipleri küçültülür. Yazı ağırlıklı PDF'lerde en iyisi.",
+  },
+  { value: "dengeli", label: "Dengeli", hint: "+ resimler 150 DPI. Taranmış belge ve paftalarda %50–80." },
+  {
+    value: "guclu",
+    label: "Güçlü",
+    hint: "+ resimler 100 DPI, düşük kalite. En küçük dosya; ekranda okumak ve e-postayla göndermek için.",
+  },
 ];
 
 export default function Compress({ route }: { route: Route }) {

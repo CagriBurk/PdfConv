@@ -173,6 +173,42 @@ def run(args: Sequence[str], *, timeout: float, marker: str | None = None,
         return subprocess.CompletedProcess(list(args), proc.returncode, out, err)
 
 
+def run_lines(args: Sequence[str], *, timeout: float, on_line: Callable[[str], None],
+              should_cancel: Callable[[], bool] | None = None, tail: int = 40) -> tuple[int, str]:
+    """`run` gibi iptal edilebilir, ama çıktıyı (stdout + stderr) satır satır `on_line`'a verir:
+    uzun süren aracın ilerlemesi (Ghostscript "Page 12") arayüze taşınır. Dönüş: (çıkış kodu,
+    son `tail` satır)."""
+    import queue
+
+    check = should_cancel or cancel_check()
+    lines: queue.Queue[str | None] = queue.Queue()
+    last: list[str] = []
+    deadline = time.monotonic() + timeout
+    with spawn(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT) as proc:
+        def pump() -> None:
+            assert proc.stdout is not None
+            for raw in iter(proc.stdout.readline, b""):
+                lines.put(raw.decode("utf-8", "replace").rstrip())
+            lines.put(None)
+
+        threading.Thread(target=pump, daemon=True, name="cikti").start()
+        while True:
+            try:
+                line = lines.get(timeout=POLL_S)
+            except queue.Empty:
+                line = ""
+            if line is None:
+                break
+            if line:
+                last = [*last[-(tail - 1):], line]
+                on_line(line)
+            if check():
+                raise Cancelled()
+            if time.monotonic() > deadline:
+                raise TimedOut()
+        return proc.wait(), "\n".join(last)
+
+
 class Watchdog:
     """Kesilemeyen bir çağrının bekçisi. `kill` süre dolunca ya da iş iptal edilince çağrılır;
     çağrı hatayla döner, hemen ardından `check()` doğru nedeni (Cancelled / TimedOut) yükseltir.

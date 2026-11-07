@@ -113,8 +113,9 @@ yerel ağda şifresizdir (HTTP): yalnızca güvendiğin Wi-Fi'de kullan, işin b
   ayrıntısıyla bulunur. Arayüzün kendisinde bir ekran çökerse beyaz sayfa yerine "Bu ekranda bir
   şeyler ters gitti" ve hata kimliği çıkar; diğer ekranlar çalışmaya devam eder.
 - "Diskte yer yok": yükleme, diske sığmayacaksa hiç başlamaz. Yer aç ya da İşler ve dosyalar'dan eski
-  dosyaları sil. Tek seferde en fazla `max_request_mb` (varsayılan 4096 MB), dosya başına
-  `max_upload_mb` (1024 MB) yüklenir.
+  dosyaları sil. Dosya başına en fazla 8 GB (`max_upload_mb`), tek seferde toplam 16 GB
+  (`max_request_mb`) yüklenir; ayar dosyasından değiştirilebilir. Yükleme sırasında dosyanın iki
+  katı kadar boş yer gerekir (önce geçici klasöre, sonra depoya yazılır).
 - "8790 portu başka bir program tarafından kullanılıyor": masaüstü uygulaması kendiliğinden boş bir
   port seçer. Geliştirme sunucusunda Ayarlar → Gelişmiş → Port (ya da `baslat.bat --port 8800`).
 - Proje klasörünün yolu çok uzunsa (260+ karakter) LibreOffice ve Ghostscript bozulabilir; projeyi
@@ -146,6 +147,10 @@ yerel ağda şifresizdir (HTTP): yalnızca güvendiğin Wi-Fi'de kullan, işin b
   saklanır.
 - **Filigran** ve **Sayfa Numarası**: önizlemeli ayrı ekranlar.
 - **Sıkıştır**: kayıpsız / dengeli / güçlü; önce-sonra boyutu gösterilir, büyürse orijinal korunur.
+  Her seviye gömülü yazı tiplerini yalnızca kullanılan karakterlere indirir (yazı ağırlıklı PDF'te
+  asıl kazanç bu, kalite değişmez). Dengeli/güçlü resimleri 150/100 DPI'a indirir (taranmış belge
+  ve paftalarda %50–90). Güçlü, gerekirse Ghostscript'i de dener; ilerleme sayfa sayfa görünür.
+  Az küçüldüyse nedenini söyler (ör. "dosyanın %0'ı resim"). Dosya başına 8 GB'a kadar.
 - **OCR**: taranmış PDF'i Türkçe + İngilizce aranabilir yapar; metni olan sayfalar atlanır.
   Sayfa düzenleyici metni olmayan PDF'te bunu kendisi önerir.
 - **Güvenlik ve bakım**: AES-256 şifre + izinler, şifre kaldırma (şifre kırma yok), meta veri

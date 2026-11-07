@@ -8,8 +8,8 @@
 # port = 8790
 # data_dir = "%LOCALAPPDATA%\\PdfAtolye"
 # retention_hours = 24      # bu süreden eski, sabitlenmemiş dosyalar silinir
-# max_upload_mb = 1024      # dosya başına üst sınır
-# max_request_mb = 4096     # tek seferde yüklenen dosyaların toplamı
+# max_upload_mb = 8192      # dosya başına üst sınır (8 GB)
+# max_request_mb = 16384    # tek seferde yüklenen dosyaların toplamı (16 GB)
 # vault_path = "C:\\Users\\ben\\Documents\\ObsidianKasam"   # MD → PDF'te ![[resim]] için
 # default_theme = "ders"    # MD → PDF varsayılanı: ders | rapor | sade
 # default_paper = "A4"      # A4 | A5 | A3 | Letter | Legal

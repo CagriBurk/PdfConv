@@ -129,3 +129,12 @@ describe("bildirimler", () => {
     expect(getToasts().map((t) => t.text)).toEqual(["2", "3", "4", "5"]);
   });
 });
+
+describe("iş paneli", () => {
+  it("geçen süre dakika:saniye", async () => {
+    const { formatElapsed } = await import("./components/JobPanel");
+    expect(formatElapsed(5)).toBe("0:05");
+    expect(formatElapsed(158)).toBe("2:38");
+    expect(formatElapsed(3600)).toBe("60:00");
+  });
+});

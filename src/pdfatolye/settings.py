@@ -42,8 +42,10 @@ class Settings:
     port: int = 8790
     data_dir: Path = field(default_factory=default_data_dir)
     retention_hours: int = 24
-    max_upload_mb: int = 1024  # dosya başına
-    max_request_mb: int = 4096  # tek yüklemede (çok dosya) toplam
+    # Şehir planlama paftaları gibi GB'larca PDF'ler için (arkadaş denemesi: 2 GB'lık dosya 1 GB
+    # sınırına takıldı). Yükleme akışla yazılır, bellek kullanmaz; disk alanı önceden denetlenir.
+    max_upload_mb: int = 8192  # dosya başına
+    max_request_mb: int = 16384  # tek yüklemede (çok dosya) toplam
     vault_path: Path | None = None
     default_theme: str = "ders"  # Markdown → PDF: notta ve ekranda seçilmemişse
     default_paper: str = "A4"
