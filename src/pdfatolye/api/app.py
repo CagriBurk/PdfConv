@@ -18,10 +18,11 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from pdfatolye import __version__, engines, lan
 from pdfatolye.api import routes_content, routes_files, routes_jobs, routes_md
+from pdfatolye.api.limits import RequestLimits
 from pdfatolye.api.security import COOKIE, SecurityHeaders, SessionGuard, Sessions, app_csp
 from pdfatolye.convert.markdown.document import ASSETS as MD_ASSETS
 from pdfatolye.convert.markdown.document import katex_script_hash
-from pdfatolye.errors import PdfAtolyeError, error_id, unexpected_message
+from pdfatolye.errors import DiskFullError, PdfAtolyeError, error_id, unexpected_message
 from pdfatolye.jobs import JobManager
 from pdfatolye.settings import PROJECT_ROOT, Settings
 from pdfatolye.storage import FileNotInStoreError, FileStore
@@ -79,12 +80,15 @@ def _setup_logging(settings: Settings) -> None:
     log.setLevel(logging.INFO)
 
 
-def _cleanup_loop(store: FileStore, hours: float, stop: threading.Event) -> None:
+def _cleanup_loop(store: FileStore, jobs: JobManager, hours: float, stop: threading.Event) -> None:
     while True:
         try:
             removed = store.cleanup(hours)
             if removed:
                 log.info("Temizlik: %d eski dosya silindi", removed)
+            old = jobs.cleanup(hours)
+            if old:
+                log.info("Temizlik: %d eski iş kaydı silindi", old)
         except Exception:
             log.exception("Temizlik başarısız")
         if stop.wait(CLEANUP_INTERVAL_S):
@@ -124,7 +128,8 @@ def create_app(settings: Settings, *, start_background: bool = True) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         if start_background:
-            threading.Thread(target=_cleanup_loop, args=(store, settings.retention_hours, stop),
+            threading.Thread(target=_cleanup_loop,
+                             args=(store, jobs, settings.retention_hours, stop),
                              daemon=True, name="temizlik").start()
         yield
         stop.set()
@@ -138,6 +143,9 @@ def create_app(settings: Settings, *, start_background: bool = True) -> FastAPI:
     app.add_middleware(SessionGuard, sessions=sessions, allowed_hosts=settings.allowed_hosts)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_hosts)
     app.add_middleware(SecurityHeaders, csp=app_csp(katex_script_hash()))
+    # En dışta: sınırı aşan ya da diske sığmayacak yükleme gövdesi hiç okunmadan reddedilir.
+    app.add_middleware(RequestLimits, request_mb=settings.max_request_mb,
+                       data_dir=settings.data_dir)
     app.state.settings = settings
     app.state.store = store
     app.state.jobs = jobs
@@ -147,7 +155,8 @@ def create_app(settings: Settings, *, start_background: bool = True) -> FastAPI:
 
     @app.exception_handler(PdfAtolyeError)
     async def _app_error(request: Request, exc: PdfAtolyeError):
-        status = 404 if isinstance(exc, FileNotInStoreError) else 400
+        status = (404 if isinstance(exc, FileNotInStoreError) else
+              507 if isinstance(exc, DiskFullError) else 400)
         return JSONResponse({"detail": str(exc)}, status_code=status)
 
     @app.exception_handler(Exception)

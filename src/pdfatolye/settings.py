@@ -35,7 +35,8 @@ class Settings:
     port: int = 8790
     data_dir: Path = field(default_factory=default_data_dir)
     retention_hours: int = 24
-    max_upload_mb: int = 1024
+    max_upload_mb: int = 1024  # dosya başına
+    max_request_mb: int = 4096  # tek yüklemede (çok dosya) toplam
     vault_path: Path | None = None
     open_browser: bool = True
     lan: bool = False  # telefon modu: 0.0.0.0, QR koddaki belirteçle eşleşme

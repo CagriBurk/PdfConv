@@ -33,5 +33,6 @@ export const ACCEPT = {
   pdf: ".pdf,application/pdf",
   images: ".jpg,.jpeg,.png,.webp,.gif,.bmp,.tif,.tiff,.heic,.heif",
   markdown: ".md,.markdown,.txt",
-  office: ".docx,.doc,.odt,.rtf,.xlsx,.xls,.ods,.csv,.pptx,.ppt,.odp,.docm,.xlsm,.pptm,.html,.htm,.txt",
+  // Tek kaynak: src/pdfatolye/formats.py (tests/test_robustness.py tutarlılığı denetler).
+  office: ".docx,.doc,.docm,.odt,.rtf,.wpd,.xlsx,.xls,.xlsm,.ods,.csv,.pptx,.ppt,.pptm,.odp,.html,.htm,.txt",
 };

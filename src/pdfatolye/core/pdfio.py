@@ -94,9 +94,37 @@ _RESERVED = {"CON", "PRN", "AUX", "NUL", *(f"COM{i}" for i in range(1, 10)),
 
 
 def safe_filename(name: str, fallback: str = "dosya", max_len: int = 80) -> str:
-    """Windows'ta geçerli bir dosya adı üretir. Türkçe harfler korunur."""
+    """Windows'ta geçerli bir dosya adı KÖKÜ üretir (uzantısız ad için). Türkçe harfler korunur.
+    Uzantılı ad için `safe_name_with_ext` kullan: bu fonksiyon uzun adda uzantıyı da keser."""
     cleaned = "".join("_" if c in _FORBIDDEN else c for c in name).strip(" .")
     cleaned = " ".join(cleaned.split())[:max_len].rstrip(" .")
     if not cleaned or cleaned.upper() in _RESERVED:
         return fallback
     return cleaned
+
+
+MAX_EXT_LEN = 10
+
+
+def split_ext(name: str) -> tuple[str, str]:
+    """('rapor v1.2', '.pdf'). Uzantı yalnızca kısa, harf/rakamdan oluşan son parçadır:
+    'Sürüm 1.2 son' adında '.2 son' uzantı sayılmaz (Path.suffix sayardı)."""
+    name = name.strip().rstrip(" .")
+    stem, dot, ext = name.rpartition(".")
+    if dot and stem.strip(" .") and 0 < len(ext) <= MAX_EXT_LEN and ext.isascii() \
+            and ext.isalnum():
+        return stem, "." + ext
+    return name, ""
+
+
+def safe_name_with_ext(name: str, fallback: str = "dosya", max_len: int = 80) -> str:
+    """Uzantılı güvenli dosya adı: kök kısaltılır, uzantı her zaman korunur
+    ('çok uzun ... ad.pdf' → '<80 karakter>.pdf'). Ayrılmış adlar ('CON.pdf') yedek adı alır."""
+    stem, ext = split_ext(name)
+    return safe_filename(stem, fallback, max_len) + ext
+
+
+def strip_ext(name: str, ext: str) -> str:
+    """Ad `ext` ile bitiyorsa (büyük/küçük harf fark etmez) onu atar; başka noktalara dokunmaz."""
+    name = name.strip()
+    return name[: -len(ext)] if ext and name.lower().endswith(ext.lower()) else name

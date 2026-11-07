@@ -6,7 +6,8 @@
 # port = 8790
 # data_dir = "%LOCALAPPDATA%\\PdfAtolye"
 # retention_hours = 24      # bu süreden eski, sabitlenmemiş dosyalar silinir
-# max_upload_mb = 1024
+# max_upload_mb = 1024      # dosya başına üst sınır
+# max_request_mb = 4096     # tek seferde yüklenen dosyaların toplamı
 # vault_path = "C:\\Users\\ben\\Documents\\ObsidianKasam"   # MD → PDF'te ![[resim]] için
 # open_browser = true
 

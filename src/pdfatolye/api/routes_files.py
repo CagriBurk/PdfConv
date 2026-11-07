@@ -14,7 +14,8 @@ from starlette.background import BackgroundTask
 
 from pdfatolye.api.security import SANDBOX_CSP
 from pdfatolye.core.info import inspect_pdf
-from pdfatolye.core.pdfio import safe_filename
+from pdfatolye.core.pdfio import safe_filename, strip_ext
+from pdfatolye.core.textio import decode_text
 from pdfatolye.errors import PdfAtolyeError
 from pdfatolye.jobs.workers import with_display_name
 
@@ -40,12 +41,37 @@ def list_files(request: Request) -> list[dict]:
 
 @router.get("/files/{file_id}")
 def get_file(request: Request, file_id: str) -> dict:
-    return store(request).get(file_id).to_dict()
+    """Meta veri. Arayüz açık dosyayı bununla düzenli aralıklarla yoklar: dosya kullanımda
+    sayılır, otomatik temizlik silmez."""
+    meta = store(request).get(file_id)
+    store(request).touch(file_id)
+    return meta.to_dict()
+
+
+MAX_TEXT_BYTES = 5_000_000
+
+
+@router.get("/files/{file_id}/text")
+def text(request: Request, file_id: str) -> dict:
+    """Not / metin dosyasının içeriği; kod çözümü sunucuda tek yerde (`core.textio`): UTF-8
+    değilse Windows-1254 olarak okunur ve not düşülür."""
+    s = store(request)
+    meta = s.get(file_id)
+    if meta.kind not in ("markdown", "text"):
+        raise PdfAtolyeError(f"'{meta.name}' bir metin dosyası değil.")
+    path = s.path(file_id)
+    if path.stat().st_size > MAX_TEXT_BYTES:
+        raise PdfAtolyeError(f"'{meta.name}' düzenlemek için çok büyük (en fazla 5 MB).")
+    s.touch(file_id)
+    body, note = decode_text(path.read_bytes(), meta.name)
+    # Satır sonları \n: Windows dosyası \r\n içerir, arayüzdeki metin alanı \n kullanır.
+    return {"text": body.replace("\r\n", "\n").replace("\r", "\n"), "note": note}
 
 
 def _file_response(request: Request, file_id: str, version: int | None, disposition: str):
     s = store(request)
     meta = s.get(file_id)
+    s.touch(file_id)
     path = s.path(file_id, version)
     headers = {"Cache-Control": "no-store"}
     media = "application/pdf" if meta.kind == "pdf" else None
@@ -88,6 +114,7 @@ def info(request: Request, file_id: str) -> dict:
     """PDF incelemesi (metin var mı, sayfa boyutları...). Arayüz "metin yok → OCR?" önerir."""
     s = store(request)
     meta = s.get(file_id)
+    s.touch(file_id)
     if meta.kind != "pdf":
         raise PdfAtolyeError(f"'{meta.name}' bir PDF değil.")
     try:
@@ -147,6 +174,6 @@ def zip_files(request: Request, ids: str = Query(max_length=40_000),
                 arc, i = f"{stem} ({i}){ext}", i + 1
             used.add(arc.lower())
             zf.write(s.path(fid), arc)
-    zip_name = safe_filename(Path(name).stem, fallback="dosyalar") + ".zip"
+    zip_name = safe_filename(strip_ext(Path(name).name, ".zip"), fallback="dosyalar") + ".zip"
     return FileResponse(tmp_name, media_type="application/zip", filename=zip_name,
                         background=BackgroundTask(Path(tmp_name).unlink, missing_ok=True))

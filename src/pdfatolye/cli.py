@@ -709,9 +709,6 @@ def onar(pdf: InPdf, sifre: PwOpt = None, cikti: OutOpt = None) -> None:
     _done(output)
 
 
-_IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".tif", ".tiff", ".heic",
-               ".heif"}
-_MD_EXTS = {".md", ".markdown"}
 
 
 @app.command()
@@ -725,17 +722,23 @@ def gonder(
     Markdown → MD baskısı, resimler → tek PDF, Word/Excel/PowerPoint/HTML/TXT → cevir.
     Çıktılar dosyaların yanına yazılır. Biri başarısız olsa diğerleri sürer.
     """
-    from pdfatolye.convert.office import OFFICE_EXTS
+    from pdfatolye.formats import (
+        HTML_EXTS,
+        MARKDOWN_EXTS,
+        OFFICE_EXTS,
+        RASTER_IMAGE_EXTS,
+        TEXT_EXTS,
+    )
 
     groups: dict[str, list[Path]] = {"md": [], "resim": [], "belge": []}
     failed = False
     for f in dosyalar:
         ext = f.suffix.lower()
-        if ext in _MD_EXTS:
+        if ext in MARKDOWN_EXTS:
             groups["md"].append(f)
-        elif ext in _IMAGE_EXTS:
+        elif ext in RASTER_IMAGE_EXTS:
             groups["resim"].append(f)
-        elif ext in OFFICE_EXTS or ext in (".html", ".htm", ".txt"):
+        elif ext in OFFICE_EXTS | HTML_EXTS | TEXT_EXTS:
             groups["belge"].append(f)
         elif ext == ".pdf":
             typer.echo(f"Atlandı (zaten PDF): {f.name}")

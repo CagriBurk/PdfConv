@@ -21,6 +21,26 @@ def unexpected_message(exc: BaseException, eid: str) -> str:
             "dosyasında (Ayarlar sayfasında yolu yazar).")
 
 
+_DISK_FULL_ERRNO = {28}  # ENOSPC
+_DISK_FULL_WINERROR = {39, 112}  # ERROR_HANDLE_DISK_FULL, ERROR_DISK_FULL
+
+
+def is_disk_full(exc: BaseException) -> bool:
+    return isinstance(exc, OSError) and (
+        exc.errno in _DISK_FULL_ERRNO or getattr(exc, "winerror", None) in _DISK_FULL_WINERROR)
+
+
+class DiskFullError(PdfAtolyeError):
+    def __init__(self, where: str = "") -> None:
+        super().__init__("Diskte yer kalmadı" + (f" ({where})" if where else "") + ". Biraz yer "
+                         "aç (İşler ve dosyalar sayfasından eski dosyaları silebilirsin) ve "
+                         "yeniden dene.")
+
+
+def disk_full_error(where: str = "") -> DiskFullError:
+    return DiskFullError(where)
+
+
 class PageRangeError(PdfAtolyeError, ValueError):
     pass
 
@@ -49,3 +69,12 @@ class UnsupportedFileError(PdfAtolyeError):
     def __init__(self, path: Path, expected: str) -> None:
         self.path = path
         super().__init__(f"'{path.name}' bir {expected} dosyası değil.")
+
+
+class ImageTooLargeError(PdfAtolyeError):
+    """Pillow'un sıkıştırma bombası koruması (`DecompressionBombError`) ya da aşırı büyük resim."""
+
+    def __init__(self, path: Path) -> None:
+        self.path = path
+        super().__init__(f"'{path.name}' çok büyük bir resim (yüz milyonlarca piksel); güvenlik "
+                         "için açılmadı. Resmi küçültüp (ör. 8000 piksel kenara) yeniden dene.")
