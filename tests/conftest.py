@@ -1,3 +1,5 @@
+import os
+import sys
 from pathlib import Path
 
 import pytest
@@ -14,14 +16,24 @@ def settings(tmp_path: Path) -> Settings:
     )
 
 
-def pytest_runtest_logreport(report):
-    """CI'da başarısız test GitHub "annotation" olarak da yazılır: iş günlükleri kimlik ister,
-    açıklamalar kimliksiz okunabilir (check-runs/{id}/annotations)."""
-    import os
-    import sys
+def _annotate(nodeid: str, text: str) -> None:
+    """CI'da başarısızlık GitHub "annotation" olarak da yazılır: iş günlükleri kimlik ister,
+    açıklamalar kimliksiz okunabilir (check-runs/{id}/annotations). Özellik değerinde `:` ve `,`
+    kaçırılmalı (test kimliğindeki `::` komutu bölerdi)."""
 
-    if not os.environ.get("GITHUB_ACTIONS") or not report.failed:
-        return
-    text = str(report.longrepr)[-1500:].replace("%", "%25").replace("\r", "").replace("\n", "%0A")
-    sys.__stdout__.write(f"::error title={report.nodeid}::{text}\n")
+    def esc(v: str, prop: bool = False) -> str:
+        v = v.replace("%", "%25").replace("\r", "").replace("\n", "%0A")
+        return v.replace(":", "%3A").replace(",", "%2C") if prop else v
+
+    sys.__stdout__.write(f"::error title={esc(nodeid, True)}::{esc(text[-1500:])}\n")
     sys.__stdout__.flush()
+
+
+def pytest_runtest_logreport(report):
+    if os.environ.get("GITHUB_ACTIONS") and report.failed:
+        _annotate(report.nodeid, str(report.longrepr))
+
+
+def pytest_collectreport(report):
+    if os.environ.get("GITHUB_ACTIONS") and report.failed:
+        _annotate(report.nodeid or "toplama", str(report.longrepr))

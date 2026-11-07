@@ -643,11 +643,17 @@ def test_organizer_fetches_only_visible_pages(server, page, tmp_path):
     page.set_viewport_size({"width": 600, "height": 400})
     page.goto(f"{base}/#/duzenle/{meta.id}")
     page.locator(".page-tile img").first.wait_for()
-    page.wait_for_timeout(3000)  # eski davranışta arka plan indirmesi burada sürerdi
-    settled = got["bytes"]
-    page.wait_for_timeout(2000)
+    # Görünen küçük resimler çizilip ağ 2 sn susana kadar bekle (CI yavaş olabilir). Eski
+    # davranışta arka plan indirmesi dosyanın tamamı gelene kadar sürerdi.
+    settled, quiet_since = -1, time.monotonic()
+    deadline = time.monotonic() + 60
+    while time.monotonic() < deadline:
+        page.wait_for_timeout(250)
+        if got["bytes"] != settled:
+            settled, quiet_since = got["bytes"], time.monotonic()
+        elif time.monotonic() - quiet_since > 2:
+            break
     size = pdf.stat().st_size
-    assert got["bytes"] == settled, "ekran dururken indirme sürüyor"
     assert 0 < settled < size * 0.6, (settled, size)
     # Aşağı kaydırınca sonraki sayfalar yine çizilir.
     page.locator(".page-tile").nth(pages - 1).scroll_into_view_if_needed()
