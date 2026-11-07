@@ -147,7 +147,8 @@ export default function PageCanvas(props: Props) {
     if (!draft) return;
     setDraft(null);
     const isLine = tool === "line" || tool === "arrow";
-    let { x0, y0, x1, y1 } = draft;
+    const { x0, y0 } = draft;
+    let { x1, y1 } = draft;
     const dragged = Math.hypot(x1 - x0, y1 - y0) > 4;
     if (!dragged) {
       const [w, h] = DEFAULT_SIZE[tool] ?? [100, 40];

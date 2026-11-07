@@ -12,7 +12,8 @@ Uygulamayı kullanmak için uv, Node, git ya da Python **gerekmez**.
 2. Açılan klasördeki **Kur** (`Kur.cmd`) dosyasına çift tıkla. Windows "Windows bilgisayarınızı
    korudu" ya da "yayımcı doğrulanamadı" derse **Daha fazla bilgi → Yine de çalıştır** (kurulum
    dosyası imzalı değil; içinde çalışan Python python.org imzalıdır). Yönetici izni istemez.
-3. Kurulum bir iki dakika sürer, bitince uygulama penceresi açılır. Sonra masaüstündeki **PDF
+3. Kurulum bir iki dakika sürer, bitince uygulama penceresi açılır. İlk açılışta kısa bir tanıtım
+   ve eksik bir şey varsa (ör. LibreOffice) ne yapılacağı gösterilir. Sonra masaüstündeki **PDF
    Atölyesi** simgesini kullan. İndirdiğin zip'i ve ayıkladığın klasörü silebilirsin.
 
 - Kurulum yeri: `%LOCALAPPDATA%\Programs\PdfAtolyesi`; belgeler ve ayarlar:
@@ -24,6 +25,9 @@ Uygulamayı kullanmak için uv, Node, git ya da Python **gerekmez**.
   → PDF** için LibreOffice gerekir (pakete konmadı, ~350 MB): Ayarlar'da ya da Office ekranında
   **LibreOffice'i kur** düğmesi (winget ile; Windows izin isteyebilir).
 - Sağ tık → Gönder → **PDF'e çevir** de kurulur.
+- **Ayarlar** ekrandan değişir (dosya düzenlemek gerekmez): dosyaların ne kadar saklanacağı,
+  Obsidian kasası (Klasör seç…), Markdown için varsayılan tema ve kağıt, telefon modu. Port ve
+  kütüphane sürümleri gibi geliştirici bilgileri **Gelişmiş** altında.
 - **Güncelleme**: Ayarlar → **Güncellemeleri denetle** (yalnızca basınca GitHub'a sorar). Yeni
   paketi indirip yine **Kur**'a çift tıkla; eskisinin üzerine kurar, belgelerin korunur.
 - **Kaldırma**: Ayarlar → Uygulamalar → PDF Atölyesi → Kaldır (ya da kurulum klasöründeki
@@ -94,8 +98,10 @@ engelleyebilir; bu yüzden komutlar `python -m pdfatolye` biçiminde.
 
 ### Telefondan kullanmak (aynı Wi-Fi)
 
-`baslat.bat --lan` ile başlat. Terminalde ve **Ayarlar** sayfasında bir QR kod çıkar; telefonun
-kamerasıyla okut. QR kod tek kullanımlıktır: her cihaz için Ayarlar'da yenisi çıkar ve eşleşmemiş
+Masaüstü uygulamasında: **Ayarlar → Telefon modu** kutusunu işaretle, **Şimdi yeniden başlat**
+(pencere açık kalır). Geliştirme sunucusunda: `baslat.bat --lan`. Ayarlar sayfasında (ve
+terminalde) bir QR kod çıkar; telefonun kamerasıyla okut. Telefon modu açıkken üst çubukta
+"Telefon modu açık" yazar; kapatmak için kutuyu kaldırıp yeniden başlat. QR kod tek kullanımlıktır: her cihaz için Ayarlar'da yenisi çıkar ve eşleşmemiş
 cihazların istekleri reddedilir. Bağlı cihazları Ayarlar'da görür, istediğinde hepsinin bağlantısını
 kesersin. Windows güvenlik duvarı ilk seferde izin isteyebilir ("Özel ağlar" yeterli). Bağlantı
 yerel ağda şifresizdir (HTTP): yalnızca güvendiğin Wi-Fi'de kullan, işin bitince sunucuyu kapat.
@@ -103,13 +109,14 @@ yerel ağda şifresizdir (HTTP): yalnızca güvendiğin Wi-Fi'de kullan, işin b
 ### Sorun giderme
 
 - Beklenmeyen bir hatada mesajda **hata kimliği** (ör. `3fa2c1b9`) yazar; aynı kimlik günlük
-  dosyasında (`%LOCALAPPDATA%\PdfAtolye\logs\pdfatolye.log`, yolu Ayarlar'da da var) ayrıntısıyla
-  bulunur.
+  dosyasında (`%LOCALAPPDATA%\PdfAtolye\logs\pdfatolye.log`, yolu Ayarlar → Gelişmiş'te)
+  ayrıntısıyla bulunur. Arayüzün kendisinde bir ekran çökerse beyaz sayfa yerine "Bu ekranda bir
+  şeyler ters gitti" ve hata kimliği çıkar; diğer ekranlar çalışmaya devam eder.
 - "Diskte yer yok": yükleme, diske sığmayacaksa hiç başlamaz. Yer aç ya da İşler ve dosyalar'dan eski
   dosyaları sil. Tek seferde en fazla `max_request_mb` (varsayılan 4096 MB), dosya başına
   `max_upload_mb` (1024 MB) yüklenir.
-- "8790 portu başka bir program tarafından kullanılıyor": `config.toml`'da `port` değiştir ya da
-  `baslat.bat --port 8800`.
+- "8790 portu başka bir program tarafından kullanılıyor": masaüstü uygulaması kendiliğinden boş bir
+  port seçer. Geliştirme sunucusunda Ayarlar → Gelişmiş → Port (ya da `baslat.bat --port 8800`).
 - Proje klasörünün yolu çok uzunsa (260+ karakter) LibreOffice ve Ghostscript bozulabilir; projeyi
   kısa bir yola (ör. `C:\PdfConv`) koy.
 
@@ -120,9 +127,13 @@ yerel ağda şifresizdir (HTTP): yalnızca güvendiğin Wi-Fi'de kullan, işin b
 - **Sayfa düzenleyici**: sürükleyerek sırala (seçili sayfalar blok hâlinde taşınır), Ctrl/Shift
   ile çoklu seçim, `R` / `Shift+R` döndür, `Delete` sil, `Ctrl+Z` / `Ctrl+Y` geri/ileri,
   başka PDF'leri alana bırakarak sayfalarını ekle, çift tıkla büyüt. "Kaydet" yeni sürüm oluşturur,
-  "Önceki sürüme dön" ile geri alınır.
+  "Önceki sürüme dön" ile geri alınır. **Yalnızca klavyeyle**: oklar sayfalar arasında gezer,
+  `Boşluk` seçer, `Shift+ok` seçimi genişletir, `Ctrl+ok` yalnızca odağı taşır, `Alt+ok` seçili
+  sayfaları taşır, `Enter` büyütür. Ekran okuyucu yapılan işlemi ("2 sayfa taşındı: 3. konum") duyurur.
 - **Birleştir, Böl, Resim → PDF, PDF → Resim**: çok dosyalı çıktılar tek ZIP olarak indirilebilir.
-- **Markdown → PDF**: yazdıkça canlı önizleme (baskıyla aynı tema), seçenekler, uyarılar. Düzenlediğin
+- **Markdown → PDF**: yazdıkça canlı önizleme (baskıyla aynı tema; yazarken önizleme kaydığın
+  yerde kalır), seçenekler, uyarılar. Tema ve kağıt "Otomatik"te notun ön bilgisi, o da yoksa
+  Ayarlar'daki varsayılan kullanılır. Düzenlediğin
   not bu tarayıcıda taslak olarak tutulur (sekme kapansa da kaybolmaz, sonraki açılışta "Taslağı aç"
   önerilir); "Notu indir (.md)" düzenlenmiş notu UTF-8 olarak indirir. Windows'un eski "ANSI"
   (Windows-1254) biçimindeki notlar da doğru okunur.
@@ -141,7 +152,10 @@ yerel ağda şifresizdir (HTTP): yalnızca güvendiğin Wi-Fi'de kullan, işin b
   temizliği, bozuk PDF onarımı. Şifreli bir PDF düzenlenince şifresi korunur; şifreyi yalnızca "Şifre
   kaldır" kaldırır. Birden çok kaynaktan üretilen dosyada şifre taşınamazsa bu açıkça söylenir.
 - **İşler ve dosyalar**: son işler, tüm dosyalar; sabitlenmeyen dosyalar 24 saat sonra silinir (son
-  açılıştan itibaren; açık bir ekranda ya da bir işte kullanılan dosya silinmez). Çalışan iş
+  açılıştan itibaren; açık bir ekranda ya da bir işte kullanılan dosya silinmez; süre Ayarlar'dan
+  değişir). Dosyalar **yeniden adlandırılabilir** (uzantı korunur). **Klasörde göster** dosyanın
+  bir kopyasını gerçek adıyla `%LOCALAPPDATA%\PdfAtolye\Dışa aktarılanlar` altına koyup Gezgin'de
+  gösterir (yalnızca bu bilgisayarda; telefonda görünmez). Çalışan iş
   (LibreOffice, OCR, baskı dahil) "İptal" ile birkaç saniyede durur. Uzun süren OCR/Office işleri
   sıradayken basit işler beklemeden çalışır.
 - **Kaydedilmemiş iş**: sayfa düzenleyicide, editörde ve Markdown ekranında kaydetmeden başka
@@ -238,6 +252,8 @@ pdf:
 ```
 uv run python -m pytest     # testler (tests/e2e: derlenmiş arayüz + Edge ile uçtan uca)
 uv run python -m ruff check . # kod denetimi
+npm --prefix web test       # arayüz birim testleri (vitest)
+npm --prefix web run lint   # arayüz kod denetimi (eslint)
 npm --prefix web run dev    # arayüz geliştirme sunucusu (API'yi 8790'e yönlendirir)
 ```
 
@@ -246,5 +262,13 @@ Her gönderimde GitHub Actions aynı denetimleri çalıştırır ([ci.yml](.gith
 
 ## Ayarlar
 
-`config.example.toml` dosyasını `config.toml` olarak kopyalayıp düzenle.
-Varsayılan veri klasörü: `%LOCALAPPDATA%\PdfAtolye`.
+Ayarlar uygulamanın **Ayarlar** ekranından değişir ve `%LOCALAPPDATA%\PdfAtolye\config.toml`
+dosyasına yazılır (geliştirmede proje kökünde bir `config.toml` varsa o). Ekranda olmayanlar
+(yükleme sınırları, motor yolları, veri klasörü) bu dosyadan elle değiştirilir; açıklamalı örnek:
+`config.example.toml`. Varsayılan veri klasörü: `%LOCALAPPDATA%\PdfAtolye`.
+
+## Lisans
+
+PDF Atölyesi [GNU AGPL v3](LICENSE) ile lisanslıdır (PyMuPDF ve Ghostscript de AGPL). Paketi
+başkasına verirken ya da ağ üzerinden hizmet olarak sunarken kaynak kodu (değişikliklerinle
+birlikte) aynı lisansla erişilebilir olmalıdır. Paketteki bileşenlerin lisansları: `LISANSLAR.txt`.

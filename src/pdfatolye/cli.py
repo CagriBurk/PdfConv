@@ -428,7 +428,9 @@ def md(
         raise ValueError("Birden çok dosyada -o bir klasör olmalı.")
 
     failed = 0
-    with MarkdownPrinter(browser.path, kasa or settings.vault_path) as printer:
+    defaults = MdOptions(theme=settings.default_theme, paper=settings.default_paper)
+    with MarkdownPrinter(browser.path, kasa or settings.vault_path,
+                         user_defaults=defaults) as printer:
         for src in dosyalar:
             # Not.md → Not.pdf: dışa aktarımı yenilemek için var olan PDF'in üstüne yazılır.
             if multi:

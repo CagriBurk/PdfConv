@@ -145,6 +145,9 @@ class FakeWindow:
         self.closed.wait(30)
         return 0
 
+    def poll(self):
+        return 0 if self.closed.is_set() else None
+
 
 def _config(tmp_path: Path, port: int) -> Path:
     cfg = tmp_path / "config.toml"
@@ -181,6 +184,56 @@ def test_app_runs_until_window_closes_and_is_single_instance(tmp_path, monkeypat
     assert result == [0]
     assert not desktop.is_our_server(url, timeout=1)
     assert not lock.exists()
+
+
+def test_restart_moves_to_new_port_and_keeps_window(tmp_path, monkeypatch):
+    """Ayarlar'da port değişip "Şimdi yeniden başlat" denince: eski sunucu kapanır, yenisi yeni
+    portta açılır, pencere açık kalır (yeni pencere açılmaz), ayar dosyaya yazılmıştır."""
+    import httpx
+
+    from pdfatolye.settings import load_settings
+
+    monkeypatch.setattr(desktop, "kill_children_on_exit", lambda: False)
+    port, new_port = _free_port(), _free_port()
+    cfg = _config(tmp_path, port)
+    windows: list[tuple[str, FakeWindow]] = []
+
+    def fake_open(s, url):
+        w = FakeWindow()
+        windows.append((url, w))
+        return w
+
+    monkeypatch.setattr(desktop, "open_window", fake_open)
+    result: list[int] = []
+    t = threading.Thread(target=lambda: result.append(desktop.run(cfg)), daemon=True)
+    t.start()
+    assert wait_until(lambda: windows, 30), "pencere açılmadı"
+    old_url = windows[0][0]
+    with httpx.Client(base_url=old_url, timeout=10) as c:
+        c.get("/api/session")
+        assert c.get("/api/settings").json()["restart_available"] is True
+        assert c.put("/api/settings", json={"port": new_port}).status_code == 200
+        assert c.post("/api/restart").json() == {"url": f"http://127.0.0.1:{new_port}"}
+    new_url = f"http://127.0.0.1:{new_port}"
+    assert wait_until(lambda: desktop.is_our_server(new_url, timeout=1), 30), "yeni sunucu yok"
+    assert not desktop.is_our_server(old_url, timeout=1)
+    assert len(windows) == 1, "yeniden başlatma yeni pencere açmamalı"
+    lock = tmp_path / "veri" / desktop.LOCK_NAME
+    assert json.loads(lock.read_text(encoding="utf-8"))["port"] == new_port
+    assert load_settings(cfg).port == new_port
+    windows[0][1].closed.set()
+    t.join(20)
+    assert result == [0]
+    assert not desktop.is_our_server(new_url, timeout=1) and not lock.exists()
+
+
+def test_phone_mode_listens_on_local_network(tmp_path):
+    from pdfatolye.settings import Settings
+
+    server = desktop._Server(Settings(data_dir=tmp_path / "veri", lan=True, port=_free_port()))
+    assert server.server.config.host == "0.0.0.0"
+    local = desktop._Server(Settings(data_dir=tmp_path / "veri2", port=_free_port()))
+    assert local.server.config.host == "127.0.0.1"
 
 
 def test_stale_lock_does_not_block_start(tmp_path, monkeypatch):

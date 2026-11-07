@@ -25,6 +25,27 @@ export interface EnginesResponse {
   install_dir: string | null;
 }
 
+export interface SettingsValues {
+  retention_hours: number;
+  vault_path: string;
+  default_theme: string;
+  default_paper: string;
+  port: number;
+  lan: boolean;
+  welcome_done: boolean;
+}
+
+export interface SettingsResponse {
+  values: SettingsValues;
+  running: { port: number; lan: boolean };
+  restart_pending: boolean;
+  restart_available: boolean;
+  config_file: string;
+  local: boolean;
+  themes: string[];
+  papers: string[];
+}
+
 export interface UpdateInfo {
   current: string;
   latest: string | null;
@@ -118,7 +139,7 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(url: string, init: RequestInit = {}): Promise<T> {
+export async function request<T>(url: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(url, {
     credentials: "same-origin",
     ...init,
@@ -189,6 +210,17 @@ export const api = {
 
   mdPreview: (text: string, attachments: string[], options: Record<string, unknown>) =>
     request<MdPreview>("/api/md/preview", json({ text, attachments, options })),
+
+  settings: () => request<SettingsResponse>("/api/settings"),
+  saveSettings: (changes: Partial<SettingsValues>) =>
+    request<SettingsResponse>("/api/settings", { ...json(changes), method: "PUT" }),
+  restart: () => request<{ url: string }>("/api/restart", { method: "POST" }),
+  pickFolder: (initial?: string) => request<{ path: string | null }>("/api/pick-folder", json({ initial })),
+  reveal: (id: string) => request<{ path: string }>(`/api/files/${id}/reveal`, { method: "POST" }),
+  clientError: (body: { message: string; stack?: string; where?: string }) =>
+    request<{ id: string }>("/api/client-error", json(body)),
+  health: () =>
+    request<{ app: string; version: string; instance: string }>("/api/health", { cache: "no-store" }),
 
   lan: () => request<LanInfo>("/api/lan"),
   checkUpdate: () => request<UpdateInfo>("/api/update"),

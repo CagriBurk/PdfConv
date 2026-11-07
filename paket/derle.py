@@ -8,7 +8,8 @@
                  (kilit dosyasındaki çalışma bağımlılıkları + pdfatolye; arayüz paketin içinde)
 - motorlar/      tesseract/ (yalnızca gereken DLL'ler + tur, eng, osd), ghostscript/
 - simgeler/      uygulama simgesi
-- Kur.cmd, Kaldir.cmd, pdfe-cevir.cmd, OKUBENI.txt, LISANSLAR.txt, pdfatolye-kurulum.json
+- Kur.cmd, Kaldir.cmd, pdfe-cevir.cmd, OKUBENI.txt, LISANSLAR.txt, LICENSE.txt (AGPL-3.0),
+  pdfatolye-kurulum.json
 
 Neden PyInstaller / Inno Setup değil: bkz. PLAN.md tuzak #52 (Akıllı Uygulama Denetimi).
 """
@@ -73,7 +74,7 @@ denetle" dersen GitHub'a sorar).
 LISANSLAR = """PDF Atölyesi paketindeki bileşenler ve lisansları
 =================================================
 
-- PDF Atölyesi: https://github.com/CagriBurk/PdfConv (lisans kararı: PLAN.md §10.2)
+- PDF Atölyesi: GNU AGPL v3 (LICENSE.txt), kaynak kod: https://github.com/CagriBurk/PdfConv
 - Python {py} (python.org, imzalı gömülü dağıtım): PSF License
 - PyMuPDF / MuPDF: GNU AGPL v3 (ticari lisans ayrıca Artifex'ten)
 - pikepdf / qpdf: MPL 2.0 / Apache 2.0
@@ -86,8 +87,8 @@ LISANSLAR = """PDF Atölyesi paketindeki bileşenler ve lisansları
 - Diğer Python kütüphaneleri: python/Lib/site-packages altında her birinin *.dist-info/
   klasöründeki LICENSE dosyaları
 
-AGPL bileşenler (PyMuPDF, Ghostscript) nedeniyle bu paketi başkasına verirken kaynak kod
-erişilebilir olmalıdır: https://github.com/CagriBurk/PdfConv
+PDF Atölyesi ve AGPL bileşenleri (PyMuPDF, Ghostscript) nedeniyle bu paketi başkasına
+verirken kaynak kod erişilebilir olmalıdır: https://github.com/CagriBurk/PdfConv
 """
 
 
@@ -342,6 +343,8 @@ def main() -> None:
         (pkg / fname).write_bytes(text.replace("\n", "\r\n").encode("ascii"))
     (pkg / "OKUBENI.txt").write_text(OKUBENI.format(version=version), encoding="utf-8-sig")
     (pkg / "LISANSLAR.txt").write_text(LISANSLAR.format(py=PY_VERSION), encoding="utf-8-sig")
+    (pkg / "LICENSE.txt").write_bytes(
+        (ROOT / "LICENSE").read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n"))
     (pkg / "pdfatolye-kurulum.json").write_text(json.dumps(
         {"version": version, "python": PY_VERSION, "engines": not args.motorsuz}), "utf-8")
     log("5/5 Deneme")

@@ -43,12 +43,15 @@ def tokens_match(given: str, expected: str) -> bool:
 def app_csp(inline_script_hash: str) -> str:
     """Uygulama sayfasının politikası. Markdown önizlemesi srcdoc çerçevesidir, bu politikayı da
     devralır: tek izinli satır içi betik KaTeX başlatıcısıdır (özetiyle). `wasm-unsafe-eval`
-    pdf.js'in görüntü çözücüleri için. Satır içi stil React/Konva için gerekli."""
+    pdf.js'in görüntü çözücüleri için. Satır içi stil React/Konva için gerekli.
+    `connect-src` bu bilgisayarın diğer portları: masaüstü uygulaması yeni portta yeniden
+    başlayınca arayüz yeni sunucuyu yoklar (bkz. restart.ts; içerik okunamaz, yalnızca açık mı)."""
     return (
         "default-src 'self'; "
         f"script-src 'self' 'wasm-unsafe-eval' '{inline_script_hash}'; "
         "style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; "
-        "worker-src 'self' blob:; connect-src 'self'; frame-src 'self'; object-src 'none'; "
+        "worker-src 'self' blob:; connect-src 'self' http://127.0.0.1:*; frame-src 'self'; "
+        "object-src 'none'; "
         "base-uri 'self'; form-action 'self'; frame-ancestors 'self'"
     )
 
