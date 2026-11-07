@@ -67,10 +67,21 @@ def browser():
 
 @pytest.fixture
 def page(browser):
+    """Tarayıcı konsolu ve sayfa hataları toplanır; test başarısız olursa pytest bunları
+    ("Captured stdout teardown") gösterir. CI'da tarayıcı sürümü farklı olabilir, nedeni
+    görmeden tahmin etmeyelim."""
     ctx = browser.new_context(viewport={"width": 1400, "height": 1000}, locale="tr-TR")
     p = ctx.new_page()
     p.set_default_timeout(TIMEOUT_MS)
+    log: list[str] = []
+    p.on("console", lambda m: log.append(f"konsol {m.type}: {m.text}")
+         if m.type in ("error", "warning") else None)
+    p.on("pageerror", lambda e: log.append(f"sayfa hatası: {e}"))
+    p.on("requestfailed", lambda r: log.append(f"istek başarısız: {r.url} {r.failure}"))
     yield p
+    print(f"tarayıcı: {BROWSER} sürüm {browser.version}")
+    for line in log:
+        print(line)
     ctx.close()
 
 

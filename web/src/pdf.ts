@@ -1,6 +1,9 @@
-import * as pdfjs from "pdfjs-dist";
-import type { PDFDocumentProxy } from "pdfjs-dist";
-import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+// "legacy" derleme: pdf.js'in normal derlemesi yalnızca en yeni tarayıcıda çalışır
+// (Map.getOrInsertComputed, Math.sumPrecise... yedeksiz kullanılır). Biraz eski bir Edge/Chrome'da
+// hiçbir sayfa çizilmez; legacy derleme bu API'leri kendisi sağlar.
+import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
+import type { PDFDocumentProxy } from "pdfjs-dist/legacy/build/pdf.mjs";
+import workerUrl from "pdfjs-dist/legacy/build/pdf.worker.min.mjs?url";
 import { api } from "./api";
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;

@@ -60,7 +60,7 @@ def test_png_alpha_tiff_frames_and_margins(tmp_path):
 
 def test_not_an_image(tmp_path):
     bad = tmp_path / "x.jpg"
-    bad.write_text("resim değil")
+    bad.write_text("resim değil", encoding="utf-8")  # sistem kodlaması cp1252 olabilir (CI)
     with pytest.raises(UnsupportedFileError, match="resim"):
         images.images_to_pdf([bad], tmp_path / "o.pdf")
 
