@@ -32,13 +32,22 @@ def _annotate(nodeid: str, text: str) -> None:
 
 
 _annotated = [0]
+_failed: set[str] = set()
 
 
 def pytest_runtest_logreport(report):
     # İlk 8 hata ayrıntılı; GitHub'ın 10'luk sınırında sondaki özete de yer kalsın.
-    if os.environ.get("GITHUB_ACTIONS") and report.failed and _annotated[0] < 8:
+    if not os.environ.get("GITHUB_ACTIONS") or _annotated[0] >= 8:
+        return
+    if report.failed:
         _annotated[0] += 1
+        _failed.add(report.nodeid)
         _annotate(report.nodeid, str(report.longrepr))
+    elif report.when == "teardown" and report.nodeid in _failed and report.capstdout.strip():
+        # Düşen testin yazdıkları (e2e: tarayıcı sürümü, konsol ve sayfa hataları teardown'da
+        # basılır). Hata izinde yoktur; günlükler kimlik ister, açıklamalar istemez.
+        _annotated[0] += 1
+        _annotate(f"{report.nodeid} (çıktı)", report.capstdout)
 
 
 def pytest_terminal_summary(terminalreporter):

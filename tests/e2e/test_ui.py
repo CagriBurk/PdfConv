@@ -452,11 +452,26 @@ def test_organizer_works_with_keyboard_only(server, page, tmp_path):
     page.keyboard.press("Escape")
     expect(dialog).to_be_hidden()
     expect(tiles.nth(2)).to_be_focused()  # odak açan sayfaya döndü
+
+    def selected() -> list[str]:
+        return [tiles.nth(i).get_attribute("aria-selected") for i in range(tiles.count())]
+
+    # Sıra artık 1, 3, 2, 4. Her adımda odak ve seçim denetlenir: düşerse hangi tuşta saptığı
+    # görünsün (CI'da yalnızca son adım "3 sayfa seçili" düşüyordu).
     page.keyboard.press("ArrowLeft")  # orijinal 3. sayfa
+    expect(tiles.nth(1)).to_be_focused()
+    expect(tiles.nth(1)).to_have_attribute("aria-selected", "true")
     page.keyboard.press("Shift+ArrowLeft")  # + orijinal 1. sayfa
-    for _ in range(3):  # yalnızca odak taşınır, seçim değişmez
+    expect(tiles.nth(0)).to_be_focused()
+    expect(tiles.nth(0)).to_have_attribute("aria-selected", "true")
+    assert selected() == ["true", "true", "false", "false"], selected()
+    for n in range(3):  # yalnızca odak taşınır, seçim değişmez
         page.keyboard.press("Control+ArrowRight")
+        expect(tiles.nth(n + 1)).to_be_focused()
+    assert selected() == ["true", "true", "false", "false"], selected()
     page.keyboard.press("Space")  # orijinal 4. sayfayı da seçime ekle
+    expect(tiles.nth(3)).to_have_attribute("aria-selected", "true")
+    assert selected() == ["true", "true", "false", "true"], selected()
     page.get_by_text("3 sayfa seçili").wait_for()
     page.keyboard.press("Delete")
     expect(tiles).to_have_count(1)
