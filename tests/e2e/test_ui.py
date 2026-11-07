@@ -601,3 +601,54 @@ def test_restart_button_moves_window_to_new_port(browser, tmp_path, monkeypatch)
         closed.set()
         t.join(20)
     assert result == [0]
+
+
+# --- büyük dosyalar (arkadaş denemesi) ----------------------------------------------------------
+
+def test_too_large_upload_in_organizer_is_reported(server, page, tmp_path):
+    """Düzenleyiciye sınırdan büyük dosya bırakınca hiçbir şey olmuyordu (hata gösterilmiyordu)."""
+    base, app = server
+    store = app.state.store
+    old = store.max_bytes, store.max_upload_mb
+    store.max_bytes, store.max_upload_mb = 10_000, 1
+    try:
+        page.goto(f"{base}/#/duzenle")
+        pdf = fx.numbered(tmp_path / "b.pdf", 30, with_toc=False)
+        page.locator("input[type=file]").first.set_input_files(str(pdf))
+        page.get_by_role("alert").filter(has_text="Dosya çok büyük").wait_for()
+        assert "#/duzenle" in page.url and "/duzenle/" not in page.url
+    finally:
+        store.max_bytes, store.max_upload_mb = old
+
+
+def test_organizer_fetches_only_visible_pages(server, page, tmp_path):
+    """pdf.js bütün dosyayı arka planda tarayıcıya çekiyordu (2 GB'lık dosyada 15 sn'de 578 MB,
+    sürüyordu). Artık yalnızca çizilen sayfaların baytları aralık isteğiyle gelir ve ekran
+    durunca indirme de durur."""
+    base, app = server
+    pages = 400
+    pdf = fx.noisy_pages(tmp_path / "buyuk.pdf", pages=pages, size=(600, 450), label=False)
+    meta = app.state.store.add_file(pdf, "buyuk.pdf", source="upload")
+    got = {"bytes": 0}
+    raw_ids: set[str] = set()
+    # Ağ katmanından sayılır: akışla gelen ya da yarıda kesilen (bitmeyen) istekler de dahil.
+    cdp = page.context.new_cdp_session(page)
+    cdp.send("Network.enable")
+    cdp.on("Network.requestWillBeSent",
+           lambda e: raw_ids.add(e["requestId"]) if "/raw" in e["request"]["url"] else None)
+    cdp.on("Network.dataReceived",
+           lambda e: got.__setitem__("bytes", got["bytes"] + e["dataLength"])
+           if e["requestId"] in raw_ids else None)
+
+    page.set_viewport_size({"width": 600, "height": 400})
+    page.goto(f"{base}/#/duzenle/{meta.id}")
+    page.locator(".page-tile img").first.wait_for()
+    page.wait_for_timeout(3000)  # eski davranışta arka plan indirmesi burada sürerdi
+    settled = got["bytes"]
+    page.wait_for_timeout(2000)
+    size = pdf.stat().st_size
+    assert got["bytes"] == settled, "ekran dururken indirme sürüyor"
+    assert 0 < settled < size * 0.6, (settled, size)
+    # Aşağı kaydırınca sonraki sayfalar yine çizilir.
+    page.locator(".page-tile").nth(pages - 1).scroll_into_view_if_needed()
+    page.locator(".page-tile").nth(pages - 1).locator("img").wait_for()

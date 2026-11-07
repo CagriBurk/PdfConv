@@ -332,10 +332,12 @@ def compress(store, settings, req, report, tmp: Path, job_id) -> WorkResult:
     total = len(req.files)
     for i, fid in enumerate(req.files):
         meta, path = _require(store, fid, "pdf")
-        report(i / total, f"{i + 1}/{total}: {meta.name}")
+        prefix = f"{i + 1}/{total} {meta.name}: " if total > 1 else ""
+        report(i / total, f"{prefix}başlıyor")
         out = tmp / f"{i:04d}.pdf"
-        r = compresslib.compress(path, out, req.level, password=req.passwords.get(fid),
-                                 ghostscript=gs)
+        r = compresslib.compress(
+            path, out, req.level, password=req.passwords.get(fid), ghostscript=gs,
+            report=lambda f, m, i=i, prefix=prefix: report((i + f) / total, prefix + m))
         kept, after = r.kept_original, r.after
         if not kept:
             warnings += _protect(store, req, fid, out)  # şifre biraz yer tutar: boyut yeniden
@@ -349,9 +351,25 @@ def compress(store, settings, req, report, tmp: Path, job_id) -> WorkResult:
         else:
             warnings.append(f"{meta.name}: {_size(r.before)} → {_size(after)} "
                             f"(%{round((1 - after / r.before) * 100)} küçüldü)")
+        if after > r.before * 0.8 and (why := _little_gain_reason(path, req, fid)):
+            warnings.append(f"{meta.name}: {why}")
         outputs.append(store.add_file(out, _out_name(None, f"{_stem(meta)}_kucuk"),
                                       job_id=job_id))
     return WorkResult(outputs, warnings)
+
+
+def _little_gain_reason(path: Path, req, fid: str) -> str | None:
+    """Az küçüldüyse nedenini söyler (kullanıcı "neden yalnızca %10?" diye sormasın)."""
+    share = compresslib.image_share(path, req.passwords.get(fid))
+    if share is None:
+        return None
+    if share < 0.3:
+        return (f"dosyanın yalnızca %{round(share * 100)}'i resim; gerisi yazı, yazı tipi ve "
+                "çizim. Bu tür PDF'ler zaten sıkıştırılmış olur, büyük kazanç beklenmez.")
+    if req.level == "kayipsiz":
+        return ("dosyanın çoğu resim; kayıpsız seviye resimlere dokunmaz. Daha küçük dosya için "
+                "Dengeli ya da Güçlü seç.")
+    return "resimler zaten bu seviyenin çözünürlüğünde ya da altında sıkıştırılmış."
 
 
 def _single_output(store, req, meta, out: Path, note: str, suffix: str, job_id) -> FileMeta:

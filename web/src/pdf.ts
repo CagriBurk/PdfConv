@@ -32,7 +32,19 @@ export function openPdf(ref: PdfRef, password?: string): Promise<PDFDocumentProx
   const key = refKey(ref);
   let entry = docs.get(key);
   if (!entry) {
-    const task = pdfjs.getDocument({ url: api.rawUrl(ref.id, ref.version), password, withCredentials: true });
+    // Büyük dosya (GB'lar): yalnızca çizilen sayfaların baytları aralık isteğiyle istenir. Yoksa
+    // pdf.js arka planda bütün dosyayı tarayıcı belleğine çeker (ölçüldü: 2 GB'lık dosyada 15 sn'de
+    // 578 MB ve sürüyordu; 8 GB'ta tarayıcı belleği tükenir). Parça boyutu varsayılanda (64 KB)
+    // kalır: pdf.js açılışta bütün sayfa nesnelerini okur, bunlar resimlerin arasına dağılmıştır;
+    // 1 MB'lık parçayla her küçük nesne 1 MB indirme demekti. Büyük resim yine tek istekte gelir
+    // (bitişik parçalar birleştirilir).
+    const task = pdfjs.getDocument({
+      url: api.rawUrl(ref.id, ref.version),
+      password,
+      withCredentials: true,
+      disableAutoFetch: true,
+      disableStream: true,
+    });
     const doc = task.promise.catch((e: { name?: string; code?: number }) => {
       docs.delete(key);
       if (e?.name === "PasswordException") throw new PasswordNeededError(e.code === 2);

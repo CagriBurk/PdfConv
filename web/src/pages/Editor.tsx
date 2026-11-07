@@ -66,7 +66,7 @@ export default function Editor({ fileId }: { fileId?: string }) {
   const mainRef = useRef<HTMLDivElement>(null);
   const imageInput = useRef<HTMLInputElement>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
-  const { upload, uploading } = useUpload();
+  const { upload, uploading } = useUpload({ toastErrors: true });
   const job = useJob();
   const dirty = objects.length > 0;
   const pageCount = meta?.page_count ?? doc?.numPages ?? 0;

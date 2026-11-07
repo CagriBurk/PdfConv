@@ -42,7 +42,9 @@ class CorruptMetaError(FileNotInStoreError):
 
 class UploadTooLargeError(PdfAtolyeError):
     def __init__(self, limit_mb: int) -> None:
-        super().__init__(f"Dosya çok büyük; üst sınır {limit_mb} MB (config.toml: max_upload_mb).")
+        size = f"{limit_mb / 1024:g} GB" if limit_mb >= 1024 else f"{limit_mb} MB"
+        super().__init__(f"Dosya çok büyük; dosya başına üst sınır {size} (ayar dosyasında "
+                         "max_upload_mb ile değiştirilebilir; yolu Ayarlar → Gelişmiş'te).")
 
 
 @dataclass
@@ -124,7 +126,7 @@ def file_ids_in(value) -> set[str]:
 
 
 class FileStore:
-    def __init__(self, root: Path, max_upload_mb: int = 1024) -> None:
+    def __init__(self, root: Path, max_upload_mb: int = 8192) -> None:
         self.root = Path(root)
         self.root.mkdir(parents=True, exist_ok=True)
         self.max_bytes = max_upload_mb * 1024 * 1024

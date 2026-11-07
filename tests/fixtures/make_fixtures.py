@@ -266,3 +266,39 @@ def broken(path: Path) -> Path:
     i = data.rfind(b"startxref")
     path.write_bytes(data[:i] + b"startxref\n999999\n%%EOF\n")
     return path
+
+
+def text_full_font(path: Path, pages: int = 40) -> Path:
+    """Yazı tipi alt kümeye indirilmeden (tam) gömülü, metin ağırlıklı PDF: bazı programlar böyle
+    üretir; boyutun çoğu yazı tipidir."""
+    font = Path(__file__).resolve().parents[2] / "src" / "pdfatolye" / "assets" / "fonts" \
+        / "NotoSans-Regular.ttf"
+    doc = pymupdf.open()
+    words = ["imar", "planı", "yapı", "adası", "parsel", "ölçek", "kentsel", "dönüşüm",
+             "yoğunluk", "emsal"]
+    for i in range(pages):
+        page = doc.new_page()
+        page.insert_font(fontname="noto", fontfile=str(font))
+        text = f"Sayfa {i + 1} " + " ".join(words[(i + k) % len(words)] for k in range(300))
+        page.insert_textbox(pymupdf.Rect(50, 50, 545, 800), text, fontname="noto", fontsize=10)
+    doc.save(path)
+    return path
+
+
+def noisy_pages(path: Path, pages: int = 40, size: tuple[int, int] = (900, 650), *,
+                label: bool = True) -> Path:
+    """Her sayfada ayrı (sıkıştırılamayan) bir JPEG: büyük, çok sayfalı tarama yerine."""
+    import io
+    import os
+
+    doc = pymupdf.open()
+    for i in range(pages):
+        im = Image.frombytes("RGB", size, os.urandom(size[0] * size[1] * 3))
+        b = io.BytesIO()
+        im.save(b, "JPEG", quality=92)
+        page = doc.new_page(width=842, height=595)
+        page.insert_image(page.rect, stream=b.getvalue())
+        if label:
+            _write_label(page, f"Sayfa {i + 1}")
+    doc.save(path)
+    return path

@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { api, formatSize, type Job } from "../api";
 import { navigate } from "../router";
 
@@ -15,8 +16,28 @@ interface Props {
   zipName?: string;
 }
 
+/** Çalışan işin bu ekranda geçen süresi (saniye). Sunucu saati kullanılmaz: telefon modunda
+ * cihazın saati farklı olabilir. */
+function useElapsed(jobId: string | undefined, running: boolean): number {
+  const [since, setSince] = useState<{ id?: string; at: number }>({ at: Date.now() });
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    if (since.id !== jobId) setSince({ id: jobId, at: Date.now() });
+  }, [jobId, since.id]);
+  useEffect(() => {
+    if (!running) return;
+    const t = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(t);
+  }, [running]);
+  return Math.max(0, Math.round((now - since.at) / 1000));
+}
+
+export const formatElapsed = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+
 /** İşin ilerlemesi, uyarıları ve çıktıları (indir / düzenleyicide aç). */
 export default function JobPanel({ job, error, zipName }: Props) {
+  const active = !!job && (job.status === "bekliyor" || job.status === "calisiyor");
+  const elapsed = useElapsed(job?.id, active);
   if (error) {
     return (
       <div className="banner error" role="alert">
@@ -32,6 +53,11 @@ export default function JobPanel({ job, error, zipName }: Props) {
       <div className="job-head">
         <strong>{STATUS[job.status]}</strong>
         {running && <span className="muted">{job.message}</span>}
+        {running && elapsed >= 5 && (
+          <span className="muted small" aria-label={`Geçen süre ${formatElapsed(elapsed)}`}>
+            {formatElapsed(elapsed)}
+          </span>
+        )}
         {running && (
           <button type="button" className="link-button" onClick={() => void api.cancelJob(job.id)}>
             İptal
