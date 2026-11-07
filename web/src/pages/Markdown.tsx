@@ -8,6 +8,7 @@ import { useJob, useKeepAlive, useUpload } from "../hooks";
 import { drafts, draftKey, formatDraftTime, type Draft } from "../drafts";
 import { createSequencer } from "../mdpreview";
 import { idsFrom, LEAVE_MESSAGE, useLeaveGuard, type Route } from "../router";
+import { PAPERS } from "../tools";
 
 interface Options {
   theme: string;
@@ -263,7 +264,7 @@ export default function Markdown({ route, engines }: { route: Route; engines: En
                 Kağıt
                 <select value={opts.paper ?? ""} onChange={(e) => set("paper", e.target.value || null)}>
                   <option value="">Otomatik ({effective?.paper ?? "A4"})</option>
-                  {["A4", "A5", "A3", "Letter", "Legal"].map((p) => (
+                  {PAPERS.map((p) => (
                     <option key={p} value={p}>
                       {p}
                     </option>

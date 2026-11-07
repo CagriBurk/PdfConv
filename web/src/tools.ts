@@ -17,6 +17,8 @@ export const TOOLS: Tool[] = [
   { id: "office", title: "Office → PDF", description: "Word, Excel, PowerPoint, ODT, RTF, HTML, TXT", route: "office", group: "Dönüştür", needs: ["libreoffice"] },
   { id: "img2pdf", title: "Resim → PDF", description: "JPG, PNG, HEIC fotoğraflardan PDF", route: "resimden", group: "Dönüştür" },
   { id: "pdf2img", title: "PDF → Resim", description: "Sayfaları PNG / JPG olarak çıkar", route: "resme", group: "Dönüştür" },
+  { id: "pdf2word", title: "PDF → Word", description: "Düzenlenebilir Word belgesi (.docx)", route: "word", group: "Dönüştür" },
+  { id: "pdf2excel", title: "PDF → Excel", description: "Tabloları Excel'e aktar (.xlsx)", route: "excel", group: "Dönüştür" },
   { id: "edit", title: "İçerik Ekle", description: "Yazı, resim, imza, vurgu, şekil, karartma", route: "editor", group: "Ekle" },
   { id: "watermark", title: "Filigran", description: "Yazı veya resim filigranı", route: "filigran", group: "Ekle" },
   { id: "pagenum", title: "Sayfa Numarası", description: "\"Sayfa 3 / 10\" biçiminde numaralandır", route: "sayfa-no", group: "Ekle" },
@@ -26,6 +28,9 @@ export const TOOLS: Tool[] = [
 ];
 
 export const GROUPS: Tool["group"][] = ["Düzenle", "Dönüştür", "Ekle", "Optimize ve güvenlik"];
+
+// Kağıt boyutları. Tek kaynak: src/pdfatolye/core/paper.py (tests/test_robustness.py denetler).
+export const PAPERS = ["A4", "A5", "A3", "A2", "A1", "A0", "Letter", "Legal"];
 
 export const ACCEPT = {
   pdf: ".pdf,application/pdf",

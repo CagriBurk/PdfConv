@@ -11,10 +11,10 @@ from dataclasses import dataclass, field, fields, replace
 from pathlib import Path
 
 from pdfatolye.convert.markdown.parser import Heading, ParsedMarkdown, pygments_css
+from pdfatolye.core.paper import PAPERS
 
 ASSETS = Path(__file__).parent / "assets"
 THEMES = ("ders", "rapor", "sade")
-PAPERS = ("A4", "A5", "A3", "Letter", "Legal")
 TR_MONTHS = ("Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos",
              "Eylül", "Ekim", "Kasım", "Aralık")
 

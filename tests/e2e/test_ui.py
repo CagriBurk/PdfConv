@@ -663,3 +663,26 @@ def test_organizer_fetches_only_visible_pages(server, page, tmp_path):
     # Aşağı kaydırınca sonraki sayfalar yine çizilir.
     page.locator(".page-tile").nth(pages - 1).scroll_into_view_if_needed()
     page.locator(".page-tile").nth(pages - 1).locator("img").wait_for()
+
+
+# --- PDF → Word / Excel -----------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("width", [390, 1400])
+def test_pdf_to_excel_screen(server, page, tmp_path, width):
+    base, app = server
+    page.set_viewport_size({"width": width, "height": 900})
+    rows = [["Tarih", "Açıklama", "Tutar"], ["01.11.2026", "Kira", "15.000,00"]]
+    meta = app.state.store.add_file(fx.table_pdf(tmp_path / "d.pdf", [rows]), "döküm.pdf",
+                                    source="upload")
+    page.goto(f"{base}/#/excel?dosya={meta.id}")
+    page.get_by_text("döküm.pdf").first.wait_for()
+    assert _no_horizontal_overflow(page), "PDF → Excel taşıyor"
+    page.get_by_role("button", name="Excel'e dönüştür").click()
+    page.get_by_text("1 sayfada 1 tablo bulundu.").wait_for()
+    page.get_by_role("link", name="İndir").first.wait_for()
+    assert any(f.name == "döküm.xlsx" for f in app.state.store.list())
+    page.goto(f"{base}/#/araclar")
+    page.get_by_role("link", name="PDF → Word").click()
+    page.get_by_role("heading", name="PDF → Word").wait_for()
+    assert _no_horizontal_overflow(page), "PDF → Word taşıyor"

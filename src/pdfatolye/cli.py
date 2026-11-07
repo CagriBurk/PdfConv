@@ -362,7 +362,7 @@ def resimden(
     resimler: Annotated[list[Path], typer.Argument(help="Sırasıyla resimler", exists=True,
                                                    dir_okay=False)],
     cikti: OutOpt = None,
-    boyut: Annotated[str, typer.Option(help="A4, A3, A5, Letter, Legal, resim")] = "A4",
+    boyut: Annotated[str, typer.Option(help="A4, A5, A3, A2, A1, A0, Letter, Legal, resim")] = "A4",
     yon: Annotated[str, typer.Option(help="otomatik, dikey, yatay")] = "otomatik",
     kenar: Annotated[float, typer.Option(help="Kenar boşluğu (mm)")] = 0,
 ) -> None:
@@ -391,6 +391,52 @@ def resme(
     typer.echo(f"{len(outputs)} resim yazıldı: {outputs[0].parent}")
 
 
+def _beside(pdf: Path, ext: str) -> Path:
+    from pdfatolye.core.pdfio import unique_path
+
+    return unique_path(pdf.with_suffix(ext))
+
+
+@app.command()
+@friendly_errors
+def word(
+    pdf: InPdf,
+    cikti: OutOpt = None,
+    sayfalar: Annotated[str, typer.Option(help="Boş = hepsi")] = "",
+    sifre: PwOpt = None,
+) -> None:
+    """PDF'i düzenlenebilir Word belgesine (.docx) çevirir."""
+    from pdfatolye.convert.to_word import pdf_to_word
+
+    r = pdf_to_word(pdf, cikti or _beside(pdf, ".docx"), spec=sayfalar, password=sifre)
+    for w in r.warnings:
+        typer.secho(f"Uyarı: {w}", fg="yellow")
+    _done(r.output)
+
+
+@app.command()
+@friendly_errors
+def excel(
+    pdf: InPdf,
+    cikti: OutOpt = None,
+    sayfalar: Annotated[str, typer.Option(help="Boş = hepsi")] = "",
+    duzen: Annotated[str, typer.Option(help="tek (alt alta) veya ayri (her tablo ayrı sayfa)")]
+    = "tek",
+    sayisiz: Annotated[bool, typer.Option("--sayisiz", help="Sayıları yazı olarak bırak")]
+    = False,
+    sifre: PwOpt = None,
+) -> None:
+    """PDF'teki tabloları Excel dosyasına (.xlsx) aktarır."""
+    from pdfatolye.convert.to_excel import pdf_to_excel
+
+    r = pdf_to_excel(pdf, cikti or _beside(pdf, ".xlsx"), spec=sayfalar, layout=duzen,
+                     numbers=not sayisiz, password=sifre)
+    typer.echo(f"{r.pages_with_tables} sayfada {r.table_count} tablo bulundu.")
+    for w in r.warnings:
+        typer.secho(f"Uyarı: {w}", fg="yellow")
+    _done(r.output)
+
+
 @app.command()
 @friendly_errors
 def md(
@@ -399,7 +445,7 @@ def md(
     cikti: Annotated[Path | None, typer.Option(
         "-o", "--cikti", help="Çıktı PDF (tek dosyada) veya klasör (çok dosyada)")] = None,
     tema: Annotated[str | None, typer.Option(help="ders | rapor | sade")] = None,
-    kagit: Annotated[str | None, typer.Option(help="A4, A5, A3, Letter, Legal")] = None,
+    kagit: Annotated[str | None, typer.Option(help="A4, A5, A3, A2, A1, A0, Letter, Legal")] = None,
     yatay: Annotated[bool | None, typer.Option("--yatay/--dikey")] = None,
     kenar: Annotated[float | None, typer.Option(help="Kenar boşluğu (mm)")] = None,
     icindekiler: Annotated[bool | None, typer.Option(

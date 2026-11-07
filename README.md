@@ -1,6 +1,6 @@
 # PDF Atölyesi
 
-Kendi bilgisayarında çalışan, çevrimdışı PDF araç seti: Markdown / Office → PDF,
+Kendi bilgisayarında çalışan, çevrimdışı PDF araç seti: Markdown / Office → PDF, PDF → Word / Excel,
 sayfa düzenleme, içerik ekleme, sıkıştırma, OCR, şifreleme. Dosyalar internete çıkmaz.
 Ayrıntılı plan: [PLAN.md](PLAN.md).
 
@@ -254,7 +254,7 @@ author: Ad Soyad
 date: 2026-10-31
 pdf:
   tema: ders          # ders | rapor | sade
-  kagit: A4           # A4 A5 A3 Letter Legal
+  kagit: A4           # A4 A5 A3 A2 A1 A0 Letter Legal
   yatay: false
   kenar: 18           # mm
   icindekiler: true

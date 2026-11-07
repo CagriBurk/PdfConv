@@ -110,3 +110,16 @@ def test_send_to_dispatches_by_type(tmp_path):
 
     with pymupdf.open(tmp_path / "foto1_resimler.pdf") as doc:
         assert doc.page_count == 2
+
+
+def test_word_and_excel_commands(tmp_path):
+    rows = [["Ürün", "Fiyat"], ["Çay", "12,50"], ["Simit", "15,00"]]
+    pdf = fx.table_pdf(tmp_path / "liste.pdf", [rows])
+    r = runner.invoke(app, ["excel", str(pdf)])
+    assert r.exit_code == 0, r.output
+    assert "1 sayfada 1 tablo bulundu." in r.output and (tmp_path / "liste.xlsx").is_file()
+    r = runner.invoke(app, ["word", str(pdf)])
+    assert r.exit_code == 0, r.output
+    assert (tmp_path / "liste.docx").is_file()
+    r = runner.invoke(app, ["excel", str(fx.numbered(tmp_path / "yazi.pdf", 1, with_toc=False))])
+    assert r.exit_code == 2 and "tablo bulunamadı" in r.output

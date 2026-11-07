@@ -306,3 +306,35 @@ def noisy_pages(path: Path, pages: int = 40, size: tuple[int, int] = (900, 650),
             _write_label(page, f"Sayfa {i + 1}")
     doc.save(path)
     return path
+
+
+def table_pdf(path: Path, pages: list[list[list[str]]], *, lines: bool = True,
+              prose: str | None = None, password: str | None = None) -> Path:
+    """Her sayfaya bir tablo: `pages[i]` o sayfanın satırları (ilki başlık). `lines=False` ise
+    çizgisiz (yalnızca hizalı yazı). `prose`: tablonun üstüne düz bir paragraf."""
+    col_w, row_h, x0 = 130, 22, 50
+    doc = pymupdf.open()
+    for rows in pages:
+        page = doc.new_page(width=595, height=842)
+        y0 = 100
+        if prose:
+            page.insert_textbox(pymupdf.Rect(x0, 60, 545, 95), prose, fontsize=10,
+                                fontname="arial", fontfile=str(_WIN_FONT))
+        cols = max(len(r) for r in rows)
+        for r, row in enumerate(rows):
+            for c, text in enumerate(row):
+                page.insert_text((x0 + c * col_w + 4, y0 + r * row_h + 15), text, fontsize=10,
+                                 fontname="arial", fontfile=str(_WIN_FONT))
+        if lines:
+            bottom, right = y0 + len(rows) * row_h, x0 + cols * col_w
+            for r in range(len(rows) + 1):
+                page.draw_line((x0, y0 + r * row_h), (right, y0 + r * row_h))
+            for c in range(cols + 1):
+                page.draw_line((x0 + c * col_w, y0), (x0 + c * col_w, bottom))
+    kwargs = {}
+    if password:
+        kwargs = dict(encryption=pymupdf.PDF_ENCRYPT_AES_256, user_pw=password,
+                      owner_pw=password + "-sahip")
+    doc.save(path, **kwargs)
+    doc.close()
+    return path

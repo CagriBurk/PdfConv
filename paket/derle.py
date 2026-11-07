@@ -305,6 +305,20 @@ def smoke_test(pkg: Path) -> None:
             "print('sürüm', pdfatolye.__version__, 'arayüz', paths.web_dist());"
             "[print(' ', e.name, e.ok, e.path) for e in engines.detect_all(settings.Settings())]")
     run([py, "-I", "-c", code])
+    # PDF → Word / Excel: pdf2docx opencv'nin DLL'lerini yükler; pakette gerçekten çalışsın.
+    code = ("import pathlib, tempfile, pymupdf;"
+            "from pdfatolye.convert.to_word import pdf_to_word;"
+            "from pdfatolye.convert.to_excel import pdf_to_excel;"
+            "d = pathlib.Path(tempfile.mkdtemp());"
+            "doc = pymupdf.open(); p = doc.new_page();"
+            "[p.insert_text((72 + 120 * c, 100 + 20 * r), f'h{r}{c}') for r in range(3)"
+            " for c in range(2)];"
+            "[p.draw_line((60, 85 + 20 * r), (300, 85 + 20 * r)) for r in range(4)];"
+            "[p.draw_line((60 + 120 * c, 85), (60 + 120 * c, 145)) for c in range(3)];"
+            "doc.save(d / 'a.pdf');"
+            "print('word', pdf_to_word(d / 'a.pdf', d / 'a.docx').output.stat().st_size > 0);"
+            "print('excel', pdf_to_excel(d / 'a.pdf', d / 'a.xlsx').table_count)")
+    run([py, "-I", "-c", code])
 
 
 def main() -> None:

@@ -93,6 +93,17 @@ def test_landscape_and_theme(printer, tmp_path):
         assert doc[0].rect.width > doc[0].rect.height
 
 
+@pytest.mark.parametrize(("paper", "size"), [("A0", (2384, 3370)), ("A2", (1191, 1684))])
+def test_large_paper(printer, tmp_path, paper, size):
+    text = f"---\npdf:\n  kagit: {paper}\n---\n# Pafta notu\n\n$E=mc^2$"
+    src = write(tmp_path / "buyuk.md", text)
+    r = printer.convert(src, tmp_path / "buyuk.pdf")
+    assert r.warnings == []
+    with pymupdf.open(r.output) as doc:
+        w, h = doc[0].rect.width, doc[0].rect.height
+    assert abs(w - size[0]) < 2 and abs(h - size[1]) < 2
+
+
 def test_vault_image_embedded(printer, tmp_path):
     src = write(tmp_path / "resim.md", "![[devre.jpg|200]]")
     r = printer.convert(src, tmp_path / "resim.pdf")

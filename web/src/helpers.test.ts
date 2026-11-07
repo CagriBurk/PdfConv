@@ -92,7 +92,8 @@ describe("iş adları ve dosya adları", () => {
     expect(jobLabel("office_to_pdf")).toBe("Office → PDF");
     expect(jobLabel("install_engine", { engine: "libreoffice" })).toBe("LibreOffice kurulumu");
     expect(jobLabel("gelecekte_eklenen")).toBe("gelecekte_eklenen");
-    expect(Object.keys(JOB_TYPE_LABEL)).toHaveLength(15);
+    expect(Object.keys(JOB_TYPE_LABEL)).toHaveLength(17);
+    expect(jobLabel("pdf_to_excel")).toBe("PDF → Excel");
   });
 
   it("uzantı yalnızca kısa harf/rakam son parça", () => {
