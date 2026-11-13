@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 import pytest
@@ -86,11 +87,57 @@ def test_plain_blockquote_untouched():
 
 @pytest.mark.parametrize(
     ("src", "text"),
-    [("[[Not]]", "Not"), ("[[Not|Takma]]", "Takma"), ("[[Not#Başlık]]", "Not › Başlık"),
-     ("[[#Başlık]]", "Başlık")],
+    [("[[Not]]", "Not"), ("[[Not|Takma]]", "Takma"), ("[[Not#Başlık]]", "Not › Başlık")],
 )
 def test_wikilinks(src, text):
     assert f'<span class="wikilink">{text}</span>' in body(src)
+
+
+def test_heading_wikilinks_render_as_anchor_links():
+    src = (
+        "# Ödev 2: Işık\n\n"
+        "## Ödev 2: Işık\n\n"
+        "[[#Ödev 2: Işık]] ve [[#Ödev 2: Işık|Ödeve git]] ve [[#Ödev 2: Işık-2|İkinci]]"
+    )
+    html = body(src)
+    assert '<a class="wikilink" href="#odev-2-isik">Ödev 2: Işık</a>' in html
+    assert '<a class="wikilink" href="#odev-2-isik">Ödeve git</a>' in html
+    assert '<a class="wikilink" href="#odev-2-isik-2">İkinci</a>' in html
+
+
+def test_ai_latex_delimiters_normalized_outside_code():
+    src = (
+        "Satır içi \\( a_1 * b_2 \\) ve \\(x^2\\).\n\n"
+        "\\[\nE = mc^2\n\\]\n\n"
+        "Blok içi \\[y = mx + b\\] burada.\n\n"
+        "Kod içi `\\(koru\\)` ve ``\\[koru2\\]``.\n\n"
+        "```tex\n\\(kod_blok\\)\n\\[\nkod_blok_display\n\\]\n```\n\n"
+        "~~~markdown\n\\[tilde_blok\\]\n~~~\n"
+    )
+    html = body(src)
+    assert '<span class="math-inline" data-line="1">a_1 * b_2</span>' in html
+    assert '<span class="math-inline" data-line="1">x^2</span>' in html
+    assert "<em>" not in html
+    assert '<div class="math-display" data-line="3">\nE = mc^2\n</div>' in html
+    assert '<span class="math-display" data-line="7">y = mx + b</span>' in html
+    assert "<code>\\(koru\\)</code>" in html
+    assert "<code>\\[koru2\\]</code>" in html
+    assert html.count('class="math-inline"') == 2
+    assert html.count('class="math-display"') == 2
+    plain = re.sub(r"<[^>]+>", "", html)
+    assert "\\(kod_blok\\)" in plain
+    assert "\\[\nkod_blok_display\n\\]" in plain
+    assert "\\[tilde_blok\\]" in plain
+
+
+def test_ai_latex_escaped_backslashes_and_unclosed():
+    out = preprocess(
+        "Kaçışlı \\\\(degil\\\\) ve \\\\\\(evet\\) ve \\[a \\\\[6pt] b\\] ve \\(acik"
+    )
+    assert "\\\\(degil\\\\)" in out
+    assert "\\\\$evet$" in out
+    assert "$$a \\\\[6pt] b$$" in out
+    assert out.endswith("\\(acik")
 
 
 def test_embedded_image_resolution_and_size(tmp_path):
@@ -169,10 +216,18 @@ def test_breaks_follow_obsidian_default():
 
 def test_headings_ids_and_title():
     r = parse_markdown("# Ödev 2: Işık\n## Ödev 2: Işık\n### $x^2$ hesabı", base_dir=Path("."))
-    # Kimlikte formül yer almaz (anchors eklentisi yalnızca düz metni kullanır).
-    assert [h.id for h in r.headings] == ["odev-2-isik", "odev-2-isik-1", "hesabi"]
+    # Kimlikte formül yer almaz (başlık kimliği yalnızca düz metni kullanır).
+    assert [h.id for h in r.headings] == ["odev-2-isik", "odev-2-isik-2", "hesabi"]
     assert r.title == "Ödev 2: Işık"
     assert r.headings[2].text == "x^2 hesabı"
+
+
+def test_heading_slug_deduplication():
+    r = parse_markdown("# Giriş\n## Giriş\n### Giriş", base_dir=Path("."))
+    assert [h.id for h in r.headings] == ["giris", "giris-2", "giris-3"]
+
+    r2 = parse_markdown("# Giriş\n## Giriş 2\n### Giriş\n### Giriş", base_dir=Path("."))
+    assert [h.id for h in r2.headings] == ["giris", "giris-2", "giris-3", "giris-4"]
 
 
 def test_front_matter_title_wins():

@@ -47,13 +47,107 @@ def _split_code_fences(text: str) -> list[tuple[bool, str]]:
     return parts
 
 
+def _has_blank_line_at(text: str, pos: int) -> bool:
+    """`pos` konumundaki satır sonundan sonra boş satır varsa True."""
+    q = pos + 1
+    n = len(text)
+    while q < n and text[q] in " \t":
+        q += 1
+    return q < n and text[q] == "\n"
+
+
+def _find_closing_backticks(text: str, start: int, tick_len: int) -> int:
+    """`start` konumundan itibaren `tick_len` uzunluğunda kapanış ters tırnağı arar."""
+    n = len(text)
+    p = start
+    while p < n:
+        ch = text[p]
+        if ch == "\n" and _has_blank_line_at(text, p):
+            return -1
+        if ch == "`":
+            q = p
+            while q < n and text[q] == "`":
+                q += 1
+            if q - p == tick_len:
+                return p
+            p = q
+            continue
+        p += 1
+    return -1
+
+
+def _find_closing_math(text: str, start: int, close_char: str) -> int:
+    """`start` konumundan itibaren kaçışsız `\\<close_char>` kapanışını bulur."""
+    n = len(text)
+    p = start
+    while p < n:
+        ch = text[p]
+        if ch == "\n" and _has_blank_line_at(text, p):
+            return -1
+        if ch == "\\" and p + 1 < n:
+            if text[p + 1] == close_char:
+                return p
+            p += 2
+            continue
+        p += 1
+    return -1
+
+
+def _normalize_latex_delimiters(text: str) -> str:
+    """AI tarzı `\\(...\\)` → `$...$` ve `\\[...\\]` → `$$...$$` dönüşümü (kod içi hariç)."""
+    if "\\(" not in text and "\\[" not in text:
+        return text
+    out: list[str] = []
+    n = len(text)
+    i = 0
+    while i < n:
+        ch = text[i]
+        if ch == "`":
+            j = i
+            while j < n and text[j] == "`":
+                j += 1
+            end = _find_closing_backticks(text, j, j - i)
+            if end != -1:
+                stop = end + (j - i)
+                out.append(text[i:stop])
+                i = stop
+            else:
+                out.append(text[i:j])
+                i = j
+            continue
+        if ch == "\\" and i + 1 < n:
+            nxt = text[i + 1]
+            if nxt in ("(", "["):
+                close_char = ")" if nxt == "(" else "]"
+                end = _find_closing_math(text, i + 2, close_char)
+                if end != -1:
+                    inner = text[i + 2 : end]
+                    if inner.strip():
+                        if nxt == "(":
+                            core = inner.strip()
+                            lead_nl = "\n" * inner[: len(inner) - len(inner.lstrip())].count("\n")
+                            trail_nl = "\n" * inner[len(inner.rstrip()) :].count("\n")
+                            out.append(f"{lead_nl}${core}${trail_nl}")
+                        else:
+                            out.append(f"$${inner}$$")
+                        i = end + 2
+                        continue
+            out.append(text[i : i + 2])
+            i += 2
+            continue
+        out.append(ch)
+        i += 1
+    return "".join(out)
+
+
 def preprocess(text: str) -> str:
-    """%%yorum%% sil, sayfa sonu işaretlerini HTML'e çevir. Satır numaraları değişmez."""
+    """%%yorum%% sil, sayfa sonu işaretlerini HTML'e ve AI LaTeX ayraçlarını `$` biçimine çevir."""
     out = []
     for is_code, part in _split_code_fences(text):
         if not is_code:
             part = _COMMENT.sub(lambda m: "\n" * m.group(0).count("\n"), part)
             part = _PAGEBREAK.sub(PAGEBREAK_HTML, part)
+            part = _normalize_latex_delimiters(part)
         out.append(part)
     return "".join(out)
 
@@ -192,14 +286,21 @@ def _tag_rule(state: StateInline, silent: bool) -> bool:
 # Not: add_render_rule fonksiyonları renderer'a bağlar; ilk parametre `self` olur.
 
 
-def _render_link(self, tokens, idx, options, env) -> str:
+def _render_link(tokens, idx, slug_func: Callable[[str], str] | None = None) -> str:
     meta = tokens[idx].meta
     target: str = meta["target"]
+    note, sep, heading = target.partition("#")
     if meta["alias"]:
         text = meta["alias"]
+    elif note and heading:
+        text = f"{note} › {heading.lstrip('^')}"
     else:
-        note, _, heading = target.partition("#")
-        text = f"{note} › {heading.lstrip('^')}" if note and heading else (note or heading)
+        text = note or heading
+    if sep and not note:
+        heading_name = heading.strip()
+        if heading_name and not heading_name.startswith("^") and slug_func is not None:
+            slug = slug_func(heading_name)
+            return f'<a class="wikilink" href="#{html.escape(slug)}">{html.escape(text)}</a>'
     return f'<span class="wikilink">{html.escape(text)}</span>'
 
 
@@ -207,14 +308,23 @@ def _render_tag(self, tokens, idx, options, env) -> str:
     return f'<span class="tag">#{html.escape(tokens[idx].content)}</span>'
 
 
-def obsidian_plugin(md: MarkdownIt, embed_renderer: Callable) -> None:
+def obsidian_plugin(
+    md: MarkdownIt,
+    embed_renderer: Callable,
+    slug_func: Callable[[str], str] | None = None,
+) -> None:
     """`embed_renderer(target, alias, env) -> html` resim/not gömmelerini çizer."""
     md.core.ruler.after("block", "obsidian_callout", _callout_rule)
     md.inline.ruler.before("link", "obsidian_wikilink", _wikilink_rule)
     md.inline.ruler.before("emphasis", "obsidian_mark", _mark_rule)
     md.inline.ruler.push("obsidian_tag", _tag_rule)
-    md.add_render_rule("obsidian_link", _render_link)
+
+    def render_link(self, tokens, idx, options, env) -> str:
+        return _render_link(tokens, idx, slug_func=slug_func)
+
+    md.add_render_rule("obsidian_link", render_link)
     md.add_render_rule("obsidian_tag", _render_tag)
+
     def render_embed(self, tokens, idx, options, env) -> str:
         return embed_renderer(tokens[idx].meta["target"], tokens[idx].meta["alias"], env)
 

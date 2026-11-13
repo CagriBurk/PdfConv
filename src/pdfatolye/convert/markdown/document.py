@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import datetime as dt
+import functools
 import hashlib
 import html
 import json
@@ -269,18 +270,24 @@ def katex_script_hash() -> str:
     return "sha256-" + base64.b64encode(digest).decode("ascii")
 
 
+@functools.cache
+def _css(theme: str) -> str:
+    """Temel, tema ve Pygments CSS metinlerini önbellekten döndürür."""
+    themes = ASSETS / "themes"
+    return "\n".join([
+        (themes / "base.css").read_text(encoding="utf-8"),
+        (themes / f"{theme}.css").read_text(encoding="utf-8"),
+        pygments_css(),
+    ])
+
+
 def build_html(parsed: ParsedMarkdown, opts: MdOptions, katex_dir: str = "katex",
                preview: bool = False, csp: str | None = None, nonce: str | None = None) -> str:
     """Tek dosyalık HTML. KaTeX dosyaları `katex_dir` göreli yolundan yüklenir.
 
     `csp` ve `nonce` verilirse sayfaya içerik güvenlik politikası eklenir (tarayıcı önizlemesi).
     """
-    themes = ASSETS / "themes"
-    css = "\n".join([
-        (themes / "base.css").read_text(encoding="utf-8"),
-        (themes / f"{opts.theme}.css").read_text(encoding="utf-8"),
-        pygments_css(),
-    ])
+    css = _css(opts.theme or DEFAULTS.theme or "ders")
     if opts.font_size_pt:
         css += f"\n:root {{ --font-size: {opts.font_size_pt}pt; }}"
     if preview:

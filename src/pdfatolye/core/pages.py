@@ -75,45 +75,31 @@ def _fix_toc_levels(toc: list[list]) -> list[list]:
     return fixed
 
 
-def compose(
+def _compose_docs(
+    docs: Sequence[pymupdf.Document],
     sources: Sequence[Path],
     items: Sequence[ManifestItem],
     output: Path,
     *,
-    passwords: Sequence[str | None] | None = None,
     keep_bookmarks: bool = True,
     bookmark_per_file: bool = False,
     bookmark_titles: Sequence[str] | None = None,
     on_progress: Callable[[float], None] | None = None,
+    close_before_save: bool = False,
 ) -> Path:
-    """Manifestteki sayfalardan yeni bir PDF yazar.
-
-    - Kaynaktaki döndürme korunur, `rotate` üstüne eklenir.
-    - Belge bilgileri (başlık, yazar, XMP) çıktıda ilk görünen kaynaktan alınır; sayfa
-      etiketleri (i, ii, 1, 2...) sayfalarla birlikte taşınır; gömülü dosyalar korunur.
-    - Yer imleri sayfa kaymasına göre yeniden hesaplanır; sayfası çıkarılanlar düşer.
-      (Hedef, sayfanın başı olur; sayfa içi konum korunmaz.)
-    - Şifreli kaynaklar çözülmüş olarak yazılır.
-    - `output` kaynaklardan biri olabilir; yazım geçici dosya üzerinden yapılır.
-    """
     if not items:
         raise PageRangeError("Çıktıda hiç sayfa kalmıyor.")
-    passwords = list(passwords or [None] * len(sources))
-    docs: list[pymupdf.Document] = []
+    for item in items:
+        if isinstance(item, PageRef):
+            if not 0 <= item.source < len(docs):
+                raise PageRangeError(f"Geçersiz kaynak numarası: {item.source}")
+            if not 0 <= item.page < docs[item.source].page_count:
+                name = Path(sources[item.source]).name
+                raise PageRangeError(f"'{name}' içinde {item.page + 1}. sayfa yok.")
+            _check_rotation(item.rotate)
+
     out = pymupdf.open()
     try:
-        for src, pw in zip(sources, passwords, strict=True):
-            docs.append(open_pdf(Path(src), pw))
-
-        for item in items:
-            if isinstance(item, PageRef):
-                if not 0 <= item.source < len(docs):
-                    raise PageRangeError(f"Geçersiz kaynak numarası: {item.source}")
-                if not 0 <= item.page < docs[item.source].page_count:
-                    name = Path(sources[item.source]).name
-                    raise PageRangeError(f"'{name}' içinde {item.page + 1}. sayfa yok.")
-                _check_rotation(item.rotate)
-
         runs = _runs(items)
         # insert_pdf'te final=False, aynı kaynaktan sonraki çağrılar için ortak nesneleri
         # (font, resim) hatırlar; böylece çıktı şişmez. Kaynağın son parçasında True olmalı.
@@ -158,12 +144,55 @@ def compose(
             out.set_toc(toc)
         _carry_document_info(docs, items, out)
 
-        # Kaynaklar kaydetmeden önce kapanmalı: Windows açık dosyanın üstüne yazdırmaz
-        # (çıktı = girdi olduğunda). insert_pdf nesneleri kopyaladığı için `out` bağımsızdır.
-        _close_all(docs)
+        if close_before_save:
+            # Kaynaklar kaydetmeden önce kapanmalı: Windows açık dosyanın üstüne yazdırmaz
+            # (çıktı = girdi olduğunda). insert_pdf nesneleri kopyaladığı için `out` bağımsızdır.
+            _close_all(docs)
         return save_pdf(out, Path(output))
     finally:
         out.close()
+
+
+def compose(
+    sources: Sequence[Path],
+    items: Sequence[ManifestItem],
+    output: Path,
+    *,
+    passwords: Sequence[str | None] | None = None,
+    keep_bookmarks: bool = True,
+    bookmark_per_file: bool = False,
+    bookmark_titles: Sequence[str] | None = None,
+    on_progress: Callable[[float], None] | None = None,
+) -> Path:
+    """Manifestteki sayfalardan yeni bir PDF yazar.
+
+    - Kaynaktaki döndürme korunur, `rotate` üstüne eklenir.
+    - Belge bilgileri (başlık, yazar, XMP) çıktıda ilk görünen kaynaktan alınır; sayfa
+      etiketleri (i, ii, 1, 2...) sayfalarla birlikte taşınır; gömülü dosyalar korunur.
+    - Yer imleri sayfa kaymasına göre yeniden hesaplanır; sayfası çıkarılanlar düşer.
+      (Hedef, sayfanın başı olur; sayfa içi konum korunmaz.)
+    - Şifreli kaynaklar çözülmüş olarak yazılır.
+    - `output` kaynaklardan biri olabilir; yazım geçici dosya üzerinden yapılır.
+    """
+    if not items:
+        raise PageRangeError("Çıktıda hiç sayfa kalmıyor.")
+    passwords = list(passwords or [None] * len(sources))
+    docs: list[pymupdf.Document] = []
+    try:
+        for src, pw in zip(sources, passwords, strict=True):
+            docs.append(open_pdf(Path(src), pw))
+        return _compose_docs(
+            docs,
+            sources,
+            items,
+            output,
+            keep_bookmarks=keep_bookmarks,
+            bookmark_per_file=bookmark_per_file,
+            bookmark_titles=bookmark_titles,
+            on_progress=on_progress,
+            close_before_save=True,
+        )
+    finally:
         _close_all(docs)
 
 
@@ -425,25 +454,29 @@ def split(
     """
     input = Path(input)
     output_dir = Path(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
+    proc.raise_if_cancelled()
     with opened(input, password) as doc:
         groups = _split_groups(doc, mode, every, spec)
-
-    stem = name_stem or input.stem
-    outputs: list[Path] = []
-    used: set[str] = set()
-    width = len(str(len(groups)))
-    for i, (label, pages) in enumerate(groups, start=1):
-        proc.raise_if_cancelled()
-        name = safe_filename(label, fallback=f"parca-{i}")
-        if mode == "yer-imi":
-            name = f"{i:0{width}d} {name}"
-        filename = f"{stem}_{name}.pdf"
-        while filename.lower() in used:  # aynı adlı yer imleri
-            filename = f"{stem}_{name}_{i}.pdf"
-        used.add(filename.lower())
-        outputs.append(
-            compose([input], [PageRef(0, p) for p in pages], output_dir / filename,
-                    passwords=[password])
-        )
+        output_dir.mkdir(parents=True, exist_ok=True)
+        stem = name_stem or input.stem
+        outputs: list[Path] = []
+        used: set[str] = set()
+        width = len(str(len(groups)))
+        for i, (label, pages) in enumerate(groups, start=1):
+            proc.raise_if_cancelled()
+            name = safe_filename(label, fallback=f"parca-{i}")
+            if mode == "yer-imi":
+                name = f"{i:0{width}d} {name}"
+            filename = f"{stem}_{name}.pdf"
+            while filename.lower() in used:  # aynı adlı yer imleri
+                filename = f"{stem}_{name}_{i}.pdf"
+            used.add(filename.lower())
+            outputs.append(
+                _compose_docs(
+                    [doc],
+                    [input],
+                    [PageRef(0, p) for p in pages],
+                    output_dir / filename,
+                )
+            )
     return outputs
