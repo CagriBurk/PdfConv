@@ -40,8 +40,10 @@ export default function SignatureDialog({ onPick, onClose }: Props) {
     if (tab !== "ciz" || !canvasRef.current) return;
     const canvas = canvasRef.current;
     const ratio = window.devicePixelRatio || 1;
-    canvas.width = canvas.offsetWidth * ratio;
-    canvas.height = canvas.offsetHeight * ratio;
+    const width = canvas.offsetWidth || 440;
+    const height = canvas.offsetHeight || 160;
+    canvas.width = width * ratio;
+    canvas.height = height * ratio;
     canvas.getContext("2d")?.scale(ratio, ratio);
     const pad = new SignaturePad(canvas, { penColor: ink, minWidth: 0.8, maxWidth: 2.6 });
     pad.addEventListener("endStroke", () => setEmpty(pad.isEmpty()));

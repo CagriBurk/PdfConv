@@ -3,7 +3,8 @@ import type { FileMeta } from "../api";
 import FilePicker, { FileRow } from "../components/FilePicker";
 import JobPanel from "../components/JobPanel";
 import PageHeader from "../components/PageHeader";
-import { useFiles, useJob } from "../hooks";
+import PasswordDialog from "../components/PasswordDialog";
+import { useFiles, useJob, useUnlockQueue } from "../hooks";
 import { passwords } from "../passwords";
 import { idsFrom, type Route } from "../router";
 import { ACCEPT } from "../tools";
@@ -28,10 +29,20 @@ export default function Protect({ route }: { route: Route }) {
   const [allow, setAllow] = useState({ print: true, copy: true, modify: true });
   const job = useJob();
 
+  const unlock = useUnlockQueue({
+    onUnlock: ([accepted]) => {
+      if (accepted) setFile(accepted);
+    },
+    onCancel: (cancelled) => {
+      setFile((curr) => (curr?.id === cancelled.id ? null : curr));
+    },
+  });
+  const queueUnlock = unlock.queue;
+
   useEffect(() => {
     const pdf = initial.files.find((f) => f.kind === "pdf");
-    if (pdf) setFile(pdf);
-  }, [initial.files]);
+    if (pdf) queueUnlock([pdf]);
+  }, [initial.files, queueUnlock]);
 
   const restricted = !(allow.print && allow.copy && allow.modify);
   const ownerClash = restricted && owner !== "" && owner === pw;
@@ -152,6 +163,7 @@ export default function Protect({ route }: { route: Route }) {
           <JobPanel job={job.job} error={job.error ?? initial.error} />
         </aside>
       </div>
+      {unlock.locked && <PasswordDialog file={unlock.locked} onDone={unlock.onDone} />}
     </>
   );
 }

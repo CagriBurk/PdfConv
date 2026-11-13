@@ -4,8 +4,9 @@ import FilePicker, { FileRow } from "../components/FilePicker";
 import JobPanel from "../components/JobPanel";
 import PagePreview from "../components/PagePreview";
 import PageHeader from "../components/PageHeader";
+import PasswordDialog from "../components/PasswordDialog";
 import { FONT_CSS, loadBundledFonts } from "../fonts";
-import { useFiles, useJob } from "../hooks";
+import { useFiles, useJob, useUnlockQueue } from "../hooks";
 import { passwords } from "../passwords";
 import { idsFrom, type Route } from "../router";
 import { ACCEPT } from "../tools";
@@ -30,10 +31,20 @@ export default function Watermark({ route }: { route: Route }) {
   const [fonts, setFonts] = useState<FontInfo[]>([]);
   const job = useJob();
 
+  const unlock = useUnlockQueue({
+    onUnlock: ([accepted]) => {
+      if (accepted) setFile(accepted);
+    },
+    onCancel: (cancelled) => {
+      setFile((curr) => (curr?.id === cancelled.id ? null : curr));
+    },
+  });
+  const queueUnlock = unlock.queue;
+
   useEffect(() => {
     const pdf = initial.files.find((f) => f.kind === "pdf");
-    if (pdf) setFile(pdf);
-  }, [initial.files]);
+    if (pdf) queueUnlock([pdf]);
+  }, [initial.files, queueUnlock]);
 
   useEffect(() => {
     // Gömülü fontlar yüklenmeden çizilen önizleme yedek fonta düşerdi.
@@ -183,6 +194,7 @@ export default function Watermark({ route }: { route: Route }) {
           <JobPanel job={job.job} error={job.error ?? initial.error} />
         </aside>
       </div>
+      {unlock.locked && <PasswordDialog file={unlock.locked} onDone={unlock.onDone} />}
     </>
   );
 }

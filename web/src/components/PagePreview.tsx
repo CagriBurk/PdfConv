@@ -18,12 +18,19 @@ export default function PagePreview({ file, page = 0, width = 320, children }: P
 
   useEffect(() => {
     let alive = true;
+    let pageObj: { cleanup?: () => void } | null = null;
+    const canvas = document.createElement("canvas");
     const pw = passwords.get(file.id);
     void openPdf(file, pw)
       .then((doc) => doc.getPage(page + 1))
       .then((p) => {
-        const v = p.getViewport({ scale: 1 });
-        if (alive) setSize({ w: v.width, h: v.height });
+        pageObj = p;
+        try {
+          const v = p.getViewport({ scale: 1 });
+          if (alive) setSize({ w: v.width, h: v.height });
+        } finally {
+          p.cleanup();
+        }
       })
       .catch(() => undefined);
     thumbnail(file, page, width, pw)
@@ -31,6 +38,13 @@ export default function PagePreview({ file, page = 0, width = 320, children }: P
       .catch(() => undefined);
     return () => {
       alive = false;
+      try {
+        pageObj?.cleanup?.();
+      } catch {
+        /* yoksay */
+      }
+      canvas.width = 0;
+      canvas.height = 0;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file.id, file.version, file.updated, page, width]);

@@ -3,8 +3,9 @@ import type { FileMeta } from "../api";
 import FilePicker, { FileRow } from "../components/FilePicker";
 import JobPanel from "../components/JobPanel";
 import PageHeader from "../components/PageHeader";
+import PasswordDialog from "../components/PasswordDialog";
 import SortableList from "../components/SortableList";
-import { useFiles, useJob } from "../hooks";
+import { useFiles, useJob, useUnlockQueue } from "../hooks";
 import { passwords } from "../passwords";
 import { idsFrom, type Route } from "../router";
 import { ACCEPT } from "../tools";
@@ -16,9 +17,15 @@ export default function Merge({ route }: { route: Route }) {
   const [name, setName] = useState("");
   const job = useJob();
 
+  const unlock = useUnlockQueue({
+    onUnlock: (accepted) => setFiles((curr) => [...curr, ...accepted]),
+    onCancel: (cancelled) => setFiles((curr) => curr.filter((f) => f.id !== cancelled.id)),
+  });
+  const queueUnlock = unlock.queue;
+
   useEffect(() => {
-    if (initial.files.length) setFiles(initial.files.filter((f) => f.kind === "pdf"));
-  }, [initial.files]);
+    if (initial.files.length) queueUnlock(initial.files.filter((f) => f.kind === "pdf"));
+  }, [initial.files, queueUnlock]);
 
   const totalPages = files.reduce((n, f) => n + (f.page_count ?? 0), 0);
 
@@ -77,6 +84,7 @@ export default function Merge({ route }: { route: Route }) {
           <JobPanel job={job.job} error={job.error ?? initial.error} />
         </aside>
       </div>
+      {unlock.locked && <PasswordDialog file={unlock.locked} onDone={unlock.onDone} />}
     </>
   );
 }

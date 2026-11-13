@@ -203,12 +203,17 @@ def repair(src: Path, output: Path, password: str | None = None) -> SecurityResu
             doc = pymupdf.open(src, filetype="pdf")
         except Exception as e:
             raise BrokenPdfError(src, "onarılamadı") from e
-        with doc:
-            if doc.needs_pass and not doc.authenticate(password or ""):
-                raise EncryptedPdfError(src, wrong_password=bool(password)) from first
-            if doc.page_count == 0:
-                raise BrokenPdfError(src, "hiç sayfa kurtarılamadı") from first
-            with atomic_output(output) as tmp:
-                doc.save(tmp, garbage=4, clean=True, deflate=True)
-            notes = [f"MuPDF ile kurtarıldı ({doc.page_count} sayfa)."]
+        try:
+            with doc:
+                if doc.needs_pass and not doc.authenticate(password or ""):
+                    raise EncryptedPdfError(src, wrong_password=bool(password)) from first
+                if doc.page_count == 0:
+                    raise BrokenPdfError(src, "hiç sayfa kurtarılamadı") from first
+                with atomic_output(output) as tmp:
+                    doc.save(tmp, garbage=4, clean=True, deflate=True)
+                notes = [f"MuPDF ile kurtarıldı ({doc.page_count} sayfa)."]
+        except (EncryptedPdfError, BrokenPdfError):
+            raise
+        except Exception as e:
+            raise BrokenPdfError(src, "onarılamadı") from e
     return SecurityResult(Path(output), notes)

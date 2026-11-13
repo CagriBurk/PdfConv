@@ -3,7 +3,8 @@ import { formatSize, type FileMeta } from "../api";
 import FilePicker, { FileRow } from "../components/FilePicker";
 import JobPanel from "../components/JobPanel";
 import PageHeader from "../components/PageHeader";
-import { useFiles, useJob } from "../hooks";
+import PasswordDialog from "../components/PasswordDialog";
+import { useFiles, useJob, useUnlockQueue } from "../hooks";
 import { passwords } from "../passwords";
 import { idsFrom, type Route } from "../router";
 import { ACCEPT } from "../tools";
@@ -30,9 +31,15 @@ export default function Compress({ route }: { route: Route }) {
   const [level, setLevel] = useState<Level>("dengeli");
   const job = useJob();
 
+  const unlock = useUnlockQueue({
+    onUnlock: (accepted) => setFiles((curr) => [...curr, ...accepted]),
+    onCancel: (cancelled) => setFiles((curr) => curr.filter((f) => f.id !== cancelled.id)),
+  });
+  const queueUnlock = unlock.queue;
+
   useEffect(() => {
-    if (initial.files.length) setFiles(initial.files.filter((f) => f.kind === "pdf"));
-  }, [initial.files]);
+    if (initial.files.length) queueUnlock(initial.files.filter((f) => f.kind === "pdf"));
+  }, [initial.files, queueUnlock]);
 
   const total = files.reduce((n, f) => n + f.size, 0);
   const after = job.job?.status === "bitti" ? job.job.files.reduce((n, f) => n + f.size, 0) : null;
@@ -92,6 +99,7 @@ export default function Compress({ route }: { route: Route }) {
           <JobPanel job={job.job} error={job.error ?? initial.error} zipName="kucultulmus" />
         </aside>
       </div>
+      {unlock.locked && <PasswordDialog file={unlock.locked} onDone={unlock.onDone} />}
     </>
   );
 }

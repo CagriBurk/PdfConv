@@ -47,6 +47,25 @@ function loadImageSize(url: string): Promise<{ w: number; h: number }> {
   });
 }
 
+function isTextEdit(prev: EditorObj[], next: EditorObj[]): string | null {
+  if (prev.length !== next.length) return null;
+  let textObjId: string | null = null;
+  for (let i = 0; i < prev.length; i++) {
+    const a = prev[i];
+    const b = next.find((x) => x.id === a.id);
+    if (!b) return null;
+    if (a !== b) {
+      if (textObjId !== null) return null;
+      if (a.kind === "text" && b.kind === "text" && a.text !== b.text) {
+        textObjId = a.id;
+      } else {
+        return null;
+      }
+    }
+  }
+  return textObjId;
+}
+
 export default function Editor({ fileId }: { fileId?: string }) {
   const [meta, setMeta] = useState<FileMeta | null>(null);
   const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
@@ -74,8 +93,11 @@ export default function Editor({ fileId }: { fileId?: string }) {
 
   const open = useCallback(async (m: FileMeta) => {
     try {
-      setDoc(await openPdf(m, passwords.get(m.id)));
+      const d = await openPdf(m, passwords.get(m.id));
+      setDoc(d);
       setMeta(m);
+      const count = m.page_count ?? d.numPages ?? 0;
+      setPageIndex((p) => (count > 0 && p >= count ? Math.max(0, count - 1) : p));
     } catch (e) {
       setError(errorMessage(e));
     }
@@ -120,9 +142,26 @@ export default function Editor({ fileId }: { fileId?: string }) {
   useLeaveGuard(dirty);
   useKeepAlive([meta?.id]); // açıkken otomatik temizlik silmesin
 
+  // Sayfa silinmesi/değişmesi sonrası sayfa indeksi sınırını koru
+  useEffect(() => {
+    if (pageCount > 0 && pageIndex >= pageCount) {
+      setPageIndex(Math.max(0, pageCount - 1));
+    }
+  }, [pageCount, pageIndex]);
+
   const commit = useCallback(
     (next: EditorObj[]) => {
-      setPast((p) => [...p.slice(-99), objects]);
+      setPast((p) => {
+        if (p.length > 0) {
+          const lastPast = p[p.length - 1];
+          const prevEditId = isTextEdit(lastPast, objects);
+          const nextEditId = isTextEdit(objects, next);
+          if (prevEditId && nextEditId && prevEditId === nextEditId) {
+            return p;
+          }
+        }
+        return [...p.slice(-99), objects];
+      });
       setFuture([]);
       setObjects(next);
     },

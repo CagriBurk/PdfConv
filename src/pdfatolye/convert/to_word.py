@@ -17,7 +17,7 @@ from pathlib import Path
 
 from pdfatolye.core.pdfio import atomic_output, opened
 from pdfatolye.core.ranges import format_pages, parse_ranges
-from pdfatolye.errors import PdfAtolyeError
+from pdfatolye.errors import PageRangeError, PdfAtolyeError
 
 Progress = Callable[[float, str], None]
 log = logging.getLogger("pdfatolye.word")
@@ -86,25 +86,33 @@ def pdf_to_word(
         cv.load_pages(pages=indexes)
         pages = [p for p in cv.pages if not p.skip_parsing]
         total = len(pages)
+        if not pages or total == 0:
+            raise PageRangeError("Seçilen aralıkta sayfa bulunamadı.")
         failed: list[int] = []
 
         # 2. aşama (pdf2docx `Pages.parse`): ham sayfa, yazı tipleri, kenar boşluğu, bölümler.
         fonts = Fonts.extract(cv.fitz_doc)
         for n, page in enumerate(pages):
             report(0.05 + _ANALYZE * n / total, f"Sayfa yapısı çözümleniyor: {n + 1}/{total}")
-            raw = RawPageFactory.create(page_engine=cv.fitz_doc[page.id], backend="PyMuPDF")
-            raw.restore(**settings)
-            raw.clean_up(**settings)
-            raw.process_font(fonts)
-            page.width, page.height = raw.width, raw.height
-            page.float_images.reset().extend(raw.blocks.floating_image_blocks)
-            raw.margin = page.margin = raw.calculate_margin(**settings)
-            page.sections.extend(raw.parse_section(**settings))
+            try:
+                raw = RawPageFactory.create(page_engine=cv.fitz_doc[page.id], backend="PyMuPDF")
+                raw.restore(**settings)
+                raw.clean_up(**settings)
+                raw.process_font(fonts)
+                page.width, page.height = raw.width, raw.height
+                page.float_images.reset().extend(raw.blocks.floating_image_blocks)
+                raw.margin = page.margin = raw.calculate_margin(**settings)
+                page.sections.extend(raw.parse_section(**settings))
+            except Exception:
+                log.exception("PDF → Word: %d. sayfa yapısı çözümlenemedi", page.id + 1)
+                failed.append(page.id + 1)
 
         # 3. aşama: paragraf, tablo, resim.
         start = 0.05 + _ANALYZE
         for n, page in enumerate(pages):
             report(start + _PARSE * n / total, f"Sayfa dönüştürülüyor: {n + 1}/{total}")
+            if (page.id + 1) in failed or page.id in failed or not page.sections:
+                continue
             try:
                 page.parse(**settings)
             except Exception:  # pdf2docx'in kendi davranışı: sayfayı atla, devam et

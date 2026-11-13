@@ -100,18 +100,26 @@ export function thumbnail(ref: PdfRef, pageIndex: number, width: number, passwor
     p = slot(async () => {
       const doc = await openPdf(ref, password);
       const page = await doc.getPage(pageIndex + 1);
-      const base = page.getViewport({ scale: 1 });
-      const ratio = window.devicePixelRatio || 1;
-      const viewport = page.getViewport({ scale: (width / base.width) * ratio });
       const canvas = document.createElement("canvas");
-      canvas.width = Math.ceil(viewport.width);
-      canvas.height = Math.ceil(viewport.height);
-      await page.render({ canvas, viewport }).promise;
-      const url = canvas.toDataURL("image/jpeg", 0.82);
-      page.cleanup();
-      return url;
+      try {
+        const base = page.getViewport({ scale: 1 });
+        const ratio = window.devicePixelRatio || 1;
+        const viewport = page.getViewport({ scale: (width / base.width) * ratio });
+        canvas.width = Math.ceil(viewport.width);
+        canvas.height = Math.ceil(viewport.height);
+        await page.render({ canvas, viewport }).promise;
+        return canvas.toDataURL("image/jpeg", 0.82);
+      } finally {
+        page.cleanup();
+        canvas.width = 0;
+        canvas.height = 0;
+      }
     });
     p.catch(() => thumbs.delete(key));
+    if (thumbs.size >= 150) {
+      const oldestKey = thumbs.keys().next().value;
+      if (oldestKey !== undefined) thumbs.delete(oldestKey);
+    }
     thumbs.set(key, p);
   }
   return p;

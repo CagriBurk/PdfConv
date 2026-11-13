@@ -43,6 +43,9 @@ const DEFAULT_SIZE: Partial<Record<Tool, [number, number]>> = {
   arrow: [140, 0],
 };
 
+const MAX_CANVAS_SIDE = 4096;
+const MAX_CANVAS_PIXELS = 16_777_216;
+
 const images = new Map<string, HTMLImageElement>();
 
 function useAsset(id: string): HTMLImageElement | null {
@@ -79,14 +82,31 @@ export default function PageCanvas(props: Props) {
   useEffect(() => {
     let task: RenderTask | null = null;
     let alive = true;
+    let pageObj: { cleanup?: () => void } | null = null;
+    const canvas = canvasRef.current;
     void doc.getPage(pageIndex + 1).then((page) => {
       if (!alive) return;
+      pageObj = page;
       const base = page.getViewport({ scale: 1 });
       setSize({ w: base.width, h: base.height });
       props.onPageSize?.(base.width, base.height);
       const ratio = window.devicePixelRatio || 1;
-      const viewport = page.getViewport({ scale: scale * ratio });
-      const canvas = canvasRef.current;
+      let renderScale = scale * ratio;
+
+      // A0 OOM Koruması: MAX_CANVAS_SIDE ve MAX_CANVAS_PIXELS
+      if (base.width * renderScale > MAX_CANVAS_SIDE) {
+        renderScale = MAX_CANVAS_SIDE / base.width;
+      }
+      if (base.height * renderScale > MAX_CANVAS_SIDE) {
+        renderScale = MAX_CANVAS_SIDE / base.height;
+      }
+      const totalPixels = base.width * renderScale * (base.height * renderScale);
+      if (totalPixels > MAX_CANVAS_PIXELS) {
+        const factor = Math.sqrt(MAX_CANVAS_PIXELS / totalPixels);
+        renderScale *= factor;
+      }
+
+      const viewport = page.getViewport({ scale: renderScale });
       if (!canvas) return;
       canvas.width = Math.ceil(viewport.width);
       canvas.height = Math.ceil(viewport.height);
@@ -96,6 +116,15 @@ export default function PageCanvas(props: Props) {
     return () => {
       alive = false;
       task?.cancel();
+      try {
+        pageObj?.cleanup?.();
+      } catch {
+        /* yoksay */
+      }
+      if (canvas) {
+        canvas.width = 0;
+        canvas.height = 0;
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doc, pageIndex, scale]);
@@ -391,9 +420,11 @@ interface LineProps {
 }
 
 function LineNode({ obj, scale, selected, interactive, onSelect, onChange }: LineProps) {
-  const [x1, y1, x2, y2] = obj.points;
+  const [localPoints, setLocalPoints] = useState<[number, number, number, number] | null>(null);
+  const currentPoints = localPoints ?? obj.points;
+  const [x1, y1, x2, y2] = currentPoints;
   const common = {
-    points: obj.points,
+    points: currentPoints,
     stroke: obj.stroke,
     strokeWidth: obj.width,
     opacity: obj.opacity,
@@ -408,6 +439,7 @@ function LineNode({ obj, scale, selected, interactive, onSelect, onChange }: Lin
       const dx = n.x();
       const dy = n.y();
       n.position({ x: 0, y: 0 });
+      setLocalPoints(null);
       onChange({ ...obj, points: [x1 + dx, y1 + dy, x2 + dx, y2 + dy] });
     },
   };
@@ -424,7 +456,13 @@ function LineNode({ obj, scale, selected, interactive, onSelect, onChange }: Lin
       draggable
       onDragMove={(e) => {
         const p = e.target.position();
-        onChange({ ...obj, points: i ? [x1, y1, p.x, p.y] : [p.x, p.y, x2, y2] });
+        setLocalPoints(i ? [x1, y1, p.x, p.y] : [p.x, p.y, x2, y2]);
+      }}
+      onDragEnd={(e) => {
+        const p = e.target.position();
+        const next: [number, number, number, number] = i ? [x1, y1, p.x, p.y] : [p.x, p.y, x2, y2];
+        setLocalPoints(null);
+        onChange({ ...obj, points: next });
       }}
     />
   );

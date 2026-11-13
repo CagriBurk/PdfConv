@@ -3,7 +3,8 @@ import { api, type EnginesResponse, type FileMeta } from "../api";
 import FilePicker, { FileRow } from "../components/FilePicker";
 import JobPanel from "../components/JobPanel";
 import PageHeader from "../components/PageHeader";
-import { useFiles, useJob } from "../hooks";
+import PasswordDialog from "../components/PasswordDialog";
+import { useFiles, useJob, useUnlockQueue } from "../hooks";
 import { passwords } from "../passwords";
 import { idsFrom, type Route } from "../router";
 import { ACCEPT } from "../tools";
@@ -24,10 +25,20 @@ export default function Ocr({ route, engines }: { route: Route; engines: Engines
   const [langs, setLangs] = useState<string[]>(["tur", "eng"]);
   const job = useJob();
 
+  const unlock = useUnlockQueue({
+    onUnlock: ([accepted]) => {
+      if (accepted) setFile(accepted);
+    },
+    onCancel: (cancelled) => {
+      setFile((curr) => (curr?.id === cancelled.id ? null : curr));
+    },
+  });
+  const queueUnlock = unlock.queue;
+
   useEffect(() => {
     const pdf = initial.files.find((f) => f.kind === "pdf");
-    if (pdf) setFile(pdf);
-  }, [initial.files]);
+    if (pdf) queueUnlock([pdf]);
+  }, [initial.files, queueUnlock]);
 
   useEffect(() => {
     setHasText(null);
@@ -101,6 +112,7 @@ export default function Ocr({ route, engines }: { route: Route; engines: Engines
           <JobPanel job={job.job} error={job.error ?? initial.error} />
         </aside>
       </div>
+      {unlock.locked && <PasswordDialog file={unlock.locked} onDone={unlock.onDone} />}
     </>
   );
 }

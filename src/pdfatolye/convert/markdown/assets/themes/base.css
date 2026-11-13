@@ -58,7 +58,7 @@ pre.code {
   margin: 0.6em 0 1em;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  break-inside: avoid;
+  word-break: break-word;
 }
 pre.code code { background: none; padding: 0; font-size: inherit; }
 

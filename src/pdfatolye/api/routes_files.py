@@ -7,16 +7,17 @@ import tempfile
 import zipfile
 from pathlib import Path
 
-from fastapi import APIRouter, Query, Request, UploadFile
+import pymupdf
+from fastapi import APIRouter, Header, HTTPException, Query, Request, Response, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from starlette.background import BackgroundTask
 
 from pdfatolye.api.security import SANDBOX_CSP
 from pdfatolye.core.info import inspect_pdf
-from pdfatolye.core.pdfio import base_name, safe_filename, strip_ext
+from pdfatolye.core.pdfio import base_name, open_pdf, safe_filename, strip_ext
 from pdfatolye.core.textio import decode_text
-from pdfatolye.errors import PdfAtolyeError
+from pdfatolye.errors import BrokenPdfError, EncryptedPdfError, PdfAtolyeError
 from pdfatolye.jobs.workers import with_display_name
 
 router = APIRouter(prefix="/api")
@@ -150,9 +151,54 @@ def rename(request: Request, file_id: str, body: RenameBody) -> dict:
 
 @router.delete("/files/{file_id}")
 def delete(request: Request, file_id: str) -> dict:
-    store(request).get(file_id)  # yoksa 404
-    store(request).delete(file_id)
+    s = store(request)
+    s.get(file_id)  # yoksa 404
+    if s.in_use(file_id):
+        raise HTTPException(409, "Bu dosya şu an çalışan bir işlemde kullanılıyor.")
+    s.delete(file_id)
     return {"ok": True}
+
+
+@router.get("/files/{file_id}/thumb/{page_num}")
+def thumb(request: Request, file_id: str, page_num: int,
+          w: int = Query(default=240), v: int | None = None,
+          x_pdf_password: str | None = Header(default=None, alias="x-pdf-password")):
+    """Sayfa önizlemesi (küçük resim): hedef genişliğe göre orantılı JPEG üretir."""
+    s = store(request)
+    meta = s.get(file_id)  # dosya yoksa FileNotInStoreError (404)
+    if meta.kind != "pdf":
+        raise HTTPException(400, f"'{meta.name}' bir PDF dosyası değil.")
+    s.touch(file_id)
+    path = s.path(file_id, v)
+
+    password = x_pdf_password or request.headers.get("x-pdf-password")
+    w = max(100, min(w, 600))
+
+    doc = None
+    try:
+        doc = open_pdf(path, password)
+        if page_num < 0 or page_num >= doc.page_count:
+            raise HTTPException(
+                404,
+                f"Geçersiz sayfa numarası: {page_num} (toplam {doc.page_count} sayfa).",
+            )
+        page = doc[page_num]
+        rect = page.rect
+        scale = w / rect.width if rect.width > 0 else 1.0
+        mat = pymupdf.Matrix(scale, scale)
+        pix = page.get_pixmap(matrix=mat, alpha=False)
+        data = pix.tobytes("jpeg", jpg_quality=80)
+        return Response(content=data, media_type="image/jpeg",
+                        headers={"Cache-Control": "private, max-age=3600"})
+    except EncryptedPdfError as e:
+        if e.wrong_password:
+            raise HTTPException(403, f"'{meta.name}' için girilen şifre yanlış.") from e
+        raise HTTPException(401, f"'{meta.name}' şifreli. Açmak için şifresini gir.") from e
+    except BrokenPdfError as e:
+        raise HTTPException(400, str(e)) from e
+    finally:
+        if doc is not None:
+            doc.close()
 
 
 @router.get("/zip")
@@ -166,14 +212,18 @@ def zip_files(request: Request, ids: str = Query(max_length=40_000),
     fd, tmp_name = tempfile.mkstemp(prefix="pa-zip-", suffix=".zip")
     os.close(fd)
     used: set[str] = set()
-    with zipfile.ZipFile(tmp_name, "w", zipfile.ZIP_DEFLATED) as zf:
-        for fid in file_ids:
-            meta = s.get(fid)
-            arc, stem, ext, i = meta.name, Path(meta.name).stem, Path(meta.name).suffix, 2
-            while arc.lower() in used:
-                arc, i = f"{stem} ({i}){ext}", i + 1
-            used.add(arc.lower())
-            zf.write(s.path(fid), arc)
+    try:
+        with zipfile.ZipFile(tmp_name, "w", zipfile.ZIP_STORED) as zf:
+            for fid in file_ids:
+                meta = s.get(fid)
+                arc, stem, ext, i = meta.name, Path(meta.name).stem, Path(meta.name).suffix, 2
+                while arc.lower() in used:
+                    arc, i = f"{stem} ({i}){ext}", i + 1
+                used.add(arc.lower())
+                zf.write(s.path(fid), arc)
+    except Exception:
+        Path(tmp_name).unlink(missing_ok=True)
+        raise
     zip_name = safe_filename(strip_ext(base_name(name), ".zip"), fallback="dosyalar") + ".zip"
     return FileResponse(tmp_name, media_type="application/zip", filename=zip_name,
                         background=BackgroundTask(Path(tmp_name).unlink, missing_ok=True))

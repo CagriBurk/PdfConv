@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import os
 import queue
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -172,7 +173,7 @@ def ocr(src: Path, output: Path, *, mode: Mode = "skip", langs: Sequence[str] = 
         with opened(result_pdf) as doc:
             with_text = sum(1 for p in doc if p.get_text("text").strip())
         with atomic_output(output) as out:
-            out.write_bytes(result_pdf.read_bytes())
+            shutil.copyfile(result_pdf, out)
 
     warnings = []
     if skipped:

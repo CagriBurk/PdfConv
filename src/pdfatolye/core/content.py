@@ -13,8 +13,11 @@ aynı uygulamada eklenen yazıyı silmez.
 
 from __future__ import annotations
 
+import contextlib
 import io
 import math
+import os
+import tempfile
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
@@ -315,7 +318,12 @@ def _text(page: pymupdf.Page, op: TextOp, fonts: fontlib.FontSet, warnings: list
         if rc >= 0:
             return
         # Sığmadı (hiçbir şey yazılmadı): kutuyu eksik kadar aşağı uzat, yeniden dene.
-        box.y1 += -rc + 1
+        diff = -rc + 1
+        if (page.rotation or 0) % 180 != 0:
+            box.x1 += diff
+            box.y1 += diff
+        else:
+            box.y1 += diff
     warnings.append(f"{op.page + 1}. sayfadaki yazı kutuya sığmadı: “{text[:30]}…”")
 
 
@@ -524,57 +532,79 @@ def apply_ops(src: Path, output: Path, ops: Sequence, *, password: str | None = 
     warnings: list[str] = []
     images = _Images(assets or {})
     fonts = fontlib.FontSet()
-    with opened(src, password) as doc:
-        n = doc.page_count
-        by_page: dict[int, list] = defaultdict(list)
-        doc_ops = []
-        for op in ops:
-            if isinstance(op, PAGE_OPS):
-                if op.page >= n:
-                    raise PageRangeError(f"{op.page + 1}. sayfa yok; belgede {n} sayfa var.")
-                by_page[op.page].append(op)
-            else:
-                doc_ops.append(op)
-        _declare_fonts(ops, fonts, warnings)
+    src_path = Path(src)
+    output_path = Path(output)
+    same_file = False
+    with contextlib.suppress(Exception):
+        same_file = src_path.resolve() == output_path.resolve()
 
-        redacted: dict[int, list[str]] = {}
-        for idx in sorted(by_page):
-            page = doc[idx]
-            page_ops = by_page[idx]
-            removals = [o for o in page_ops if isinstance(o, (RedactOp, WhiteoutOp))]
-            boxes = [geo.view_to_page_rect(page, o.rect) for o in page_ops
-                     if isinstance(o, RedactOp)]
-            if boxes:
-                redacted[idx] = [page.get_textbox(box) for box in boxes]
-            if removals:
-                _remove_under(page, removals)
-            for box in boxes:
-                # Son denetim: kutuda hâlâ yazı varsa sessiz kalınmaz.
-                if page.get_textbox(box).strip():
-                    warnings.append(f"{idx + 1}. sayfada karartılan alanda yazı kaldı; dosyayı "
-                                    "paylaşmadan önce kontrol et.")
-            for op in page_ops:
-                if isinstance(op, TextOp):
-                    _text(page, op, fonts, warnings)
-                elif isinstance(op, ImageOp):
-                    images.insert(page, op.asset, pymupdf.Rect(op.rect), opacity=op.opacity,
-                                  angle_cw=op.rotation, keep_aspect=op.keep_aspect)
-                elif isinstance(op, HighlightOp):
-                    _highlight(page, op)
-                elif isinstance(op, ShapeOp):
-                    _shape(page, op)
-                elif isinstance(op, LineOp):
-                    _line(page, op)
+    tmp_file: Path | None = None
+    try:
+        with opened(src_path, password) as doc:
+            n = doc.page_count
+            by_page: dict[int, list] = defaultdict(list)
+            doc_ops = []
+            for op in ops:
+                if isinstance(op, PAGE_OPS):
+                    if op.page >= n:
+                        raise PageRangeError(f"{op.page + 1}. sayfa yok; belgede {n} sayfa var.")
+                    by_page[op.page].append(op)
+                else:
+                    doc_ops.append(op)
+            _declare_fonts(ops, fonts, warnings)
 
-        if redacted:
-            warnings.extend(_redaction_warnings(doc, redacted))
-        for op in doc_ops:
-            if isinstance(op, WatermarkOp):
-                _watermark(doc, op, fonts, images)
+            redacted: dict[int, list[str]] = {}
+            for idx in sorted(by_page):
+                page = doc[idx]
+                page_ops = by_page[idx]
+                removals = [o for o in page_ops if isinstance(o, (RedactOp, WhiteoutOp))]
+                boxes = [geo.view_to_page_rect(page, o.rect) for o in page_ops
+                         if isinstance(o, RedactOp)]
+                if boxes:
+                    redacted[idx] = [page.get_textbox(box) for box in boxes]
+                if removals:
+                    _remove_under(page, removals)
+                for box in boxes:
+                    # Son denetim: kutuda hâlâ yazı varsa sessiz kalınmaz.
+                    if page.get_textbox(box).strip():
+                        warnings.append(f"{idx + 1}. sayfada karartılan alanda yazı kaldı; dosyayı "
+                                        "paylaşmadan önce kontrol et.")
+                for op in page_ops:
+                    if isinstance(op, TextOp):
+                        _text(page, op, fonts, warnings)
+                    elif isinstance(op, ImageOp):
+                        images.insert(page, op.asset, pymupdf.Rect(op.rect), opacity=op.opacity,
+                                      angle_cw=op.rotation, keep_aspect=op.keep_aspect)
+                    elif isinstance(op, HighlightOp):
+                        _highlight(page, op)
+                    elif isinstance(op, ShapeOp):
+                        _shape(page, op)
+                    elif isinstance(op, LineOp):
+                        _line(page, op)
+
+            if redacted:
+                warnings.extend(_redaction_warnings(doc, redacted))
+            for op in doc_ops:
+                if isinstance(op, WatermarkOp):
+                    _watermark(doc, op, fonts, images)
+                else:
+                    _page_numbers(doc, op, fonts)
+            if same_file:
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                fd, tmp_name = tempfile.mkstemp(
+                    prefix=".tmp-content-", suffix=output_path.suffix, dir=output_path.parent
+                )
+                os.close(fd)
+                tmp_file = Path(tmp_name)
+                save_pdf(doc, tmp_file)
             else:
-                _page_numbers(doc, op, fonts)
-        save_pdf(doc, output)
-    return ApplyResult(Path(output), warnings)
+                save_pdf(doc, output_path)
+        if tmp_file is not None:
+            os.replace(tmp_file, output_path)
+    finally:
+        if tmp_file is not None and tmp_file.exists():
+            tmp_file.unlink(missing_ok=True)
+    return ApplyResult(output_path, warnings)
 
 
 # --- imza -----------------------------------------------------------------------------------

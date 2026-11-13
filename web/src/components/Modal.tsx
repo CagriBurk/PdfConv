@@ -16,6 +16,7 @@ interface Props {
  * oklarla başka öğeye geçtiyse odak ondan geri alınmamalı. */
 export default function Modal({ title, onClose, children, wide }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
+  const mouseDownBackdrop = useRef(false);
   const titleId = useId();
   useEffect(() => {
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -33,7 +34,14 @@ export default function Modal({ title, onClose, children, wide }: Props) {
       className={`modal${wide ? " wide" : ""}`}
       aria-labelledby={titleId}
       onClose={onClose}
-      onClick={(e) => e.target === ref.current && onClose()}
+      onMouseDown={(e) => {
+        mouseDownBackdrop.current = e.target === ref.current;
+      }}
+      onClick={(e) => {
+        if (mouseDownBackdrop.current && e.target === ref.current) {
+          onClose();
+        }
+      }}
     >
       <div className="modal-head">
         <h2 id={titleId}>{title}</h2>

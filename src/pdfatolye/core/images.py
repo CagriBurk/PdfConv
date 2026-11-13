@@ -10,8 +10,9 @@ from pathlib import Path
 import pymupdf
 from PIL import Image, ImageOps, UnidentifiedImageError
 
+from pdfatolye import proc
 from pdfatolye.core.paper import PAPERS, PT_PER_MM, size_pt
-from pdfatolye.core.pdfio import opened, save_pdf
+from pdfatolye.core.pdfio import opened, safe_filename, save_pdf
 from pdfatolye.core.ranges import parse_ranges
 from pdfatolye.errors import ImageTooLargeError, PageRangeError, UnsupportedFileError
 
@@ -146,10 +147,12 @@ def pdf_to_images(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     outputs: list[Path] = []
+    base_stem = name_stem or safe_filename(input.stem) or "belge"
     with opened(input, password) as doc:
         pages = parse_ranges(spec, doc.page_count)
         width = len(str(doc.page_count))
         for p in dict.fromkeys(pages):  # tekrarları at, sırayı koru
+            proc.raise_if_cancelled()
             page = doc[p]
             scale = dpi / 72
             pixels = page.rect.width * scale * page.rect.height * scale
@@ -160,7 +163,7 @@ def pdf_to_images(
                     "seç."
                 )
             pix = page.get_pixmap(dpi=dpi, alpha=False)
-            target = output_dir / f"{name_stem or input.stem}_{p + 1:0{width}d}.{fmt}"
+            target = output_dir / f"{base_stem}_{p + 1:0{width}d}.{fmt}"
             if fmt == "png":
                 pix.save(target)
             else:
@@ -177,9 +180,12 @@ def extract_images(
     output_dir.mkdir(parents=True, exist_ok=True)
     outputs: list[Path] = []
     seen: set[int] = set()
+    base_stem = safe_filename(input.stem) or "belge"
     with opened(input, password) as doc:
         for p in range(doc.page_count):
+            proc.raise_if_cancelled()
             for info in doc.get_page_images(p):
+                proc.raise_if_cancelled()
                 xref, smask = info[0], info[1]
                 if xref in seen:
                     continue
@@ -195,7 +201,7 @@ def extract_images(
                         image_bytes, ext = data["image"], data["ext"]
                 else:
                     image_bytes, ext = data["image"], data["ext"]
-                target = output_dir / f"{input.stem}_s{p + 1}_{len(outputs) + 1}.{ext}"
+                target = output_dir / f"{base_stem}_s{p + 1}_{len(outputs) + 1}.{ext}"
                 target.write_bytes(image_bytes)
                 outputs.append(target)
     return outputs

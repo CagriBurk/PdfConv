@@ -94,7 +94,16 @@ def image_share(path: Path, password: str | None = None) -> float | None:
             total = 0
             for xref in range(1, doc.xref_length()):
                 if doc.xref_get_key(xref, "Subtype")[1] == "/Image":
-                    total += len(doc.xref_stream_raw(xref) or b"")
+                    stream_len: int | None = None
+                    try:
+                        kind, val = doc.xref_get_key(xref, "Length")
+                        if kind == "int" or val:
+                            stream_len = int(val.strip())
+                    except Exception:
+                        stream_len = None
+                    if stream_len is None or stream_len < 0:
+                        stream_len = len(doc.xref_stream_raw(xref) or b"")
+                    total += stream_len
         size = Path(path).stat().st_size
         return min(1.0, total / size) if size else None
     except Exception:

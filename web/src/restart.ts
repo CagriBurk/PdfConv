@@ -24,7 +24,7 @@ export async function restartApp(timeoutMs = 60_000): Promise<void> {
   while (Date.now() < deadline) {
     await sleep(500);
     if (!sameOrigin && (await reachable(url))) {
-      window.location.replace(`${url}/${window.location.hash}`);
+      window.location.replace(`${url.replace(/\/+$/, "")}/${window.location.hash}`);
       return;
     }
     // Aynı port ya da yeni port doluydu ve eski porta dönüldü.

@@ -220,8 +220,9 @@ KATEX_SCRIPT = r"""
   await Promise.all([...document.images].map(img => img.complete ? null :
     new Promise(r => { img.onload = img.onerror = r; })));
   await document.fonts.ready;
+  const safeDecode = (s) => { try { return decodeURI(s); } catch { return s; } };
   const broken = [...document.images].filter(i => !i.naturalWidth)
-    .map(i => decodeURI(i.getAttribute('src') || ''));
+    .map(i => safeDecode(i.getAttribute('src') || ''));
   window.__sonuc = {errors, broken};
 })();
 """

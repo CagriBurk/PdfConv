@@ -242,6 +242,8 @@ export const api = {
 export function watchJob(id: string, onUpdate: (job: Job) => void): () => void {
   let stopped = false;
   let timer: number | undefined;
+  let consecutiveErrors = 0;
+  let delay = 700;
   const source = new EventSource(`/api/jobs/${id}/events`);
   const done = (j: Job) => ["bitti", "hata", "iptal"].includes(j.status);
 
@@ -249,18 +251,31 @@ export function watchJob(id: string, onUpdate: (job: Job) => void): () => void {
     if (stopped) return;
     try {
       const j = await api.job(id);
+      consecutiveErrors = 0;
+      delay = 700;
       onUpdate(j);
       if (done(j)) return;
     } catch {
-      /* geçici hata: yeniden dene */
+      consecutiveErrors++;
+      if (consecutiveErrors >= 20) {
+        stopped = true;
+        return;
+      }
+      delay = Math.min(5000, delay * 2);
     }
-    timer = window.setTimeout(poll, 700);
+    if (!stopped) {
+      timer = window.setTimeout(poll, delay);
+    }
   };
 
   source.onmessage = (e) => {
-    const j = JSON.parse(e.data) as Job;
-    onUpdate(j);
-    if (done(j)) source.close();
+    try {
+      const j = JSON.parse(e.data) as Job;
+      onUpdate(j);
+      if (done(j)) source.close();
+    } catch {
+      /* bozuk mesaj: yoksay */
+    }
   };
   source.onerror = () => {
     source.close();

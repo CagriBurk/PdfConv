@@ -1,9 +1,24 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { EnginesResponse, FileMeta } from "../api";
 import DropZone from "../components/DropZone";
 import { useUpload } from "../hooks";
 import { navigate } from "../router";
 import { GROUPS, TOOLS } from "../tools";
+
+/** Arama eşleştirmesinde Türkçe harf ve büyük/küçük harf duyarlılığını kaldırır. */
+function normalizeTr(str: string): string {
+  return str
+    .replace(/İ/g, "i")
+    .replace(/I/g, "ı")
+    .toLocaleLowerCase("tr")
+    .replace(/ç/g, "c")
+    .replace(/ğ/g, "g")
+    .replace(/ı/g, "i")
+    .replace(/ö/g, "o")
+    .replace(/ş/g, "s")
+    .replace(/ü/g, "u")
+    .trim();
+}
 
 /** Bırakılan dosyaların türüne göre en uygun araca yönlendirir. */
 function routeFor(files: FileMeta[]): string | null {
@@ -35,6 +50,31 @@ function routeFor(files: FileMeta[]): string | null {
 export default function Home({ engines }: { engines: EnginesResponse | null }) {
   const { upload, uploading, progress, error } = useUpload();
   const [notice, setNotice] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        searchRef.current?.focus();
+        searchRef.current?.select();
+        return;
+      }
+      if (e.key === "/" && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const target = e.target as HTMLElement | null;
+        const tag = target?.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target?.isContentEditable) {
+          return;
+        }
+        e.preventDefault();
+        searchRef.current?.focus();
+        searchRef.current?.select();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   const missing = (keys: string[] = []) =>
     engines ? engines.engines.filter((e) => keys.includes(e.key) && !e.ok).map((e) => e.name) : [];
@@ -43,6 +83,22 @@ export default function Home({ engines }: { engines: EnginesResponse | null }) {
     setNotice(null);
     const metas = await upload(files);
     if (metas.length) setNotice(routeFor(metas));
+  };
+
+  const q = normalizeTr(query);
+  const filteredTools = q
+    ? TOOLS.filter((t) => normalizeTr(t.title).includes(q) || normalizeTr(t.description).includes(q))
+    : TOOLS;
+  const firstMatch = q && filteredTools.length > 0 ? filteredTools[0] : null;
+
+  const onSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && firstMatch) {
+      e.preventDefault();
+      navigate(firstMatch.route);
+    } else if (e.key === "Escape") {
+      setQuery("");
+      searchRef.current?.blur();
+    }
   };
 
   return (
@@ -59,25 +115,48 @@ export default function Home({ engines }: { engines: EnginesResponse | null }) {
         </div>
       )}
 
-      {GROUPS.map((group) => (
-        <section key={group} className="tool-group">
-          <h2>{group}</h2>
-          <div className="tool-grid">
-            {TOOLS.filter((t) => t.group === group).map((t) => {
-              const lacking = missing(t.needs);
-              return (
-                <a key={t.id} className="tool-card active" href={`#/${t.route}`}>
-                  <div className="tool-card-head">
-                    <h3>{t.title}</h3>
-                  </div>
-                  <p>{t.description}</p>
-                  {lacking.length > 0 && <p className="warn-line">Eksik: {lacking.join(", ")}</p>}
-                </a>
-              );
-            })}
-          </div>
-        </section>
-      ))}
+      <div className="home-search" style={{ margin: "1.5rem 0 1rem" }}>
+        <input
+          ref={searchRef}
+          type="search"
+          className="input"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={onSearchKeyDown}
+          placeholder="Araç ara… (/)"
+          aria-label="Araç ara"
+        />
+      </div>
+
+      {q && filteredTools.length === 0 && (
+        <p className="muted center" style={{ margin: "2rem 0" }}>
+          Eşleşen araç bulunamadı.
+        </p>
+      )}
+
+      {GROUPS.map((group) => {
+        const groupTools = filteredTools.filter((t) => t.group === group);
+        if (!groupTools.length) return null;
+        return (
+          <section key={group} className="tool-group">
+            <h2>{group}</h2>
+            <div className="tool-grid">
+              {groupTools.map((t) => {
+                const lacking = missing(t.needs);
+                return (
+                  <a key={t.id} className="tool-card active" href={`#/${t.route}`}>
+                    <div className="tool-card-head">
+                      <h3>{t.title}</h3>
+                    </div>
+                    <p>{t.description}</p>
+                    {lacking.length > 0 && <p className="warn-line">Eksik: {lacking.join(", ")}</p>}
+                  </a>
+                );
+              })}
+            </div>
+          </section>
+        );
+      })}
     </>
   );
 }

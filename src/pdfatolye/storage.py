@@ -251,11 +251,23 @@ class FileStore:
 
     def get(self, file_id: str) -> FileMeta:
         path = self._dir(file_id) / "meta.json"
+        raw_text: str | None = None
+        for attempt in range(4):
+            try:
+                raw_text = path.read_text(encoding="utf-8")
+                break
+            except PermissionError as e:
+                if attempt < 3:
+                    time.sleep(0.02)
+                    continue
+                raise self._corrupt(file_id, e) from e
+            except FileNotFoundError as e:
+                raise FileNotInStoreError(file_id) from e
+            except OSError as e:
+                raise self._corrupt(file_id, e) from e
         try:
-            raw = json.loads(path.read_text(encoding="utf-8"))
-        except FileNotFoundError as e:
-            raise FileNotInStoreError(file_id) from e
-        except (OSError, ValueError) as e:  # yarım yazılmış ya da bozuk JSON
+            raw = json.loads(raw_text)
+        except (ValueError, TypeError) as e:  # yarım yazılmış ya da bozuk JSON
             raise self._corrupt(file_id, e) from e
         try:
             # Bilinmeyen alanlar (daha yeni bir sürümün yazdıkları) yok sayılır.
@@ -316,13 +328,15 @@ class FileStore:
 
     def delete(self, file_id: str) -> None:
         shutil.rmtree(self._dir(file_id), ignore_errors=True)
-        self._accessed.pop(file_id, None)
+        with self._lock:
+            self._accessed.pop(file_id, None)
 
     # --- temizlikten koruma ---
 
     def touch(self, file_id: str) -> None:
         """Arayüz dosyayı açtı ya da hâlâ açık tutuyor: son erişim zamanı yenilenir."""
-        self._accessed[file_id] = time.time()
+        with self._lock:
+            self._accessed[file_id] = time.time()
 
     def hold(self, file_ids: Iterable[str]) -> None:
         """Bir iş bu dosyaları kullanacak (sırada beklerken de): temizlik silmesin."""

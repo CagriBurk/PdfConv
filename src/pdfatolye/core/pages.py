@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pymupdf
 
+from pdfatolye import proc
 from pdfatolye.core.pdfio import open_pdf, opened, safe_filename, save_pdf
 from pdfatolye.core.ranges import parse_range_groups, parse_ranges
 from pdfatolye.errors import PageRangeError
@@ -433,6 +434,7 @@ def split(
     used: set[str] = set()
     width = len(str(len(groups)))
     for i, (label, pages) in enumerate(groups, start=1):
+        proc.raise_if_cancelled()
         name = safe_filename(label, fallback=f"parca-{i}")
         if mode == "yer-imi":
             name = f"{i:0{width}d} {name}"

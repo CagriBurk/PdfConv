@@ -189,7 +189,7 @@ export default function Markdown({ route, engines }: { route: Route; engines: En
     a.href = url;
     a.download = `${noteName.replace(/\.(md|markdown|txt)$/i, "")}.md`;
     a.click();
-    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
     setSaved(text);
   };
   const effective = preview?.options;

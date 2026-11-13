@@ -29,14 +29,24 @@ def open_pdf(path: Path, password: str | None = None) -> pymupdf.Document:
     if not doc.is_pdf:
         doc.close()
         raise UnsupportedFileError(path, "PDF")
-    if doc.needs_pass:
+    try:
+        needs_pass = doc.needs_pass
+    except Exception as e:
+        doc.close()
+        raise BrokenPdfError(path, str(e)) from e
+    if needs_pass:
         if not password:
             doc.close()
             raise EncryptedPdfError(path)
         if not doc.authenticate(password):
             doc.close()
             raise EncryptedPdfError(path, wrong_password=True)
-    if doc.page_count == 0:
+    try:
+        page_count = doc.page_count
+    except Exception as e:
+        doc.close()
+        raise BrokenPdfError(path, str(e)) from e
+    if page_count == 0:
         doc.close()
         raise BrokenPdfError(path, "hiç sayfa yok")
     return doc

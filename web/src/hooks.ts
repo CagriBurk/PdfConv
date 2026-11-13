@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, errorMessage, watchJob, type FileMeta, type Job } from "./api";
+import { passwords } from "./passwords";
 import { toast } from "./toast";
 
 /** Dosya yükleme durumu: ilerleme ve hata. `toastErrors`: hatayı ekranında göstermeyen
@@ -80,6 +81,100 @@ export function useFiles(ids: string[]) {
   }, [key]);
 
   return { files, setFiles, error };
+}
+
+export interface UnlockQueueOptions {
+  onUnlock?: (files: FileMeta[]) => void;
+  onCancel?: (file: FileMeta) => void;
+}
+
+/** Sayfaya URL / yönlendirmeyle gelen dosyalar arasında şifreli olanlar için PasswordDialog
+ * kuyruğunu yönetir. Şifresi çözülenler onUnlock ile verilir, vazgeçilenler onCancel ile bildirilir. */
+export function useUnlockQueue(options: UnlockQueueOptions = {}) {
+  const [queue, setQueue] = useState<FileMeta[]>([]);
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
+  const lastKey = useRef("");
+
+  const queueFiles = useCallback((files: FileMeta[]) => {
+    const key = files.map((f) => f.id).join(",");
+    if (!key || key === lastKey.current) return;
+    lastKey.current = key;
+
+    const ready: FileMeta[] = [];
+    const locked: FileMeta[] = [];
+    for (const f of files) {
+      if (f.encrypted && !passwords.get(f.id)) {
+        locked.push(f);
+      } else {
+        ready.push(f);
+      }
+    }
+
+    if (ready.length) {
+      const needsCount = ready.some((f) => f.encrypted && f.page_count == null && passwords.get(f.id));
+      if (needsCount) {
+        Promise.all(
+          ready.map(async (f) => {
+            if (f.encrypted && f.page_count == null) {
+              const pw = passwords.get(f.id);
+              if (pw) {
+                try {
+                  const res = await api.checkPassword(f.id, pw);
+                  return { ...f, page_count: res.page_count };
+                } catch {
+                  return f;
+                }
+              }
+            }
+            return f;
+          }),
+        )
+          .then((enriched) => optionsRef.current.onUnlock?.(enriched))
+          .catch(() => optionsRef.current.onUnlock?.(ready));
+      } else {
+        optionsRef.current.onUnlock?.(ready);
+      }
+    }
+
+    if (locked.length) {
+      setQueue((prev) => [...prev, ...locked]);
+    }
+  }, []);
+
+  const onDone = useCallback(
+    async (ok: boolean) => {
+      const head = queue[0];
+      if (!head) return;
+      setQueue((prev) => prev.slice(1));
+
+      if (ok) {
+        let unlocked: FileMeta = head;
+        if (unlocked.page_count == null) {
+          const pw = passwords.get(unlocked.id);
+          if (pw) {
+            try {
+              const res = await api.checkPassword(unlocked.id, pw);
+              unlocked = { ...unlocked, page_count: res.page_count };
+            } catch {
+              // yoksay
+            }
+          }
+        }
+        optionsRef.current.onUnlock?.([unlocked]);
+      } else {
+        lastKey.current = "";
+        optionsRef.current.onCancel?.(head);
+      }
+    },
+    [queue],
+  );
+
+  return {
+    locked: queue[0] ?? null,
+    onDone,
+    queue: queueFiles,
+  };
 }
 
 const KEEPALIVE_MS = 10 * 60 * 1000;
