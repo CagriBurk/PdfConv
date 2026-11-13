@@ -13,6 +13,7 @@ export const TOOLS: Tool[] = [
   { id: "organize", title: "Sayfa Düzenle", description: "Sürükleyerek sırala, sil, döndür, başka PDF'ten sayfa ekle", route: "duzenle", group: "Düzenle" },
   { id: "merge", title: "Birleştir", description: "Birden fazla PDF'i tek dosyada topla", route: "birlestir", group: "Düzenle" },
   { id: "split", title: "Böl", description: "Aralıklara, her N sayfaya veya yer imlerine göre ayır", route: "bol", group: "Düzenle" },
+  { id: "layout", title: "Sayfa Düzeni ve Yazdırma", description: "N-up çoklu sayfa, ders slayt not alanı, kenar kırpma, poster bölme", route: "yazdirma", group: "Düzenle" },
   { id: "md", title: "Markdown → PDF", description: "Formüller, Obsidian callout'ları, kod renklendirme", route: "md", group: "Dönüştür", needs: ["browser"] },
   { id: "office", title: "Office → PDF", description: "Word, Excel, PowerPoint, ODT, RTF, HTML, TXT", route: "office", group: "Dönüştür", needs: ["libreoffice"] },
   { id: "img2pdf", title: "Resim → PDF", description: "JPG, PNG, HEIC fotoğraflardan PDF", route: "resimden", group: "Dönüştür" },

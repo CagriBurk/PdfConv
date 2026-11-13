@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { api, errorMessage, type EnginesResponse, type SettingsResponse } from "./api";
+import CommandPalette from "./components/CommandPalette";
 import ErrorBoundary from "./components/ErrorBoundary";
 import Toaster from "./components/Toaster";
 import Home from "./pages/Home";
@@ -24,6 +25,7 @@ const Organizer = lazy(() => import("./pages/Organizer"));
 const Editor = lazy(() => import("./pages/Editor"));
 const Watermark = lazy(() => import("./pages/Watermark"));
 const PageNumbers = lazy(() => import("./pages/PageNumbers"));
+const LayoutTool = lazy(() => import("./pages/LayoutTool"));
 
 const NAV = [
   { route: "araclar", label: "Araçlar" },
@@ -47,6 +49,7 @@ export default function App() {
   const [showWelcome, setShowWelcome] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [cmdOpen, setCmdOpen] = useState(false);
   const main = useRef<HTMLElement>(null);
 
   const loadEngines = async (refresh = false) => {
@@ -148,6 +151,12 @@ export default function App() {
   else if (section === "guvenlik") content = <Protect route={route} />;
   else if (section === "birlestir") content = <Merge route={route} />;
   else if (section === "bol") content = <Split route={route} />;
+  else if (section === "yazdirma")
+    content = (
+      <Suspense fallback={null}>
+        <LayoutTool route={route} />
+      </Suspense>
+    );
   else if (section === "md") content = <Markdown route={route} engines={engines} />;
   else if (section === "office")
     content = <Office route={route} engines={engines} onEnginesChanged={() => void loadEngines(true)} />;
@@ -192,15 +201,27 @@ export default function App() {
             );
           })}
         </nav>
-        {settings?.running.lan ? (
-          <a className="offline-badge lan" href="#/ayarlar" title="Aynı Wi-Fi'deki eşleşmiş cihazlar bağlanabilir">
-            Telefon modu açık
-          </a>
-        ) : (
-          <span className="offline-badge" title="Dosyalar bu bilgisayardan çıkmaz">
-            Çevrimdışı
-          </span>
-        )}
+        <div className="topbar-end">
+          <button
+            type="button"
+            className="cmd-trigger"
+            aria-label="Komut paletini aç (Ctrl+K)"
+            aria-keyshortcuts="Control+K Meta+K"
+            onClick={() => setCmdOpen(true)}
+          >
+            <span>Komutlar</span>
+            <kbd>Ctrl+K</kbd>
+          </button>
+          {settings?.running.lan ? (
+            <a className="offline-badge lan" href="#/ayarlar" title="Aynı Wi-Fi'deki eşleşmiş cihazlar bağlanabilir">
+              Telefon modu açık
+            </a>
+          ) : (
+            <span className="offline-badge" title="Dosyalar bu bilgisayardan çıkmaz">
+              Çevrimdışı
+            </span>
+          )}
+        </div>
       </header>
       <main id="icerik" ref={main} tabIndex={-1}>
         {error && (
@@ -212,6 +233,7 @@ export default function App() {
           {content}
         </ErrorBoundary>
       </main>
+      <CommandPalette open={cmdOpen} onOpenChange={setCmdOpen} route={route} engines={engines} />
       <Toaster />
     </div>
   );

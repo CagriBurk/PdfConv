@@ -1701,3 +1701,239 @@ details.advanced h3 {
 .restart-banner button {
   margin-left: 0.4rem;
 }
+
+/* --- Faz G2: Komut paleti ve Sayfa Düzeni --- */
+
+.topbar-end {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.topbar-end .offline-badge {
+  margin-left: 0;
+}
+
+.cmd-trigger {
+  padding: 0.25rem 0.6rem;
+  font-size: 0.84rem;
+  color: var(--muted);
+  background: var(--surface-2);
+  border-color: var(--border);
+  border-radius: 8px;
+}
+
+.cmd-trigger:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.cmd-trigger kbd,
+.cmd-palette-foot kbd {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  padding: 0.08rem 0.35rem;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+}
+
+.cmd-palette {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 0;
+  background: var(--surface);
+  color: var(--text);
+  width: min(620px, calc(100vw - 24px));
+  max-width: 100%;
+  margin: min(10vh, 4.5rem) auto auto;
+  box-shadow: 0 20px 50px rgb(0 0 0 / 0.28);
+  overflow: hidden;
+}
+
+.cmd-palette[open] {
+  display: flex;
+  flex-direction: column;
+  max-height: min(76vh, 560px);
+}
+
+.cmd-palette::backdrop {
+  background: rgb(0 0 0 / 0.45);
+  backdrop-filter: blur(2px);
+}
+
+.cmd-palette-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 0.75rem 0.65rem 0.9rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.cmd-palette-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 1rem;
+  padding: 0.2rem 0;
+}
+
+.cmd-palette-input:focus {
+  outline: none;
+}
+
+.cmd-palette-context {
+  padding: 0.35rem 0.9rem;
+  font-size: 0.8rem;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-bottom: 1px solid var(--border);
+}
+
+.cmd-palette-list {
+  flex: 1;
+  overflow-y: auto;
+  list-style: none;
+  margin: 0;
+  padding: 0.4rem;
+  display: grid;
+  gap: 0.2rem;
+}
+
+.cmd-palette-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.cmd-palette-item.active {
+  background: var(--accent-soft);
+}
+
+.cmd-palette-item.active strong {
+  color: var(--accent);
+}
+
+.cmd-palette-item-main {
+  min-width: 0;
+  display: grid;
+  gap: 0.1rem;
+}
+
+.cmd-palette-item-main strong,
+.cmd-palette-item-main span {
+  overflow-wrap: anywhere;
+}
+
+.cmd-palette-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.cmd-badge {
+  font-size: 0.74rem;
+  font-weight: 600;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.cmd-badge.warn {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.cmd-group {
+  font-size: 0.76rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.cmd-palette-empty {
+  padding: 1.5rem 1rem;
+  text-align: center;
+}
+
+.cmd-palette-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 1.1rem;
+  padding: 0.5rem 0.9rem;
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.cmd-palette-foot span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.layout-tabs {
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.layout-mode-hint {
+  margin: 0 0 0.8rem;
+}
+
+.layout-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  display: grid;
+  gap: 0.9rem;
+}
+
+.layout-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.layout-check-sub {
+  display: block;
+  margin-top: 0.15rem;
+}
+
+.layout-note {
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .topbar {
+    gap: 0.65rem 1rem;
+  }
+
+  .topbar nav {
+    flex-wrap: wrap;
+  }
+
+  .cmd-trigger kbd {
+    display: none;
+  }
+
+  .cmd-palette-item {
+    flex-wrap: wrap;
+  }
+
+  .layout-grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
