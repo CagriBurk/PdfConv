@@ -8,6 +8,7 @@ import { useJob, useKeepAlive, useUpload } from "../hooks";
 import { drafts, draftKey, formatDraftTime, type Draft } from "../drafts";
 import { createSequencer } from "../mdpreview";
 import { idsFrom, LEAVE_MESSAGE, useLeaveGuard, type Route } from "../router";
+import { toast } from "../toast";
 import { PAPERS } from "../tools";
 
 interface Options {
@@ -47,6 +48,326 @@ $$
 const triState = (v: boolean | null) => (v === null ? "" : v ? "1" : "0");
 const fromTri = (v: string) => (v === "" ? null : v === "1");
 
+interface TextChunk {
+  isCode: boolean;
+  text: string;
+}
+
+interface SnippetPreset {
+  id: string;
+  label: string;
+  body: string;
+}
+
+const SNIPPETS: readonly SnippetPreset[] = [
+  {
+    id: "ders-baslik",
+    label: "Ders Notu Başlığı",
+    body: "---\ntitle: Ders Notu Başlığı\nauthor: Ders / Konu\ntheme: ders\n---\n\n# Ders Notu Başlığı\n",
+  },
+  {
+    id: "iki-sutun",
+    label: "2 Sütunlu Sınav Özeti",
+    body: [
+      '<div class="two-col">',
+      "",
+      "### Önemli Formüller",
+      "",
+      "- **Özdeşlik:** $a^2 + b^2 = c^2$",
+      "- **Türev:** $\\frac{d}{dx}(x^n) = n x^{n-1}$",
+      "",
+      "### Kısa Notlar",
+      "",
+      "- Birimleri ve sınır koşullarını kontrol et.",
+      "- Sınır durumlarını ayrı incele.",
+      "",
+      "</div>",
+    ].join("\n"),
+  },
+  {
+    id: "teorem",
+    label: "Teorem Kutusu",
+    body: "> [!theorem] Teorem Adı\n> Hipotez ve sonuç ifadesi. Örneğin: $f$ sürekli ise $\\int_a^b f(x)\\,dx$ tanımlıdır.",
+  },
+  {
+    id: "sayfa-sonu",
+    label: "Sayfa Sonu",
+    body: '<div class="page-break"></div>',
+  },
+];
+
+const FENCE_RE = /^ {0,3}(`{3,}|~{3,})(.*)$/;
+
+function countBackslashesBefore(src: string, index: number): number {
+  let count = 0;
+  for (let i = index - 1; i >= 0 && src[i] === "\\"; i--) count++;
+  return count;
+}
+
+function splitCodeFences(src: string): TextChunk[] {
+  const parts: TextChunk[] = [];
+  const lines = src.split(/(?<=\n)/);
+  let buf: string[] = [];
+  let fence: string | null = null;
+
+  for (const line of lines) {
+    const m = FENCE_RE.exec(line.replace(/\r?\n$/, ""));
+    if (fence === null && m) {
+      const marker = m[1];
+      const info = m[2];
+      // CommonMark: backtick kod bloğu bilgi satırı backtick içeremez.
+      if (marker[0] === "`" && info.includes("`")) {
+        buf.push(line);
+        continue;
+      }
+      if (buf.length > 0) {
+        parts.push({ isCode: false, text: buf.join("") });
+        buf = [];
+      }
+      buf.push(line);
+      fence = marker;
+    } else if (fence !== null && m && m[1][0] === fence[0] && m[1].length >= fence.length && m[2].trim() === "") {
+      buf.push(line);
+      parts.push({ isCode: true, text: buf.join("") });
+      buf = [];
+      fence = null;
+    } else {
+      buf.push(line);
+    }
+  }
+  if (buf.length > 0) parts.push({ isCode: fence !== null, text: buf.join("") });
+  return parts;
+}
+
+function splitInlineCode(segment: string): TextChunk[] {
+  const chunks: TextChunk[] = [];
+  let plainStart = 0;
+  let i = 0;
+
+  while (i < segment.length) {
+    if (segment[i] !== "`" || countBackslashesBefore(segment, i) % 2 === 1) {
+      i++;
+      continue;
+    }
+    let tickCount = 1;
+    while (i + tickCount < segment.length && segment[i + tickCount] === "`") tickCount++;
+
+    let j = i + tickCount;
+    let closeStart = -1;
+    while (j < segment.length) {
+      if (segment[j] === "\n") {
+        const rest = segment.slice(j + 1);
+        if (/^[ \t]*\r?\n/.test(rest)) break;
+        j++;
+        continue;
+      }
+      if (segment[j] === "`") {
+        let run = 1;
+        while (j + run < segment.length && segment[j + run] === "`") run++;
+        if (run === tickCount) {
+          closeStart = j;
+          break;
+        }
+        j += run;
+        continue;
+      }
+      j++;
+    }
+
+    if (closeStart !== -1) {
+      if (i > plainStart) chunks.push({ isCode: false, text: segment.slice(plainStart, i) });
+      chunks.push({ isCode: true, text: segment.slice(i, closeStart + tickCount) });
+      i = closeStart + tickCount;
+      plainStart = i;
+    } else {
+      i += tickCount;
+    }
+  }
+
+  if (plainStart < segment.length) chunks.push({ isCode: false, text: segment.slice(plainStart) });
+  return chunks;
+}
+
+function findClosingDelimiter(src: string, start: number, close: string, stopOnBlankLine: boolean): number {
+  let i = start;
+  while (i <= src.length - close.length) {
+    if (stopOnBlankLine && src[i] === "\n" && /^[ \t]*\r?\n/.test(src.slice(i + 1))) {
+      return -1;
+    }
+    if (src.startsWith(close, i) && countBackslashesBefore(src, i) % 2 === 0) {
+      return i;
+    }
+    i++;
+  }
+  return -1;
+}
+
+function convertLatexDelimiters(plain: string): { text: string; converted: number } {
+  let out = "";
+  let converted = 0;
+  let i = 0;
+
+  while (i < plain.length) {
+    if (plain[i] === "\\" && countBackslashesBefore(plain, i) % 2 === 0) {
+      const next = plain[i + 1];
+      if (next === "[") {
+        const close = findClosingDelimiter(plain, i + 2, "\\]", false);
+        if (close !== -1) {
+          const inner = plain.slice(i + 2, close).trim();
+          if (inner.length > 0) {
+            const lineStart = out.lastIndexOf("\n") + 1;
+            const beforeOnLine = out.slice(lineStart);
+            const bqMatch = /^([ \t]*(?:>[ \t]*)+)$/.exec(beforeOnLine);
+            if (bqMatch) {
+              const prefix = bqMatch[1];
+              const body = inner
+                .split(/\r?\n/)
+                .map((l) => (/^[ \t]*>/.test(l) ? l : `${prefix}${l}`))
+                .join("\n");
+              out += `$$\n${body}\n${prefix}$$`;
+            } else {
+              const hadTextBefore = beforeOnLine.trim().length > 0;
+              if (hadTextBefore) out = `${out.replace(/[ \t]+$/, "")}\n`;
+              out += `$$\n${inner}\n$$`;
+              const afterRest = plain.slice(close + 2);
+              const sameLineAfter = afterRest.split(/\r?\n/, 1)[0];
+              if (sameLineAfter.trim().length > 0) out += "\n";
+            }
+            converted++;
+            i = close + 2;
+            continue;
+          }
+        }
+      } else if (next === "(") {
+        const close = findClosingDelimiter(plain, i + 2, "\\)", true);
+        if (close !== -1) {
+          const inner = plain.slice(i + 2, close).trim();
+          if (inner.length > 0) {
+            out += `$${inner}$`;
+            converted++;
+            i = close + 2;
+            continue;
+          }
+        }
+      }
+    }
+    out += plain[i];
+    i++;
+  }
+
+  return { text: out, converted };
+}
+
+function normalizeDisplayMathSpacing(src: string): string {
+  const lines = src.split(/\r?\n/);
+  const out: string[] = [];
+  let fence: string | null = null;
+  let inMathBlock = false;
+  let needBlankAfter = false;
+
+  const ensureBlankBefore = () => {
+    if (out.length > 0 && out[out.length - 1].trim() !== "") out.push("");
+  };
+
+  for (const line of lines) {
+    if (inMathBlock) {
+      const closeMatch = /^[ \t]*\$\$[ \t]*(\([^)\n]+\))?[ \t]*$/.exec(line);
+      if (closeMatch) {
+        out.push(closeMatch[1] ? `$$ ${closeMatch[1]}` : "$$");
+        inMathBlock = false;
+        needBlankAfter = true;
+      } else {
+        out.push(line);
+      }
+      continue;
+    }
+
+    const fenceMatch = FENCE_RE.exec(line);
+    if (fence === null && fenceMatch) {
+      const marker = fenceMatch[1];
+      if (!(marker[0] === "`" && fenceMatch[2].includes("`"))) {
+        if (needBlankAfter) {
+          out.push("");
+          needBlankAfter = false;
+        }
+        fence = marker;
+        out.push(line);
+        continue;
+      }
+    } else if (
+      fence !== null &&
+      fenceMatch &&
+      fenceMatch[1][0] === fence[0] &&
+      fenceMatch[1].length >= fence.length &&
+      fenceMatch[2].trim() === ""
+    ) {
+      fence = null;
+      out.push(line);
+      continue;
+    }
+
+    if (fence !== null) {
+      out.push(line);
+      continue;
+    }
+
+    const singleLineMath = /^[ \t]*\$\$(.+?)\$\$([ \t]*(\([^)\n]+\)))?[ \t]*$/.exec(line);
+    if (singleLineMath && !singleLineMath[1].includes("$$") && !singleLineMath[1].includes("`")) {
+      const inner = singleLineMath[1].trim();
+      if (inner.length > 0) {
+        ensureBlankBefore();
+        out.push("$$", inner, singleLineMath[3] ? `$$ ${singleLineMath[3]}` : "$$");
+        needBlankAfter = true;
+        continue;
+      }
+    }
+
+    if (/^[ \t]*\$\$[ \t]*$/.test(line)) {
+      needBlankAfter = false;
+      ensureBlankBefore();
+      out.push("$$");
+      inMathBlock = true;
+      continue;
+    }
+
+    if (needBlankAfter) {
+      if (line.trim() !== "") out.push("");
+      needBlankAfter = false;
+    }
+    out.push(line);
+  }
+
+  return out.join("\n");
+}
+
+/** AI çıktısındaki \(...\) ve \[...\] formüllerini kod bloklarını atlayarak $ / $$ biçimine çevirir. */
+function fixAiNote(src: string): { text: string; converted: number; changed: boolean } {
+  let converted = 0;
+  const convertedText = splitCodeFences(src)
+    .map((part) => {
+      if (part.isCode) return part.text;
+      return splitInlineCode(part.text)
+        .map((chunk) => {
+          if (chunk.isCode) return chunk.text;
+          const res = convertLatexDelimiters(chunk.text);
+          converted += res.converted;
+          return res.text;
+        })
+        .join("");
+    })
+    .join("");
+
+  const text = normalizeDisplayMathSpacing(convertedText);
+  return { text, converted, changed: text !== src };
+}
+
+function formatSnippetInsertion(before: string, after: string, body: string): string {
+  const lead = before.length === 0 || before.endsWith("\n\n") ? "" : before.endsWith("\n") ? "\n" : "\n\n";
+  const trimmedBody = body.replace(/\n+$/, "");
+  const trail = after.length === 0 ? "\n" : after.startsWith("\n\n") ? "" : after.startsWith("\n") ? "\n" : "\n\n";
+  return `${lead}${trimmedBody}${trail}`;
+}
+
 export default function Markdown({ route, engines }: { route: Route; engines: EnginesResponse | null }) {
   const [mdFile, setMdFile] = useState<FileMeta | null>(null);
   const [attachments, setAttachments] = useState<FileMeta[]>([]);
@@ -64,6 +385,7 @@ export default function Markdown({ route, engines }: { route: Route; engines: En
   const timer = useRef<number>(undefined);
   const previewSeq = useRef(createSequencer());
   const builtText = useRef<string | null>(null);
+  const editorRef = useRef<HTMLTextAreaElement>(null);
   const browserMissing = engines?.engines.find((e) => e.key === "browser")?.ok === false;
   const dirty = text !== null && saved !== null && text !== saved;
   const key = draftKey(mdFile?.id);
@@ -192,6 +514,61 @@ export default function Markdown({ route, engines }: { route: Route; engines: En
     window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
     setSaved(text);
   };
+
+  /** Metni seçili aralıkta günceller; tarayıcı geri alma (Ctrl+Z) geçmişini korumaya çalışır. */
+  const applyEditorEdit = (replacement: string, start: number, end: number, fullNext: string) => {
+    const el = editorRef.current;
+    if (el) {
+      el.focus();
+      el.setSelectionRange(start, end);
+      if (typeof document.execCommand === "function") {
+        document.execCommand("insertText", false, replacement);
+      }
+      if (el.value === fullNext) {
+        setText(fullNext);
+        const cursor = start + replacement.length;
+        window.requestAnimationFrame(() => el.setSelectionRange(cursor, cursor));
+        return;
+      }
+    }
+    setText(fullNext);
+  };
+
+  const onRepairAiNote = () => {
+    if (text === null) return;
+    const { text: fixed, converted, changed } = fixAiNote(text);
+    if (!changed) {
+      toast.info("Düzeltilecek AI formülü bulunamadı.");
+      return;
+    }
+    applyEditorEdit(fixed, 0, text.length, fixed);
+    toast.ok(
+      converted > 0
+        ? `AI notu onarıldı (${converted} formül dönüştürüldü).`
+        : "Formül bloklarının boşlukları düzenlendi.",
+    );
+  };
+
+  const onInsertSnippet = (snippetId: string) => {
+    if (text === null) return;
+    const preset = SNIPPETS.find((s) => s.id === snippetId);
+    if (!preset) return;
+
+    const el = editorRef.current;
+    const hasFrontMatter = text.trimStart().startsWith("---");
+    const body =
+      preset.id === "ders-baslik" && hasFrontMatter
+        ? "# Ders Notu Başlığı\n\n> [!abstract] Konu Özeti\n> Bu bölümdeki temel kavramlar ve formüller."
+        : preset.body;
+    const start = preset.id === "ders-baslik" && !hasFrontMatter ? 0 : (el?.selectionStart ?? text.length);
+    const end = preset.id === "ders-baslik" && !hasFrontMatter ? 0 : (el?.selectionEnd ?? text.length);
+    const before = text.slice(0, start);
+    const after = text.slice(end);
+    const insertion = formatSnippetInsertion(before, after, body);
+    applyEditorEdit(insertion, start, end, `${before}${insertion}${after}`);
+    toast.ok(`"${preset.label}" şablonu eklendi.`);
+  };
+
   const effective = preview?.options;
 
   return (
@@ -327,6 +704,33 @@ export default function Markdown({ route, engines }: { route: Route; engines: En
                 title={uploading ? "Yükleniyor…" : "+ resim / başka not"}
               />
             </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.45rem", alignItems: "center" }}>
+              <button
+                type="button"
+                className="small button"
+                onClick={onRepairAiNote}
+                title="AI çıktısındaki \(...\) ve \[...\] formüllerini $ / $$ biçimine çevirir"
+              >
+                AI Notunu Onar
+              </button>
+              <select
+                className="small"
+                aria-label="Şablon Ekle"
+                value=""
+                onChange={(e) => {
+                  if (e.target.value) onInsertSnippet(e.target.value);
+                }}
+              >
+                <option value="" disabled>
+                  Şablon Ekle…
+                </option>
+                {SNIPPETS.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+            </div>
             {attachments.length > 0 && (
               <ul className="chips" aria-label="Ekler">
                 {attachments.map((a) => (
@@ -346,6 +750,7 @@ export default function Markdown({ route, engines }: { route: Route; engines: En
             )}
             {showEditor && (
               <textarea
+                ref={editorRef}
                 className="md-editor"
                 spellCheck={false}
                 value={text}
