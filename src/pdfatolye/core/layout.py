@@ -10,7 +10,7 @@ import pymupdf
 from pdfatolye import proc
 from pdfatolye.core import geometry as geo
 from pdfatolye.core.paper import PAPER_SIZES_MM, PT_PER_MM, size_pt
-from pdfatolye.core.pdfio import opened, save_pdf
+from pdfatolye.core.pdfio import atomic_output, opened
 from pdfatolye.core.ranges import parse_ranges
 from pdfatolye.errors import PdfAtolyeError
 
@@ -131,62 +131,66 @@ def nup_pdf(
     margin = margin_mm * PT_PER_MM
     gap = gap_mm * PT_PER_MM
 
-    with opened(Path(input), password) as src:
-        indices = parse_ranges(spec, src.page_count)
-        first_rect = src[indices[0]].rect
-        src_landscape = first_rect.width > first_rect.height
-
-        if notes_side:
-            auto_landscape = src_landscape if per_sheet == 1 else False
-        elif per_sheet in (2, 6):
-            auto_landscape = not src_landscape
-        else:
-            auto_landscape = src_landscape
-
-        sheet_w, sheet_h = _sheet_size(paper, orientation, auto_landscape=auto_landscape)
-        cols, rows = _nup_grid(per_sheet, sheet_w > sheet_h, notes_side)
-
-        usable_w = sheet_w - 2 * margin
-        usable_h = sheet_h - 2 * margin
-        if notes_side:
-            slides_w = (usable_w - gap) * 0.55
-            notes_x0 = margin + slides_w + gap
-            notes_x1 = sheet_w - margin
-            cell_w = slides_w
-            cell_h = (usable_h - (rows - 1) * gap) / rows
-            if notes_x1 - notes_x0 < _MIN_BOX_PT:
-                raise PdfAtolyeError("Kenar boşluğu veya aralık seçili kağıt için çok büyük.")
-        else:
-            notes_x0 = notes_x1 = 0.0
-            cell_w = (usable_w - (cols - 1) * gap) / cols
-            cell_h = (usable_h - (rows - 1) * gap) / rows
-
-        if cell_w < _MIN_BOX_PT or cell_h < _MIN_BOX_PT:
-            raise PdfAtolyeError("Kenar boşluğu veya aralık seçili kağıt için çok büyük.")
-
-        chunks = [indices[i:i + per_sheet] for i in range(0, len(indices), per_sheet)]
+    with atomic_output(Path(output)) as tmp:
         out = pymupdf.open()
         try:
-            for chunk_idx, chunk in enumerate(chunks):
-                proc.raise_if_cancelled()
-                out_page = out.new_page(width=sheet_w, height=sheet_h)
-                for slot, pno in enumerate(chunk):
-                    r, c = divmod(slot, cols)
-                    x0 = margin + c * (cell_w + gap)
-                    y0 = margin + r * (cell_h + gap)
-                    cell = pymupdf.Rect(x0, y0, x0 + cell_w, y0 + cell_h)
-                    src_page = src[pno]
-                    target = geo.fit_inside(cell, src_page.rect.width, src_page.rect.height)
-                    _show_page(out_page, target, src, pno, src_page)
-                    if border:
-                        out_page.draw_rect(target, color=_BORDER_COLOR, width=0.5)
-                    if notes_side:
-                        _draw_note_lines(out_page, notes_x0, notes_x1, y0, y0 + cell_h)
-                if on_progress:
-                    on_progress((chunk_idx + 1) / len(chunks))
-            return save_pdf(out, Path(output))
+            with opened(Path(input), password) as src:
+                indices = parse_ranges(spec, src.page_count)
+                first_rect = src[indices[0]].rect
+                src_landscape = first_rect.width > first_rect.height
+
+                if notes_side:
+                    auto_landscape = src_landscape if per_sheet == 1 else False
+                elif per_sheet in (2, 6):
+                    auto_landscape = not src_landscape
+                else:
+                    auto_landscape = src_landscape
+
+                sheet_w, sheet_h = _sheet_size(paper, orientation, auto_landscape=auto_landscape)
+                cols, rows = _nup_grid(per_sheet, sheet_w > sheet_h, notes_side)
+
+                usable_w = sheet_w - 2 * margin
+                usable_h = sheet_h - 2 * margin
+                if notes_side:
+                    slides_w = (usable_w - gap) * 0.55
+                    notes_x0 = margin + slides_w + gap
+                    notes_x1 = sheet_w - margin
+                    cell_w = slides_w
+                    cell_h = (usable_h - (rows - 1) * gap) / rows
+                    if notes_x1 - notes_x0 < _MIN_BOX_PT:
+                        raise PdfAtolyeError(
+                            "Kenar boşluğu veya aralık seçili kağıt için çok büyük."
+                        )
+                else:
+                    notes_x0 = notes_x1 = 0.0
+                    cell_w = (usable_w - (cols - 1) * gap) / cols
+                    cell_h = (usable_h - (rows - 1) * gap) / rows
+
+                if cell_w < _MIN_BOX_PT or cell_h < _MIN_BOX_PT:
+                    raise PdfAtolyeError("Kenar boşluğu veya aralık seçili kağıt için çok büyük.")
+
+                chunks = [indices[i:i + per_sheet] for i in range(0, len(indices), per_sheet)]
+                for chunk_idx, chunk in enumerate(chunks):
+                    proc.raise_if_cancelled()
+                    out_page = out.new_page(width=sheet_w, height=sheet_h)
+                    for slot, pno in enumerate(chunk):
+                        r, c = divmod(slot, cols)
+                        x0 = margin + c * (cell_w + gap)
+                        y0 = margin + r * (cell_h + gap)
+                        cell = pymupdf.Rect(x0, y0, x0 + cell_w, y0 + cell_h)
+                        src_page = src[pno]
+                        target = geo.fit_inside(cell, src_page.rect.width, src_page.rect.height)
+                        _show_page(out_page, target, src, pno, src_page)
+                        if border:
+                            out_page.draw_rect(target, color=_BORDER_COLOR, width=0.5)
+                        if notes_side:
+                            _draw_note_lines(out_page, notes_x0, notes_x1, y0, y0 + cell_h)
+                    if on_progress:
+                        on_progress((chunk_idx + 1) / len(chunks))
+            out.save(tmp, garbage=3, deflate=True)
         finally:
             out.close()
+    return Path(output)
 
 
 def _content_bbox_in_mediabox(page: pymupdf.Page) -> pymupdf.Rect | None:
@@ -286,7 +290,7 @@ def crop_margins_pdf(
     bottom_pt = crop_bottom_mm * PT_PER_MM
     left_pt = crop_left_mm * PT_PER_MM
 
-    with opened(Path(input), password) as doc:
+    with atomic_output(Path(output)) as tmp, opened(Path(input), password) as doc:
         targets = sorted(set(parse_ranges(spec, doc.page_count)))
         for idx, pno in enumerate(targets):
             proc.raise_if_cancelled()
@@ -315,7 +319,8 @@ def crop_margins_pdf(
                 page.set_cropbox(new_cb)
             if on_progress:
                 on_progress((idx + 1) / len(targets))
-        return save_pdf(doc, Path(output))
+        doc.save(tmp, garbage=3, deflate=True)
+    return Path(output)
 
 
 def poster_split_pdf(
@@ -341,53 +346,63 @@ def poster_split_pdf(
     margin = margin_mm * PT_PER_MM
     overlap_pt = overlap_mm * PT_PER_MM
 
-    with opened(Path(input), password) as src:
-        indices = parse_ranges(spec, src.page_count)
+    with atomic_output(Path(output)) as tmp:
         out = pymupdf.open()
         try:
-            for idx, pno in enumerate(indices):
-                proc.raise_if_cancelled()
-                src_page = src[pno]
-                src_w, src_h = src_page.rect.width, src_page.rect.height
-                step_x = src_w / poster_cols
-                step_y = src_h / poster_rows
-                ov_x = min(overlap_pt / 2, step_x * 0.45) if poster_cols > 1 else 0.0
-                ov_y = min(overlap_pt / 2, step_y * 0.45) if poster_rows > 1 else 0.0
+            with opened(Path(input), password) as src:
+                indices = parse_ranges(spec, src.page_count)
+                for idx, pno in enumerate(indices):
+                    proc.raise_if_cancelled()
+                    src_page = src[pno]
+                    src_w, src_h = src_page.rect.width, src_page.rect.height
+                    step_x = src_w / poster_cols
+                    step_y = src_h / poster_rows
+                    ov_x = min(overlap_pt / 2, step_x * 0.45) if poster_cols > 1 else 0.0
+                    ov_y = min(overlap_pt / 2, step_y * 0.45) if poster_rows > 1 else 0.0
 
-                max_tile_w = step_x + (ov_x if poster_cols == 2 else 2 * ov_x)
-                max_tile_h = step_y + (ov_y if poster_rows == 2 else 2 * ov_y)
+                    max_tile_w = step_x + (ov_x if poster_cols == 2 else 2 * ov_x)
+                    max_tile_h = step_y + (ov_y if poster_rows == 2 else 2 * ov_y)
 
-                sheet_w, sheet_h = _sheet_size(
-                    paper, orientation, auto_landscape=max_tile_w > max_tile_h
-                )
-                usable_w = sheet_w - 2 * margin
-                usable_h = sheet_h - 2 * margin
-                if usable_w < _MIN_BOX_PT or usable_h < _MIN_BOX_PT:
-                    raise PdfAtolyeError("Kenar boşluğu seçili kağıt için çok büyük.")
+                    sheet_w, sheet_h = _sheet_size(
+                        paper, orientation, auto_landscape=max_tile_w > max_tile_h
+                    )
+                    usable_w = sheet_w - 2 * margin
+                    usable_h = sheet_h - 2 * margin
+                    if usable_w < _MIN_BOX_PT or usable_h < _MIN_BOX_PT:
+                        raise PdfAtolyeError("Kenar boşluğu seçili kağıt için çok büyük.")
 
-                # Tüm parçalar aynı ölçekle basılmalı ki yan yana yapıştırıldığında birebir otursun.
-                scale = min(usable_w / max_tile_w, usable_h / max_tile_h)
+                    # Tüm parçalar aynı ölçekle basılmalı ki yan yana yapıştırıldığında otursun.
+                    scale = min(usable_w / max_tile_w, usable_h / max_tile_h)
 
-                for r in range(poster_rows):
-                    for c in range(poster_cols):
-                        tx0 = 0.0 if c == 0 else max(0.0, c * step_x - ov_x)
-                        tx1 = src_w if c == poster_cols - 1 else min(src_w, (c + 1) * step_x + ov_x)
-                        ty0 = 0.0 if r == 0 else max(0.0, r * step_y - ov_y)
-                        ty1 = src_h if r == poster_rows - 1 else min(src_h, (r + 1) * step_y + ov_y)
-                        vis_tile = pymupdf.Rect(tx0, ty0, tx1, ty1)
-                        tw = vis_tile.width * scale
-                        th = vis_tile.height * scale
-                        px0 = margin + (usable_w - tw) / 2
-                        py0 = margin + (usable_h - th) / 2
-                        target = pymupdf.Rect(px0, py0, px0 + tw, py0 + th)
+                    for r in range(poster_rows):
+                        for c in range(poster_cols):
+                            tx0 = 0.0 if c == 0 else max(0.0, c * step_x - ov_x)
+                            tx1 = (
+                                src_w
+                                if c == poster_cols - 1
+                                else min(src_w, (c + 1) * step_x + ov_x)
+                            )
+                            ty0 = 0.0 if r == 0 else max(0.0, r * step_y - ov_y)
+                            ty1 = (
+                                src_h
+                                if r == poster_rows - 1
+                                else min(src_h, (r + 1) * step_y + ov_y)
+                            )
+                            vis_tile = pymupdf.Rect(tx0, ty0, tx1, ty1)
+                            tw = vis_tile.width * scale
+                            th = vis_tile.height * scale
+                            px0 = margin + (usable_w - tw) / 2
+                            py0 = margin + (usable_h - th) / 2
+                            target = pymupdf.Rect(px0, py0, px0 + tw, py0 + th)
 
-                        out_page = out.new_page(width=sheet_w, height=sheet_h)
-                        _show_page(out_page, target, src, pno, src_page, clip_visual=vis_tile)
-                if on_progress:
-                    on_progress((idx + 1) / len(indices))
-            return save_pdf(out, Path(output))
+                            out_page = out.new_page(width=sheet_w, height=sheet_h)
+                            _show_page(out_page, target, src, pno, src_page, clip_visual=vis_tile)
+                    if on_progress:
+                        on_progress((idx + 1) / len(indices))
+            out.save(tmp, garbage=3, deflate=True)
         finally:
             out.close()
+    return Path(output)
 
 
 def resize_pages_pdf(
@@ -406,25 +421,27 @@ def resize_pages_pdf(
         raise PdfAtolyeError("Kenar boşluğu negatif olamaz.")
     margin = margin_mm * PT_PER_MM
 
-    with opened(Path(input), password) as src:
-        indices = parse_ranges(spec, src.page_count)
+    with atomic_output(Path(output)) as tmp:
         out = pymupdf.open()
         try:
-            for idx, pno in enumerate(indices):
-                proc.raise_if_cancelled()
-                src_page = src[pno]
-                src_w, src_h = src_page.rect.width, src_page.rect.height
-                sheet_w, sheet_h = _sheet_size(
-                    paper, orientation, auto_landscape=src_w > src_h
-                )
-                box = pymupdf.Rect(margin, margin, sheet_w - margin, sheet_h - margin)
-                if box.width < _MIN_BOX_PT or box.height < _MIN_BOX_PT:
-                    raise PdfAtolyeError("Kenar boşluğu seçili kağıt için çok büyük.")
-                out_page = out.new_page(width=sheet_w, height=sheet_h)
-                target = geo.fit_inside(box, src_w, src_h)
-                _show_page(out_page, target, src, pno, src_page)
-                if on_progress:
-                    on_progress((idx + 1) / len(indices))
-            return save_pdf(out, Path(output))
+            with opened(Path(input), password) as src:
+                indices = parse_ranges(spec, src.page_count)
+                for idx, pno in enumerate(indices):
+                    proc.raise_if_cancelled()
+                    src_page = src[pno]
+                    src_w, src_h = src_page.rect.width, src_page.rect.height
+                    sheet_w, sheet_h = _sheet_size(
+                        paper, orientation, auto_landscape=src_w > src_h
+                    )
+                    box = pymupdf.Rect(margin, margin, sheet_w - margin, sheet_h - margin)
+                    if box.width < _MIN_BOX_PT or box.height < _MIN_BOX_PT:
+                        raise PdfAtolyeError("Kenar boşluğu seçili kağıt için çok büyük.")
+                    out_page = out.new_page(width=sheet_w, height=sheet_h)
+                    target = geo.fit_inside(box, src_w, src_h)
+                    _show_page(out_page, target, src, pno, src_page)
+                    if on_progress:
+                        on_progress((idx + 1) / len(indices))
+            out.save(tmp, garbage=3, deflate=True)
         finally:
             out.close()
+    return Path(output)

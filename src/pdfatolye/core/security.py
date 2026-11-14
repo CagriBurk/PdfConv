@@ -187,8 +187,10 @@ def repair(src: Path, output: Path, password: str | None = None) -> SecurityResu
     src = Path(src)
     notes: list[str] = []
     try:
-        with pikepdf.open(src, password=password or "",
-                          attempt_recovery=True) as pdf, atomic_output(output) as tmp:
+        with (
+            atomic_output(output) as tmp,
+            pikepdf.open(src, password=password or "", attempt_recovery=True) as pdf,
+        ):
             pdf.save(tmp, object_stream_mode=pikepdf.ObjectStreamMode.generate)
             if pdf.get_warnings():
                 notes.append(f"{len(pdf.get_warnings())} sorun düzeltildi.")
@@ -200,17 +202,12 @@ def repair(src: Path, output: Path, password: str | None = None) -> SecurityResu
         import pymupdf
 
         try:
-            doc = pymupdf.open(src, filetype="pdf")
-        except Exception as e:
-            raise BrokenPdfError(src, "onarılamadı") from e
-        try:
-            with doc:
+            with atomic_output(output) as tmp, pymupdf.open(src, filetype="pdf") as doc:
                 if doc.needs_pass and not doc.authenticate(password or ""):
                     raise EncryptedPdfError(src, wrong_password=bool(password)) from first
                 if doc.page_count == 0:
                     raise BrokenPdfError(src, "hiç sayfa kurtarılamadı") from first
-                with atomic_output(output) as tmp:
-                    doc.save(tmp, garbage=4, clean=True, deflate=True)
+                doc.save(tmp, garbage=4, clean=True, deflate=True)
                 notes = [f"MuPDF ile kurtarıldı ({doc.page_count} sayfa)."]
         except (EncryptedPdfError, BrokenPdfError):
             raise

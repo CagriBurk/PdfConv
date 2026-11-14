@@ -358,7 +358,8 @@ class FileStore:
             self.release(ids)
 
     def in_use(self, file_id: str) -> bool:
-        return self._busy.get(file_id, 0) > 0
+        with self._lock:
+            return self._busy.get(file_id, 0) > 0
 
     def cleanup(self, retention_hours: float) -> int:
         """Süresi dolmuş, sabitlenmemiş dosyaları siler. Silinen dosya sayısını döndürür.

@@ -232,3 +232,19 @@ def test_to_word_and_to_excel_empty_range_guards(tmp_path: Path, monkeypatch: py
     monkeypatch.setattr(to_word, "_import_pdf2docx", _empty_pages_import)
     with pytest.raises(PageRangeError):
         to_word.pdf_to_word(src, tmp_path / "out2.docx", spec="1")
+
+
+def test_repair_in_place_overwrite(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    doc_path = fx.numbered(tmp_path / "onar.pdf", 2, with_toc=False)
+    res_qpdf = security.repair(doc_path, doc_path)
+    assert res_qpdf.output == doc_path
+
+    # qpdf hata verirse MuPDF yedek yolu da yerinde yazarken WinError 5 vermemeli
+    def _fail_pikepdf(*_args, **_kwargs):
+        raise OSError("simule qpdf hatasi")
+
+    monkeypatch.setattr(security.pikepdf, "open", _fail_pikepdf)
+    res_mupdf = security.repair(doc_path, doc_path)
+    assert res_mupdf.output == doc_path
+    with pymupdf.open(doc_path) as pdf:
+        assert pdf.page_count == 2

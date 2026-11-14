@@ -13,7 +13,7 @@ from pathlib import Path
 import pymupdf
 
 from pdfatolye import proc
-from pdfatolye.core.pdfio import open_pdf, opened, safe_filename, save_pdf
+from pdfatolye.core.pdfio import open_pdf, opened, safe_filename, save_pdf, unique_path
 from pdfatolye.core.ranges import parse_range_groups, parse_ranges
 from pdfatolye.errors import PageRangeError
 
@@ -470,13 +470,17 @@ def split(
             filename = f"{stem}_{name}.pdf"
             while filename.lower() in used:  # aynı adlı yer imleri
                 filename = f"{stem}_{name}_{i}.pdf"
+            target = output_dir / filename
+            if target.resolve() == input.resolve():
+                target = unique_path(target)
+                filename = target.name
             used.add(filename.lower())
             outputs.append(
                 _compose_docs(
                     [doc],
                     [input],
                     [PageRef(0, p) for p in pages],
-                    output_dir / filename,
+                    target,
                 )
             )
     return outputs

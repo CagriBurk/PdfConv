@@ -274,9 +274,12 @@ def katex_script_hash() -> str:
 def _css(theme: str) -> str:
     """Temel, tema ve Pygments CSS metinlerini önbellekten döndürür."""
     themes = ASSETS / "themes"
+    theme_file = themes / f"{theme}.css"
+    if not theme_file.is_file():
+        theme_file = themes / "ders.css"
     return "\n".join([
         (themes / "base.css").read_text(encoding="utf-8"),
-        (themes / f"{theme}.css").read_text(encoding="utf-8"),
+        theme_file.read_text(encoding="utf-8"),
         pygments_css(),
     ])
 

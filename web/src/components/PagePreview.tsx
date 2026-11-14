@@ -19,7 +19,6 @@ export default function PagePreview({ file, page = 0, width = 320, children }: P
   useEffect(() => {
     let alive = true;
     let pageObj: { cleanup?: () => void } | null = null;
-    const canvas = document.createElement("canvas");
     const pw = passwords.get(file.id);
     void openPdf(file, pw)
       .then((doc) => doc.getPage(page + 1))
@@ -43,8 +42,6 @@ export default function PagePreview({ file, page = 0, width = 320, children }: P
       } catch {
         /* yoksay */
       }
-      canvas.width = 0;
-      canvas.height = 0;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file.id, file.version, file.updated, page, width]);

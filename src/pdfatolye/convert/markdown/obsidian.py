@@ -299,7 +299,7 @@ def _render_link(tokens, idx, slug_func: Callable[[str], str] | None = None) -> 
     if sep and not note:
         heading_name = heading.strip()
         if heading_name and not heading_name.startswith("^") and slug_func is not None:
-            slug = slug_func(heading_name)
+            slug = slug_func(re.sub(r"\$+[^$]+\$+", "", heading_name))
             return f'<a class="wikilink" href="#{html.escape(slug)}">{html.escape(text)}</a>'
     return f'<span class="wikilink">{html.escape(text)}</span>'
 

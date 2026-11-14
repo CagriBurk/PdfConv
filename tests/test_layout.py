@@ -329,3 +329,25 @@ def test_layout_jobs_preserve_encryption_and_suffix(client, tmp_path, mode, suff
         pikepdf.open(out_path)
     with pikepdf.open(out_path, password="parola") as pdf:
         assert pdf.encryption.R == 6 and pdf.encryption.bits == 256
+
+
+def test_layout_functions_support_in_place_overwrite(tmp_path):
+    p_crop = fx.numbered(tmp_path / "crop_in_place.pdf", 2, with_toc=False)
+    layout.crop_margins_pdf(p_crop, p_crop, crop_mode="manual", crop_top_mm=10, crop_left_mm=10)
+    with pymupdf.open(p_crop) as d:
+        assert d.page_count == 2
+
+    p_nup = fx.numbered(tmp_path / "nup_in_place.pdf", 2, with_toc=False)
+    layout.nup_pdf(p_nup, p_nup, per_sheet=2)
+    with pymupdf.open(p_nup) as d:
+        assert d.page_count == 1
+
+    p_poster = fx.numbered(tmp_path / "poster_in_place.pdf", 1, with_toc=False)
+    layout.poster_split_pdf(p_poster, p_poster, poster_cols=2, poster_rows=1)
+    with pymupdf.open(p_poster) as d:
+        assert d.page_count == 2
+
+    p_resize = fx.numbered(tmp_path / "resize_in_place.pdf", 2, with_toc=False)
+    layout.resize_pages_pdf(p_resize, p_resize, paper="A5")
+    with pymupdf.open(p_resize) as d:
+        assert d.page_count == 2

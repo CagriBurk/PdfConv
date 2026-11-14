@@ -286,3 +286,11 @@ def test_match_heading_pages_by_order_and_text():
     # Sayılar tutmuyorsa metinle eşleştir
     outline = [[1, "Kapak", 1], [1, "Giriş", 2], [2, "y", 3]]
     assert match_heading_pages(hs, outline) == [2, None]
+
+
+def test_heading_with_inline_math_matches_wikilink():
+    r = parse_markdown("# Bölüm $x$ Başlık\n\nBak: [[#Bölüm $x$ Başlık]]", base_dir=Path("."))
+    assert len(r.headings) == 1
+    hid = r.headings[0].id
+    assert f'<h1 id="{hid}">' in r.body_html
+    assert f'<a class="wikilink" href="#{hid}">Bölüm $x$ Başlık</a>' in r.body_html

@@ -55,13 +55,8 @@ export default function Home({ engines }: { engines: EnginesResponse | null }) {
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        searchRef.current?.focus();
-        searchRef.current?.select();
-        return;
-      }
       if (e.key === "/" && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        if (document.querySelector("dialog[open], .modal")) return;
         const target = e.target as HTMLElement | null;
         const tag = target?.tagName;
         if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target?.isContentEditable) {
