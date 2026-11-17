@@ -127,12 +127,13 @@ def put_settings(request: Request, body: SettingsBody) -> dict:
 
 @router.post("/restart")
 def restart(request: Request) -> dict:
-    """Masaüstü uygulamasında sunucuyu yeni ayarlarla yeniden başlatır (pencere açık kalır)."""
+    """Sunucuyu yeni ayarlarla yeniden başlatır (masaüstü uygulaması ve `pdfatolye serve`;
+    pencere ve konsol açık kalır)."""
     require_local(request, "Yeniden başlatmak")
     state = request.app.state
     if state.restart is None:
-        raise PdfAtolyeError("Bu çalışma biçiminde uygulama kendini yeniden başlatamaz: sunucuyu "
-                             "kapatıp yeniden aç (baslat.bat).")
+        raise PdfAtolyeError("Bu çalışma biçiminde uygulama kendini yeniden başlatamaz: "
+                             "uygulamayı kapatıp yeniden aç.")
     port = settings_view(request)["values"]["port"]
     state.restart()
     return {"url": f"http://127.0.0.1:{port}"}

@@ -151,9 +151,14 @@ def new_offline_page(browser, allow_file: Callable[[Path], bool], blocked: list[
             return
         if url.startswith("file:"):
             path = file_url_path(url)
-            if path is not None and allow_file(path.resolve()):
-                r.continue_()
-                return
+            if path is not None:
+                try:
+                    allowed = allow_file(path.resolve())
+                except (OSError, ValueError):
+                    allowed = False
+                if allowed:
+                    r.continue_()
+                    return
         blocked.append(url)
         r.abort()
 

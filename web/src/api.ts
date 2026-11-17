@@ -116,6 +116,19 @@ export interface MdPreview {
   options: { theme: string; paper: string; toc: boolean; cover: boolean; landscape: boolean };
 }
 
+/** Markdown "Şablon ekle" menüsündeki kullanıcı şablonu: veri klasöründe `sablonlar/<ad>.md`. */
+export interface UserSnippet {
+  name: string;
+  body: string;
+  updated: number;
+}
+
+export interface SnippetList {
+  /** Şablonların durduğu klasör (elle .md dosyası da atılabilir). */
+  folder: string;
+  items: UserSnippet[];
+}
+
 export interface PdfInfo {
   file_size: number;
   encrypted: boolean;
@@ -213,6 +226,13 @@ export const api = {
 
   mdPreview: (text: string, attachments: string[], options: Record<string, unknown>) =>
     request<MdPreview>("/api/md/preview", json({ text, attachments, options })),
+  snippets: () => request<SnippetList>("/api/md/snippets"),
+  addSnippet: (name: string, body: string) => request<UserSnippet>("/api/md/snippets", json({ name, body })),
+  /** Yeniden adlandırır (`new_name`) ve/veya içeriğin üzerine yazar (`body`). */
+  updateSnippet: (name: string, change: { new_name?: string; body?: string }) =>
+    request<UserSnippet>(`/api/md/snippets/${encodeURIComponent(name)}`, { ...json(change), method: "PUT" }),
+  removeSnippet: (name: string) =>
+    request<{ ok: boolean }>(`/api/md/snippets/${encodeURIComponent(name)}`, { method: "DELETE" }),
 
   settings: () => request<SettingsResponse>("/api/settings"),
   saveSettings: (changes: Partial<SettingsValues>) =>
@@ -238,10 +258,13 @@ export const api = {
   },
 };
 
-/** İşi canlı izler (SSE). Bağlantı koparsa yoklamaya düşer. Dönen fonksiyon izlemeyi durdurur. */
-export function watchJob(id: string, onUpdate: (job: Job) => void): () => void {
+/** İşi canlı izler (SSE). Bağlantı koparsa yoklamaya düşer; yoklama da art arda başarısız olursa
+ * (ör. sunucu kapandı) bırakır ve `onLost` çağrılır. Dönen fonksiyon izlemeyi durdurur. */
+export function watchJob(id: string, onUpdate: (job: Job) => void, onLost?: () => void): () => void {
   let stopped = false;
   let timer: number | undefined;
+  let consecutiveErrors = 0;
+  let delay = 700;
   const source = new EventSource(`/api/jobs/${id}/events`);
   const done = (j: Job) => ["bitti", "hata", "iptal"].includes(j.status);
 
@@ -249,18 +272,32 @@ export function watchJob(id: string, onUpdate: (job: Job) => void): () => void {
     if (stopped) return;
     try {
       const j = await api.job(id);
+      consecutiveErrors = 0;
+      delay = 700;
       onUpdate(j);
       if (done(j)) return;
     } catch {
-      /* geçici hata: yeniden dene */
+      consecutiveErrors++;
+      if (consecutiveErrors >= 20) {
+        stopped = true;
+        onLost?.();
+        return;
+      }
+      delay = Math.min(5000, delay * 2);
     }
-    timer = window.setTimeout(poll, 700);
+    if (!stopped) {
+      timer = window.setTimeout(poll, delay);
+    }
   };
 
   source.onmessage = (e) => {
-    const j = JSON.parse(e.data) as Job;
-    onUpdate(j);
-    if (done(j)) source.close();
+    try {
+      const j = JSON.parse(e.data) as Job;
+      onUpdate(j);
+      if (done(j)) source.close();
+    } catch {
+      /* bozuk mesaj: yoksay */
+    }
   };
   source.onerror = () => {
     source.close();

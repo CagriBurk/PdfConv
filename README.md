@@ -116,13 +116,17 @@ düğmesi (paket yöneticisiyle kur). Telefon modu: `uv run python -m pdfatolye 
 
 ### Telefondan kullanmak (aynı Wi-Fi)
 
-Masaüstü uygulamasında: **Ayarlar → Telefon modu** kutusunu işaretle, **Şimdi yeniden başlat**
-(pencere açık kalır). Geliştirme sunucusunda: `baslat.bat --lan`. Ayarlar sayfasında (ve
-terminalde) bir QR kod çıkar; telefonun kamerasıyla okut. Telefon modu açıkken üst çubukta
-"Telefon modu açık" yazar; kapatmak için kutuyu kaldırıp yeniden başlat. QR kod tek kullanımlıktır: her cihaz için Ayarlar'da yenisi çıkar ve eşleşmemiş
-cihazların istekleri reddedilir. Bağlı cihazları Ayarlar'da görür, istediğinde hepsinin bağlantısını
-kesersin. Windows güvenlik duvarı ilk seferde izin isteyebilir ("Özel ağlar" yeterli). Bağlantı
-yerel ağda şifresizdir (HTTP): yalnızca güvendiğin Wi-Fi'de kullan, işin bitince sunucuyu kapat.
+**Ayarlar → Telefon modu** kutusunu işaretle; çıkan pencerede **Aç ve yeniden başlat**'a bas.
+Uygulama birkaç saniyede kendini yeniden başlatır (masaüstü uygulamasında da `baslat.bat`'la
+açılan sunucuda da; pencere açık kalır). Ayarlar sayfasında (ve terminalde) bir QR kod çıkar;
+telefonun kamerasıyla okut. Telefon modu açıkken üst çubukta "Telefon modu açık" yazar; kapatmak
+için kutuyu kaldır, aynı pencereden yeniden başlat. QR kod tek kullanımlıktır: her cihaz için
+Ayarlar'da yenisi çıkar ve eşleşmemiş cihazların istekleri reddedilir. Bağlı cihazları Ayarlar'da
+görür, istediğinde hepsinin bağlantısını kesersin. Windows güvenlik duvarı ilk seferde izin
+isteyebilir: "Özel ağlar" için izin ver. Wi-Fi Windows'ta "Ortak ağ" olarak görünüyorsa telefon
+bağlanamaz; güvendiğin ağsa ağ ayarlarından "Özel" yap. Bağlantı yerel ağda şifresizdir (HTTP):
+yalnızca güvendiğin Wi-Fi'de kullan, işin bitince telefon modunu kapat. `--lan` bayrağı
+(`baslat.bat --lan`) telefon modunu yalnızca o açılış için açar.
 
 ### Sorun giderme
 

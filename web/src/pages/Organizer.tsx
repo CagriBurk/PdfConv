@@ -15,9 +15,25 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import {
+  ArrowDownUp,
+  Check,
+  Download,
+  FilePlus2,
+  History,
+  PenLine,
+  Plus,
+  Redo2,
+  RotateCcw,
+  RotateCw,
+  Save,
+  Trash2,
+  Undo2,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, errorMessage, type FileMeta } from "../api";
 import DropZone from "../components/DropZone";
+import Icon from "../components/Icon";
 import JobPanel from "../components/JobPanel";
 import Modal from "../components/Modal";
 import PageHeader from "../components/PageHeader";
@@ -38,7 +54,8 @@ interface Item {
   blank?: boolean;
 }
 
-const COLORS = ["#c2410c", "#2563eb", "#15803d", "#7e22ce", "#b91c1c", "#0e7490", "#a16207"];
+// Kaynak dosya renkleri (birden çok PDF birleşince sayfanın nereden geldiği).
+const COLORS = ["var(--g1-fg)", "var(--g3-fg)", "var(--g4-fg)", "var(--g2-fg)", "var(--bad)"];
 let seq = 0;
 const newKey = () => `p${++seq}`;
 
@@ -331,7 +348,7 @@ export default function Organizer({ fileId }: { fileId?: string }) {
 
   const colorOf = useMemo(() => {
     const ids = Object.keys(sources);
-    return (id?: string) => (id ? COLORS[ids.indexOf(id) % COLORS.length] : "transparent");
+    return (id?: string) => (id ? COLORS[ids.indexOf(id) % COLORS.length] : undefined);
   }, [sources]);
   const multiSource = Object.keys(sources).length > 1;
 
@@ -403,88 +420,111 @@ export default function Organizer({ fileId }: { fileId?: string }) {
     <>
       <PageHeader title={base?.name ?? "Sayfa Düzenle"}>
         {base && (
-          <span className="muted small">
-            {items.length} sayfa · sürüm {base.version}
+          <>
+            <span className="chip meta-chip">
+              {items.length} sayfa · sürüm {base.version}
+            </span>
             {base.version > 1 && (
-              <button type="button" className="link-button" onClick={undoVersion} disabled={dirty}>
+              <button type="button" onClick={undoVersion} disabled={dirty}>
+                <Icon icon={History} size={16} />
                 Önceki sürüme dön
               </button>
             )}
-            <button type="button" className="link-button" onClick={() => navigate(`editor/${base.id}`)} disabled={dirty}>
+            <button
+              type="button"
+             
+              onClick={() => navigate(`editor/${base.id}`)}
+              disabled={dirty}
+            >
+              <Icon icon={PenLine} size={16} />
               İçerik ekle
             </button>
-          </span>
+            {!dirty && (
+              <a className="button" href={api.downloadUrl(base.id)}>
+                <Icon icon={Download} size={16} />
+                İndir
+              </a>
+            )}
+          </>
         )}
       </PageHeader>
 
       <div className="toolbar" role="toolbar" aria-label="Sayfa işlemleri">
-        <div className="tool-cluster">
-          <button type="button" onClick={() => rotateSel(-90)} disabled={!selected.size} title="Sola döndür (Shift+R)">
-            ⟲ Sola
-          </button>
-          <button type="button" onClick={() => rotateSel(90)} disabled={!selected.size} title="Sağa döndür (R)">
-            ⟳ Sağa
-          </button>
-          <button type="button" onClick={deleteSel} disabled={!selected.size} title="Sil (Delete)">
-            Sil
-          </button>
-          <button type="button" onClick={addBlank} title="Seçimden sonra (yoksa sona) boş sayfa">
-            Boş sayfa
-          </button>
-          <button type="button" onClick={reverse} title="Seçili sayfaların (yoksa tümünün) sırasını ters çevir">
-            Ters çevir
-          </button>
-          <button type="button" onClick={() => addInput.current?.click()} disabled={uploading}>
-            {uploading ? "Yükleniyor…" : "+ PDF ekle"}
-          </button>
-          <input
-            ref={addInput}
-            type="file"
-            accept={ACCEPT.pdf}
-            multiple
-            hidden
-            onChange={(e) => {
-              void addPdfs(Array.from(e.target.files ?? []));
-              e.target.value = "";
-            }}
-          />
-        </div>
-        <div className="tool-cluster">
-          <select
-            aria-label="Seçim"
-            value=""
-            onChange={(e) => {
-              const v = e.target.value;
-              if (v === "all") selectWhere(() => true);
-              if (v === "none") setSelected(new Set());
-              if (v === "odd") selectWhere((i) => i % 2 === 0);
-              if (v === "even") selectWhere((i) => i % 2 === 1);
-              e.target.value = "";
-            }}
-          >
-            <option value="">Seç…</option>
-            <option value="all">Tümü (Ctrl+A)</option>
-            <option value="none">Hiçbiri (Esc)</option>
-            <option value="odd">Tek sayfalar</option>
-            <option value="even">Çift sayfalar</option>
-          </select>
-          <button type="button" onClick={undo} disabled={!past.length} title="Geri al (Ctrl+Z)">
-            Geri
-          </button>
-          <button type="button" onClick={redo} disabled={!future.length} title="İleri al (Ctrl+Y)">
-            İleri
-          </button>
+        <div className="tool-groups">
+          <div className="tool-cluster">
+            <button type="button" onClick={() => rotateSel(-90)} disabled={!selected.size} title="Sola döndür (Shift+R)">
+              <Icon icon={RotateCcw} size={17} />
+              Sola
+            </button>
+            <button type="button" onClick={() => rotateSel(90)} disabled={!selected.size} title="Sağa döndür (R)">
+              <Icon icon={RotateCw} size={17} />
+              Sağa
+            </button>
+            <button type="button" onClick={deleteSel} disabled={!selected.size} title="Sil (Delete)">
+              <Icon icon={Trash2} size={17} />
+              Sil
+            </button>
+          </div>
+          <div className="tool-cluster">
+            <button type="button" onClick={addBlank} title="Seçimden sonra (yoksa sona) boş sayfa">
+              <Icon icon={FilePlus2} size={17} />
+              Boş sayfa
+            </button>
+            <button type="button" onClick={reverse} title="Seçili sayfaların (yoksa tümünün) sırasını ters çevir">
+              <Icon icon={ArrowDownUp} size={17} />
+              Ters çevir
+            </button>
+            <button type="button" onClick={() => addInput.current?.click()} disabled={uploading}>
+              <Icon icon={Plus} size={17} />
+              {uploading ? "Yükleniyor…" : "PDF ekle"}
+            </button>
+            <input
+              ref={addInput}
+              type="file"
+              accept={ACCEPT.pdf}
+              multiple
+              hidden
+              onChange={(e) => {
+                void addPdfs(Array.from(e.target.files ?? []));
+                e.target.value = "";
+              }}
+            />
+          </div>
+          <div className="tool-cluster">
+            <select
+              aria-label="Seçim"
+              value=""
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === "all") selectWhere(() => true);
+                if (v === "none") setSelected(new Set());
+                if (v === "odd") selectWhere((i) => i % 2 === 0);
+                if (v === "even") selectWhere((i) => i % 2 === 1);
+                e.target.value = "";
+              }}
+            >
+              <option value="">Seç…</option>
+              <option value="all">Tümü (Ctrl+A)</option>
+              <option value="none">Hiçbiri (Esc)</option>
+              <option value="odd">Tek sayfalar</option>
+              <option value="even">Çift sayfalar</option>
+            </select>
+            <button type="button" onClick={undo} disabled={!past.length} title="Geri al (Ctrl+Z)">
+              <Icon icon={Undo2} size={17} />
+              Geri
+            </button>
+            <button type="button" onClick={redo} disabled={!future.length} title="İleri al (Ctrl+Y)">
+              <Icon icon={Redo2} size={17} />
+              İleri
+            </button>
+          </div>
         </div>
         <div className="tool-cluster end">
-          {base && !dirty && (
-            <a className="button" href={api.downloadUrl(base.id)}>
-              İndir
-            </a>
-          )}
           <button type="button" onClick={() => save("new")} disabled={!dirty || saveJob.running}>
             Yeni dosya olarak kaydet
           </button>
           <button type="button" className="primary" onClick={() => save("version")} disabled={!dirty || saveJob.running}>
+            <Icon icon={Save} size={17} />
             {saveJob.running ? "Kaydediliyor…" : "Kaydet"}
           </button>
         </div>
@@ -507,9 +547,16 @@ export default function Organizer({ fileId }: { fileId?: string }) {
         </div>
       )}
       <JobPanel job={saveJob.job?.status === "hata" ? saveJob.job : null} error={saveJob.error} />
-      {selected.size > 0 && (
-        <p className="muted small selection-line">
-          {selected.size} sayfa seçili · sürükleyerek ya da Alt+oklarla taşı, R ile döndür, Delete ile sil
+      {/* Seçim yoksa ipucu: satır hep yerinde durur, sayfalar seçimle aşağı kaymaz. */}
+      {selected.size > 0 ? (
+        <p className="small selection-line">
+          <strong className="chip accent">{selected.size} sayfa seçili</strong>
+          <span className="muted">sürükleyerek ya da Alt+oklarla taşı, R ile döndür, Delete ile sil</span>
+        </p>
+      ) : (
+        <p className="muted small hint-line">
+          Başka PDF'leri bu alana sürükleyerek sayfalarını ekleyebilirsin. Çift tıklayınca (ya da Enter) sayfa büyür.
+          Klavye: oklar gezer, Boşluk seçer, Alt+oklar taşır.
         </p>
       )}
       <p className="sr-only" id="sayfa-ipucu">
@@ -545,7 +592,7 @@ export default function Organizer({ fileId }: { fileId?: string }) {
                   file={src}
                   selected={selected.has(item.key)}
                   hidden={dragging !== null && dragging !== item.key && selected.size > 1 && selected.has(item.key)}
-                  color={multiSource ? colorOf(item.file) : "transparent"}
+                  color={multiSource ? colorOf(item.file) : undefined}
                   label={label(item, index)}
                   focusable={item.key === tabKey}
                   onClick={(e) => onItemClick(e, item.key)}
@@ -557,13 +604,14 @@ export default function Organizer({ fileId }: { fileId?: string }) {
           </ul>
         </SortableContext>
         <DragOverlay>
-          {dragging && selected.size > 1 ? <div className="drag-badge">{selected.size} sayfa</div> : null}
+          {dragging && selected.size > 1 ? (
+            <div className="drag-badge">
+              <Icon icon={Check} size={15} strokeWidth={2.6} />
+              {selected.size} sayfa
+            </div>
+          ) : null}
         </DragOverlay>
       </DndContext>
-      <p className="muted small hint-line">
-        Başka PDF'leri bu alana sürükleyerek sayfalarını ekleyebilirsin. Çift tıklayınca (ya da Enter) sayfa büyür.
-        Klavye: oklar gezer, Boşluk seçer, Alt+oklar taşır.
-      </p>
 
       {preview && !preview.blank && preview.file && (
         <Modal title={label(preview, items.indexOf(preview))} onClose={() => setPreview(null)} wide>
@@ -593,7 +641,7 @@ interface TileProps {
   file?: FileMeta;
   selected: boolean;
   hidden: boolean;
-  color: string;
+  color?: string;
   label: string;
   focusable: boolean;
   onClick: (e: React.MouseEvent) => void;
@@ -607,7 +655,7 @@ function PageTile({ item, file, selected, hidden, color, label, focusable, onCli
     <li
       ref={setNodeRef}
       className={`page-tile${selected ? " selected" : ""}${isDragging ? " dragging" : ""}${hidden ? " ghost" : ""}`}
-      style={{ transform: CSS.Transform.toString(transform), transition, borderColor: selected ? undefined : color }}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
       {...attributes}
       {...listeners}
       // dnd-kit "sürüklenebilir düğme" der; burada seçim listesinin öğesidir (tek sekme durağı).
@@ -632,7 +680,23 @@ function PageTile({ item, file, selected, hidden, color, label, focusable, onCli
       ) : (
         <Thumb file={file} page={item.page} rotate={item.rotate} />
       )}
-      <span className="page-label">{label}</span>
+      <span className="page-label">
+        {color && <span className="src-dot" style={{ background: color }} />}
+        <span className="page-label-text" title={label}>
+          {label}
+        </span>
+        {item.rotate ? (
+          <span className="rot-badge">
+            <Icon icon={RotateCw} size={12} strokeWidth={2.4} />
+            {item.rotate}°
+          </span>
+        ) : null}
+      </span>
+      {selected && (
+        <span className="tile-check">
+          <Icon icon={Check} size={14} strokeWidth={3} />
+        </span>
+      )}
     </li>
   );
 }

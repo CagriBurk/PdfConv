@@ -200,6 +200,28 @@ class RepairRequest(_SingleFile):
     type: Literal["repair"]
 
 
+class LayoutRequest(_Base):
+    type: Literal["layout"]
+    file: FileId
+    mode: Literal["nup", "crop", "poster", "resize"] = "nup"
+    spec: str = Field(default="", max_length=2000)
+    paper: Literal[*PAPERS] = "A4"  # type: ignore[valid-type]
+    orientation: Literal["otomatik", "dikey", "yatay"] = "otomatik"
+    per_sheet: Literal[1, 2, 4, 6, 9, 16] = 2
+    notes_side: bool = False
+    margin_mm: float = Field(default=6, ge=0, le=50)
+    gap_mm: float = Field(default=4, ge=0, le=30)
+    border: bool = True
+    crop_mode: Literal["auto", "manual"] = "auto"
+    crop_top_mm: float = Field(default=0, ge=0, le=150)
+    crop_right_mm: float = Field(default=0, ge=0, le=150)
+    crop_bottom_mm: float = Field(default=0, ge=0, le=150)
+    crop_left_mm: float = Field(default=0, ge=0, le=150)
+    poster_cols: int = Field(default=2, ge=1, le=6)
+    poster_rows: int = Field(default=2, ge=1, le=6)
+    overlap_mm: float = Field(default=5, ge=0, le=40)
+
+
 class InstallEngineRequest(_Base):
     """Eksik motoru kullanıcının onayıyla kurar (winget). Yalnızca bu bilgisayardan istenebilir."""
 
@@ -210,7 +232,7 @@ class InstallEngineRequest(_Base):
 JobRequest = Annotated[
     ComposeRequest | MergeRequest | SplitRequest | ImagesToPdfRequest | PdfToImagesRequest
     | PdfToWordRequest | PdfToExcelRequest | MdToPdfRequest | OfficeToPdfRequest | ApplyRequest
-    | CompressRequest | OcrRequest
+    | CompressRequest | OcrRequest | LayoutRequest
     | EncryptRequest | DecryptRequest | CleanMetadataRequest | RepairRequest
     | InstallEngineRequest,
     Field(discriminator="type"),

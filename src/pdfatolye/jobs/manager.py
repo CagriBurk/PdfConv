@@ -19,7 +19,7 @@ import threading
 import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import asdict, dataclass, field, fields
+from dataclasses import dataclass, field, fields
 from pathlib import Path
 
 from pdfatolye import proc
@@ -30,7 +30,7 @@ from pdfatolye.storage import file_ids_in
 log = logging.getLogger("pdfatolye.jobs")
 
 # Aynı anda en fazla kaç tane: tarayıcı/LibreOffice/OCR bellek ve işlemci yer.
-LIMITS = {"md_to_pdf": 1, "office_to_pdf": 1, "ocr": 1}
+LIMITS = {"md_to_pdf": 1, "office_to_pdf": 1, "ocr": 1, "compress": 2}
 GENERAL_WORKERS = 4
 KEEP_JOBS = 200  # bellekte ve diskte tutulan en fazla kayıt
 # Yanıtlarda `request`in yalnızca küçük alanları gider (arayüz `file` vb. kullanır); sayfa
@@ -57,17 +57,38 @@ class Job:
     warnings: list[str] = field(default_factory=list)
     error: str | None = None
     rev: int = 0  # her değişiklikte artar; canlı izleme (SSE) farkı buradan anlar
+    _held: set[str] = field(default_factory=set, repr=False)
 
     @property
     def done(self) -> bool:
         return self.status in ("bitti", "hata", "iptal")
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        # Eşzamanlı worker mutasyonlarına karşı kopyalar
+        outputs = list(self.outputs)
+        warnings = list(self.warnings)
+        req = dict(self.request) if isinstance(self.request, dict) else self.request
+        return {
+            "id": self.id,
+            "type": self.type,
+            "status": self.status,
+            "created": self.created,
+            "request": req,
+            "progress": self.progress,
+            "message": self.message,
+            "started": self.started,
+            "finished": self.finished,
+            "outputs": outputs,
+            "warnings": warnings,
+            "error": self.error,
+            "rev": self.rev,
+        }
 
     def view(self) -> dict:
         """API yanıtı: büyük istek alanları çıkarılmış."""
-        return self.to_dict() | {"request": request_summary(self.request)}
+        d = self.to_dict()
+        d["request"] = request_summary(d["request"])
+        return d
 
 
 _JOB_FIELDS = {f.name for f in fields(Job)}
@@ -105,6 +126,8 @@ class JobManager:
     # --- kayıt ---
 
     def _load(self) -> None:
+        for tmp in self.dir.glob("*.tmp"):
+            tmp.unlink(missing_ok=True)
         files = sorted(self.dir.glob("*.json"), key=lambda p: p.stat().st_mtime)
         for f in files[:-KEEP_JOBS]:
             f.unlink(missing_ok=True)
@@ -158,9 +181,9 @@ class JobManager:
         if self._closing:
             raise PdfAtolyeError("Sunucu kapanıyor; iş başlatılamadı.")
         dumped = req.model_dump(mode="json")  # şifreler ve not metni `exclude` ile dışarıda
-        job = Job(id=uuid.uuid4().hex, type=req.type, status="bekliyor", created=time.time(),
-                  request=dumped)
         held = file_ids_in(dumped)  # sıraya girdiği andan itibaren temizlikten korunur
+        job = Job(id=uuid.uuid4().hex, type=req.type, status="bekliyor", created=time.time(),
+                  request=dumped, _held=set(held))
         self.store.hold(held)
         with self._lock:
             self._jobs[job.id] = job
@@ -170,6 +193,8 @@ class JobManager:
         try:
             pool.submit(self._run, job, req, held)
         except RuntimeError:  # havuz kapandı (sunucu kapanıyor)
+            with self._lock:
+                job._held = set()
             self.store.release(held)
             self._update(job, True, status="hata", finished=time.time(),
                          error="Sunucu kapanıyor; iş başlatılamadı.", message="Hata")
@@ -216,6 +241,15 @@ class JobManager:
         killed = proc.kill_all()
         if killed:
             log.info("Kapanış: %d alt süreç durduruldu", killed)
+        with self._lock:
+            for job in self._jobs.values():
+                if job._held:
+                    self.store.release(job._held)
+                    job._held = set()
+                if job.status == "bekliyor":
+                    job.status, job.finished = "iptal", time.time()
+                    job.message = "İptal edildi"
+                    job.rev += 1
 
     # --- çalıştırma ---
 
@@ -249,7 +283,11 @@ class JobManager:
             if not isinstance(e, Exception):
                 raise
         finally:
-            self.store.release(held)
+            with self._lock:
+                to_release = set(job._held)
+                job._held = set()
+            if to_release:
+                self.store.release(to_release)
             self._cancel.pop(job.id, None)
 
     def _fail(self, job: Job, e: BaseException, event: threading.Event) -> None:

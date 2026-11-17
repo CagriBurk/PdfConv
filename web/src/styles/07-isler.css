@@ -1,0 +1,349 @@
+/* --- İşler ve dosyalar -------------------------------------------------------------------- */
+
+.jobs {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.jobs .banner {
+  margin: 0;
+}
+
+.jobs .card {
+  padding: 22px 18px;
+  border-radius: 20px;
+}
+
+.jobs .section-head {
+  padding: 0 8px 10px;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 28px 16px 32px;
+  text-align: center;
+}
+
+.empty-state .tile {
+  margin-bottom: 6px;
+}
+
+.empty-state p {
+  margin: 0;
+  max-width: 46ch;
+}
+
+.empty-state .empty-title {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.empty-state .button {
+  margin-top: 12px;
+}
+
+/* İş satırları: ana sayfadaki "Son dosyalar" satırının dili. */
+.job-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.job-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 8px;
+  border-radius: var(--radius);
+}
+
+.job-list li:hover {
+  background: var(--surface-2);
+}
+
+.job-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.job-list .tile {
+  margin-top: 2px;
+}
+
+.job-text p {
+  margin: 0;
+}
+
+.job-title {
+  font-size: 14.5px;
+  font-weight: 650;
+}
+
+.job-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  margin-top: 2px !important;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.job-meta .warn-line {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 650;
+}
+
+.job-text .error-text {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.job-files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.job-files:empty {
+  display: none;
+}
+
+.job-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 260px;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--accent-text);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.job-file span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.job-file:hover {
+  border-color: var(--border-strong);
+}
+
+.job-state {
+  flex: none;
+  margin-top: 7px;
+}
+
+/* Dosya tablosu */
+.files-note {
+  margin: 0 8px 14px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.table-wrap {
+  border-top: 1px solid var(--border);
+}
+
+.file-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.file-table th,
+.file-table td {
+  text-align: left;
+  vertical-align: middle;
+  padding: 10px 8px;
+  border-top: 1px solid var(--border);
+}
+
+.file-table thead th {
+  border-top: 0;
+  padding-top: 12px;
+  padding-bottom: 8px;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 650;
+}
+
+.file-table tbody tr:hover {
+  background: var(--surface-2);
+}
+
+.file-table td[data-label] {
+  white-space: nowrap;
+  font-size: 13.5px;
+}
+
+.file-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.file-cell-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.file-cell-name {
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.pin-mark {
+  display: inline-flex;
+  margin-right: 6px;
+  color: var(--accent-text);
+  vertical-align: -2px;
+}
+
+.file-cell-meta {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.file-table .row-actions {
+  white-space: nowrap;
+  text-align: right;
+}
+
+.row-actions .icon-button {
+  vertical-align: middle;
+}
+
+.row-actions .icon-button.pinned {
+  color: var(--accent-text);
+}
+
+/* Geri alınamaz silme diğerlerinden ince bir çizgiyle ayrılır. */
+.row-actions .icon-button.file-delete {
+  position: relative;
+  margin-left: 9px;
+}
+
+.row-actions .icon-button.file-delete::before {
+  content: "";
+  position: absolute;
+  left: -6px;
+  top: 10px;
+  bottom: 10px;
+  border-left: 1px solid var(--border);
+}
+
+.row-actions .icon-button.file-delete:hover:not(:disabled) {
+  background: var(--bad-soft);
+  color: var(--bad);
+}
+
+.rename-form {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  align-items: center;
+}
+
+.rename-form .input {
+  flex: 1 1 10rem;
+  min-width: 0;
+}
+
+/* Dar ekranda (telefon modu) tablo kart yığınına döner: yatay kaydırma yok. */
+@media (max-width: 860px) {
+  .file-table thead {
+    display: none;
+  }
+
+  .file-table,
+  .file-table tbody,
+  .file-table tr,
+  .file-table td {
+    display: block;
+  }
+
+  /* Satır içeriden (ftype + boşluk = 48px) başlar; ad hücresi bu payı geri alır. Böylece
+   * ölçüler sarsa da adın hizasında kalır. */
+  .file-table tbody tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 14px;
+    padding: 12px 8px 12px 56px;
+    border-top: 1px solid var(--border);
+  }
+
+  .file-table td:first-child {
+    flex: 0 0 calc(100% + 48px);
+    margin-left: -48px;
+  }
+
+  .file-table tr:first-child {
+    border-top: 0;
+  }
+
+  .file-table td {
+    border-top: 0;
+    padding: 0;
+  }
+
+  .file-table td[data-label] {
+    margin-top: 6px;
+    font-size: 12.5px;
+  }
+
+  .file-table td[data-label]::before {
+    content: attr(data-label) ": ";
+  }
+
+  .file-table .row-actions {
+    display: flex;
+    flex-wrap: wrap;
+    flex-basis: 100%;
+    gap: 0;
+    /* İkonun çizgisi adla aynı hizada başlasın (düğmenin iç boşluğu 11px). */
+    margin: 6px 0 0 -11px;
+    white-space: normal;
+    text-align: left;
+  }
+}
+
+@media (max-width: 640px) {
+  .jobs {
+    gap: 20px;
+  }
+
+  .jobs .card {
+    padding: 18px 10px;
+  }
+
+  .job-file {
+    min-height: 40px;
+    max-width: 100%;
+  }
+
+  .rename-form button {
+    min-height: 40px;
+  }
+}

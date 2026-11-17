@@ -13,6 +13,7 @@ export const JOB_TYPE_LABEL: Record<string, string> = {
   apply: "İçerik ekleme",
   compress: "Sıkıştırma",
   ocr: "OCR (metin tanıma)",
+  layout: "Sayfa düzeni ve yazdırma",
   encrypt: "Şifreleme",
   decrypt: "Şifre kaldırma",
   clean_metadata: "Meta veri temizliği",

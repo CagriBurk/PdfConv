@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import type { FileMeta } from "../api";
-import FilePicker, { FileRow } from "../components/FilePicker";
-import JobPanel from "../components/JobPanel";
+import FilePicker, { FileRow, FilesCard, fileSummary } from "../components/FilePicker";
+import JobPanel, { ActionCard } from "../components/JobPanel";
 import PageHeader from "../components/PageHeader";
-import { useFiles, useJob } from "../hooks";
+import PasswordDialog from "../components/PasswordDialog";
+import { useFiles, useJob, useUnlockQueue } from "../hooks";
 import { passwords } from "../passwords";
 import { idsFrom, type Route } from "../router";
 import { ACCEPT } from "../tools";
@@ -17,6 +18,15 @@ const ACTIONS: { value: Action; slug: string; label: string; hint: string }[] = 
   { value: "repair", slug: "onar", label: "Onar", hint: "Açılmayan ya da hatalı PDF'i yeniden yazar." },
 ];
 
+const NOTES: Record<Action, string> = {
+  encrypt:
+    "Şifreler kaydedilmez; unutursan dosya açılamaz. İzin kısıtlarına her okuyucu uymaz, asıl koruma açılış şifresidir.",
+  decrypt:
+    "Şifreli dosyayı bırakınca şifresi sorulur. Şifre kırma yoktur; yalnızca açılış şifresi olmayan, kısıtlanmış dosyalarda kısıtlar kaldırılabilir — kendi dosyaların için.",
+  clean_metadata: "Görünen içerik değişmez. Sonuçta neyin silindiği listelenir.",
+  repair: "Önce qpdf'in onarımı, olmazsa MuPDF'in kurtarması denenir.",
+};
+
 export default function Protect({ route }: { route: Route }) {
   const initial = useFiles(idsFrom(route));
   const fromRoute = ACTIONS.find((a) => a.slug === route.query.get("islem"))?.value;
@@ -28,10 +38,20 @@ export default function Protect({ route }: { route: Route }) {
   const [allow, setAllow] = useState({ print: true, copy: true, modify: true });
   const job = useJob();
 
+  const unlock = useUnlockQueue({
+    onUnlock: ([accepted]) => {
+      if (accepted) setFile(accepted);
+    },
+    onCancel: (cancelled) => {
+      setFile((curr) => (curr?.id === cancelled.id ? null : curr));
+    },
+  });
+  const queueUnlock = unlock.queue;
+
   useEffect(() => {
     const pdf = initial.files.find((f) => f.kind === "pdf");
-    if (pdf) setFile(pdf);
-  }, [initial.files]);
+    if (pdf) queueUnlock([pdf]);
+  }, [initial.files, queueUnlock]);
 
   const restricted = !(allow.print && allow.copy && allow.modify);
   const ownerClash = restricted && owner !== "" && owner === pw;
@@ -75,41 +95,49 @@ export default function Protect({ route }: { route: Route }) {
     />
   );
 
+  const label = ACTIONS.find((a) => a.value === action)?.label ?? "";
+
   return (
     <>
       <PageHeader title="Güvenlik ve bakım" />
       <div className="tool-layout">
-        <section>
-          {file ? <FileRow file={file} onRemove={() => (setFile(null), job.reset())} /> : picker}
-          <fieldset className="radio-cards">
-            <legend>İşlem</legend>
-            {ACTIONS.map((a) => (
-              <label key={a.value} className={`radio-card${action === a.value ? " on" : ""}`}>
-                <input
-                  type="radio"
-                  name="action"
-                  checked={action === a.value}
-                  onChange={() => (setAction(a.value), job.reset())}
-                />
-                <strong>{a.label}</strong>
-                <span className="muted small">{a.hint}</span>
-              </label>
-            ))}
-          </fieldset>
-        </section>
-        <aside className="options">
+        <div className="tool-main">
+          <FilesCard title="Dosya">{file ? <FileRow file={file} onRemove={() => (setFile(null), job.reset())} /> : picker}</FilesCard>
+          <section className="card">
+            <fieldset className="radio-cards">
+              <legend>İşlem</legend>
+              {ACTIONS.map((a) => (
+                <label key={a.value} className={`radio-card${action === a.value ? " on" : ""}`}>
+                  <input
+                    type="radio"
+                    name="action"
+                    checked={action === a.value}
+                    onChange={() => (setAction(a.value), job.reset())}
+                  />
+                  <span className="radio-card-head">
+                    <strong>{a.label}</strong>
+                    <span className="radio-dot" aria-hidden="true" />
+                  </span>
+                  <span className="muted small">{a.hint}</span>
+                </label>
+              ))}
+            </fieldset>
+          </section>
           {action === "encrypt" && (
-            <>
-              <label className="field">
-                Açılış şifresi
-                <input className="input" type="password" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} />
-              </label>
-              <label className="field">
-                Şifre (tekrar)
-                <input className="input" type="password" autoComplete="new-password" value={pw2} onChange={(e) => setPw2(e.target.value)} />
-              </label>
+            <section className="card">
+              <h2>Seçenekler</h2>
+              <div className="fields">
+                <label className="field">
+                  Açılış şifresi
+                  <input className="input" type="password" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} />
+                </label>
+                <label className="field">
+                  Şifre (tekrar)
+                  <input className="input" type="password" autoComplete="new-password" value={pw2} onChange={(e) => setPw2(e.target.value)} />
+                </label>
+              </div>
               {pwError && <p className="error-text">{pwError}</p>}
-              <fieldset className="field plain">
+              <fieldset className="field plain checks">
                 <legend>İzinler</legend>
                 {(
                   [
@@ -128,30 +156,25 @@ export default function Protect({ route }: { route: Route }) {
                 Sahip şifresi (isteğe bağlı)
                 <input className="input" type="password" autoComplete="new-password" placeholder={restricted ? "boşsa rastgele üretilir" : "boşsa açılış şifresiyle aynı"} value={owner} onChange={(e) => setOwner(e.target.value)} />
               </label>
-              <p className="muted small">
-                Şifreler kaydedilmez; unutursan dosya açılamaz. İzin kısıtlarına her okuyucu uymaz, asıl koruma açılış
-                şifresidir.
-              </p>
-            </>
+            </section>
           )}
-          {action === "decrypt" && (
-            <p className="muted small">
-              Şifreli dosyayı bırakınca şifresi sorulur. Şifre kırma yoktur; yalnızca açılış şifresi olmayan,
-              kısıtlanmış dosyalarda kısıtlar kaldırılabilir — kendi dosyaların için.
-            </p>
-          )}
-          {action === "clean_metadata" && (
-            <p className="muted small">Görünen içerik değişmez. Sonuçta neyin silindiği listelenir.</p>
-          )}
-          {action === "repair" && (
-            <p className="muted small">Önce qpdf'in onarımı, olmazsa MuPDF'in kurtarması denenir.</p>
-          )}
-          <button type="button" className="primary block" disabled={!ready || job.running} onClick={run}>
-            {ACTIONS.find((a) => a.value === action)?.label}
-          </button>
+        </div>
+        <aside className="tool-side">
+          <ActionCard
+            rows={[
+              ["Dosya", fileSummary(file)],
+              ["İşlem", label],
+            ]}
+            note={NOTES[action]}
+            label={label}
+            disabled={!ready || job.running}
+            busy={job.running}
+            onRun={run}
+          />
           <JobPanel job={job.job} error={job.error ?? initial.error} />
         </aside>
       </div>
+      {unlock.locked && <PasswordDialog file={unlock.locked} onDone={unlock.onDone} />}
     </>
   );
 }

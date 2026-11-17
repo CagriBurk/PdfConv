@@ -1,6 +1,21 @@
-import { useEffect, useState } from "react";
+import {
+  Ban,
+  Check,
+  ChevronRight,
+  CircleAlert,
+  Clock,
+  Download,
+  FileArchive,
+  LoaderCircle,
+  Wrench,
+  type LucideIcon,
+} from "lucide-react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import { api, formatSize, type Job } from "../api";
-import { navigate } from "../router";
+import { navigate, useRoute } from "../router";
+import { toolForRoute } from "../tools";
+import { fileType } from "./FilePicker";
+import Icon from "./Icon";
 
 const STATUS: Record<Job["status"], string> = {
   bekliyor: "Sırada",
@@ -10,10 +25,20 @@ const STATUS: Record<Job["status"], string> = {
   iptal: "İptal edildi",
 };
 
+const STATUS_ICON: Record<Job["status"], LucideIcon> = {
+  bekliyor: Clock,
+  calisiyor: LoaderCircle,
+  bitti: Check,
+  hata: CircleAlert,
+  iptal: Ban,
+};
+
 interface Props {
   job: Job | null;
   error?: string | null;
   zipName?: string;
+  /** Bitince başlığın altında gösterilen kısa sonuç (ör. "8 MB → 3 MB"). */
+  summary?: ReactNode;
 }
 
 /** Çalışan işin bu ekranda geçen süresi (saniye). Sunucu saati kullanılmaz: telefon modunda
@@ -35,7 +60,7 @@ function useElapsed(jobId: string | undefined, running: boolean): number {
 export const formatElapsed = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
 /** İşin ilerlemesi, uyarıları ve çıktıları (indir / düzenleyicide aç). */
-export default function JobPanel({ job, error, zipName }: Props) {
+export default function JobPanel({ job, error, zipName, summary }: Props) {
   const active = !!job && (job.status === "bekliyor" || job.status === "calisiyor");
   const elapsed = useElapsed(job?.id, active);
   if (error) {
@@ -51,15 +76,21 @@ export default function JobPanel({ job, error, zipName }: Props) {
   return (
     <section className={`job-panel status-${job.status}`} aria-live="polite">
       <div className="job-head">
-        <strong>{STATUS[job.status]}</strong>
-        {running && <span className="muted">{job.message}</span>}
+        <span className="tile job-icon">
+          <Icon icon={STATUS_ICON[job.status]} size={20} strokeWidth={job.status === "bitti" ? 2.6 : 2} className={job.status === "calisiyor" ? "spin" : undefined} />
+        </span>
+        <div className="job-panel-text">
+          <strong>{STATUS[job.status]}</strong>
+          {running && <span className="muted">{job.message}</span>}
+          {job.status === "bitti" && summary && <span className="muted">{summary}</span>}
+        </div>
         {running && elapsed >= 5 && (
-          <span className="muted small" aria-label={`Geçen süre ${formatElapsed(elapsed)}`}>
+          <span className="muted small job-elapsed" aria-label={`Geçen süre ${formatElapsed(elapsed)}`}>
             {formatElapsed(elapsed)}
           </span>
         )}
         {running && (
-          <button type="button" className="link-button" onClick={() => void api.cancelJob(job.id)}>
+          <button type="button" onClick={() => void api.cancelJob(job.id)}>
             İptal
           </button>
         )}
@@ -73,15 +104,19 @@ export default function JobPanel({ job, error, zipName }: Props) {
       {job.error?.includes("bozuk olabilir") && typeof job.request.file === "string" && (
         <button
           type="button"
-          className="link-button"
+          className="job-repair"
           onClick={() => navigate("guvenlik", { dosya: job.request.file as string, islem: "onar" })}
         >
+          <Icon icon={Wrench} size={16} />
           Onarmayı dene
         </button>
       )}
       {job.warnings.length > 0 && (
         <details className="warnings" open={job.warnings.length <= 5}>
-          <summary>{job.warnings.length} ayrıntı / uyarı</summary>
+          <summary>
+            <Icon icon={ChevronRight} size={16} className="warnings-caret" />
+            {job.warnings.length} ayrıntı / uyarı
+          </summary>
           <ul>
             {job.warnings.map((w) => (
               <li key={w}>{w}</li>
@@ -94,12 +129,19 @@ export default function JobPanel({ job, error, zipName }: Props) {
           <ul className="output-list">
             {job.files.map((f) => (
               <li key={f.id}>
-                <span className="file-name">{f.name}</span>
-                <span className="muted small">
-                  {formatSize(f.size)}
-                  {f.page_count ? ` · ${f.page_count} sayfa` : ""}
+                <span className="ftype" aria-hidden="true">
+                  {fileType(f.name, f.kind)}
                 </span>
-                <span className="actions">
+                <span className="file-text">
+                  <span className="file-name" title={f.name}>
+                    {f.name}
+                  </span>
+                  <span className="file-meta">
+                    {formatSize(f.size)}
+                    {f.page_count ? ` · ${f.page_count} sayfa` : ""}
+                  </span>
+                </span>
+                <span className="output-actions">
                   {f.kind === "pdf" && (
                     <>
                       <button type="button" className="link-button" onClick={() => navigate(`duzenle/${f.id}`)}>
@@ -110,7 +152,8 @@ export default function JobPanel({ job, error, zipName }: Props) {
                       </button>
                     </>
                   )}
-                  <a className="button primary small" href={api.downloadUrl(f.id)}>
+                  <a className="button primary output-download" href={api.downloadUrl(f.id)}>
+                    <Icon icon={Download} size={17} />
                     İndir
                   </a>
                 </span>
@@ -118,12 +161,52 @@ export default function JobPanel({ job, error, zipName }: Props) {
             ))}
           </ul>
           {job.files.length > 1 && (
-            <a className="button" href={api.zipUrl(job.files.map((f) => f.id), zipName)}>
+            <a className="button block" href={api.zipUrl(job.files.map((f) => f.id), zipName)}>
+              <Icon icon={FileArchive} />
               Hepsini ZIP olarak indir
             </a>
           )}
         </>
       )}
+    </section>
+  );
+}
+
+/** Araç ekranının sağdaki eylem kartı: seçimin özeti, kısa not ve tek ana düğme. Düğmenin
+ * ikonu aracın kendisi (çalışırken döner). */
+export function ActionCard({
+  rows,
+  note,
+  label,
+  disabled,
+  busy,
+  onRun,
+}: {
+  rows: [string, ReactNode][];
+  note?: ReactNode;
+  label: string;
+  disabled?: boolean;
+  busy?: boolean;
+  onRun: () => void;
+}) {
+  const id = useId();
+  const tool = toolForRoute(useRoute().path[0]);
+  return (
+    <section className="options" aria-labelledby={id}>
+      <h2 id={id}>Özet</h2>
+      <dl className="summary">
+        {rows.map(([k, v]) => (
+          <div key={k}>
+            <dt>{k}</dt>
+            <dd>{v}</dd>
+          </div>
+        ))}
+      </dl>
+      {note && <div className="side-note">{note}</div>}
+      <button type="button" className="primary block action" disabled={disabled} onClick={onRun}>
+        {busy ? <Icon icon={LoaderCircle} className="spin" /> : tool && <Icon icon={tool.icon} />}
+        {label}
+      </button>
     </section>
   );
 }

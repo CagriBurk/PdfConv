@@ -20,7 +20,6 @@ import yaml
 from markdown_it import MarkdownIt
 from markdown_it.rules_core import StateCore
 from mdit_py_plugins.amsmath import amsmath_plugin
-from mdit_py_plugins.anchors import anchors_plugin
 from mdit_py_plugins.dollarmath import dollarmath_plugin
 from mdit_py_plugins.footnote import footnote_plugin
 from mdit_py_plugins.front_matter import front_matter_plugin
@@ -41,6 +40,33 @@ def slugify(text: str) -> str:
     text = unicodedata.normalize("NFC", text).translate(_TR_ASCII).lower()
     text = re.sub(r"[^a-z0-9]+", "-", text).strip("-")
     return text or "baslik"
+
+
+def _unique_slug(base: str, seen: set[str]) -> str:
+    if base not in seen:
+        seen.add(base)
+        return base
+    n = 2
+    while f"{base}-{n}" in seen:
+        n += 1
+    slug = f"{base}-{n}"
+    seen.add(slug)
+    return slug
+
+
+def _heading_anchors_rule(state: StateCore) -> None:
+    """Başlıklara tekil `id` atar; yinelenenlere `-2`, `-3` ekler."""
+    seen: set[str] = set()
+    for idx, token in enumerate(state.tokens):
+        if token.type != "heading_open":
+            continue
+        inline_token = state.tokens[idx + 1]
+        title = "".join(
+            child.content
+            for child in (inline_token.children or [])
+            if child.type in ("text", "code_inline")
+        )
+        token.attrSet("id", _unique_slug(slugify(title), seen))
 
 
 @dataclass
@@ -211,8 +237,8 @@ def build_markdown(breaks: bool = True) -> MarkdownIt:
     md.use(amsmath_plugin)
     md.use(footnote_plugin)
     md.use(tasklists_plugin)
-    md.use(anchors_plugin, min_level=1, max_level=6, slug_func=slugify)
-    md.use(obsidian_plugin, embed_renderer=_render_embed)
+    md.core.ruler.push("anchor", _heading_anchors_rule)
+    md.use(obsidian_plugin, embed_renderer=_render_embed, slug_func=slugify)
     md.core.ruler.after("inline", "math_line", _math_line_rule)
 
     md.add_render_rule("math_inline", _math_inline)

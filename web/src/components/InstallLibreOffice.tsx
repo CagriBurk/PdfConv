@@ -1,5 +1,7 @@
+import { Download, LoaderCircle } from "lucide-react";
 import { useEffect } from "react";
 import { useJob } from "../hooks";
+import Icon from "./Icon";
 import JobPanel from "./JobPanel";
 
 /** LibreOffice uygulamaya gömülmez (~350 MB). Kullanıcı onaylarsa winget ile kurulur; Windows
@@ -23,6 +25,7 @@ export default function InstallLibreOffice({ onInstalled }: { onInstalled: () =>
   return (
     <div className="install-engine">
       <button type="button" onClick={start} disabled={job.running}>
+        <Icon icon={job.running ? LoaderCircle : Download} className={job.running ? "spin" : undefined} />
         {job.running ? "LibreOffice kuruluyor…" : "LibreOffice'i kur"}
       </button>
       <JobPanel job={job.job} error={job.error} />

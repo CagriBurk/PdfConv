@@ -649,6 +649,155 @@ def test_restart_button_moves_window_to_new_port(browser, tmp_path, monkeypatch)
     assert result == [0]
 
 
+def _listening(port: int) -> set[str]:
+    import psutil
+
+    conns = psutil.Process().net_connections(kind="tcp")
+    return {c.laddr.ip for c in conns if c.status == psutil.CONN_LISTEN and c.laddr.port == port}
+
+
+def test_phone_mode_asks_then_restarts_by_itself(browser, tmp_path, monkeypatch):
+    """Telefon modu baslat.bat (`serve`) ile açılmışken de çalışır: denetime basınca önce pencere
+    sorar (vazgeçince hiçbir şey kaydedilmez), onaylanınca ayar kaydedilir, uygulama kendini yeniden
+    başlatır ve Ayarlar'da QR kod görünür. Kapatınca yine yalnızca 127.0.0.1."""
+    from playwright.sync_api import expect
+
+    from pdfatolye import cli, lan
+    from pdfatolye.settings import load_settings
+
+    monkeypatch.setattr(lan, "lan_ips", lambda: ["192.168.1.10"])  # Wi-Fi'siz makinede de QR
+    port = _free_port()
+    cfg = tmp_path / "config.toml"
+    data = str(tmp_path / "veri").replace("\\", "/")
+    cfg.write_text(f'data_dir = "{data}"\nport = {port}\nwelcome_done = true\n',
+                   encoding="utf-8")
+    stop = threading.Event()
+    result: list[int] = []
+    t = threading.Thread(target=lambda: result.append(
+        cli._serve_until_closed(cfg, load_settings(cfg), stop=stop)), daemon=True)
+    t.start()
+    base = f"http://127.0.0.1:{port}"
+    for _ in range(300):
+        try:
+            urllib.request.urlopen(f"{base}/api/health", timeout=1)
+            break
+        except OSError:
+            time.sleep(0.1)
+    ctx = browser.new_context(viewport={"width": 1400, "height": 1000}, locale="tr-TR")
+    page = ctx.new_page()
+    page.set_default_timeout(TIMEOUT_MS)
+    try:
+        page.goto(f"{base}/#/ayarlar")
+        phone = page.get_by_label("Aynı Wi-Fi'deki telefon ve tabletler", exact=False)
+        dialog = page.get_by_role("dialog", name="Telefon modu açılsın mı?")
+        # Vazgeç: denetim eski hâlinde, dosyaya bir şey yazılmadı.
+        phone.click()
+        expect(dialog).to_be_visible()
+        expect(dialog.get_by_role("button", name="Vazgeç")).to_be_focused()
+        expect(dialog.get_by_text("yeniden başlatılacak")).to_be_visible()
+        dialog.get_by_role("button", name="Vazgeç").click()
+        expect(dialog).to_be_hidden()
+        expect(phone).not_to_be_checked()
+        expect(phone).to_be_focused()  # odak açan denetime döndü
+        assert load_settings(cfg).lan is False
+        assert _listening(port) == {"127.0.0.1"}
+
+        phone.click()
+        dialog.get_by_role("button", name="Aç ve yeniden başlat").click()
+        qr = page.get_by_role("img", name="Telefonla bağlanmak için QR kod")
+        expect(qr).to_be_visible(timeout=30_000)  # sayfa yeni sunucudan yüklendi
+        expect(phone).to_be_checked()
+        expect(page.get_by_role("heading", name="Telefon modu")).to_be_focused()
+        expect(page.get_by_text("Telefon modu açık").first).to_be_visible()
+        assert page.url == f"{base}/#/ayarlar"  # dönüş işareti adresten silindi
+        assert load_settings(cfg).lan is True
+        assert _listening(port) == {"0.0.0.0"}
+
+        phone.click()
+        off = page.get_by_role("dialog", name="Telefon modu kapatılsın mı?")
+        off.get_by_role("button", name="Kapat ve yeniden başlat").click()
+        expect(page.get_by_text("Telefon modu kapandı.")).to_be_visible(timeout=30_000)
+        expect(qr).to_have_count(0)
+        expect(phone).not_to_be_checked()
+        assert _listening(port) == {"127.0.0.1"}
+    finally:
+        ctx.close()
+        stop.set()
+        t.join(30)
+    assert result == [0]
+
+
+def test_phone_mode_dialog_warns_about_running_jobs(server, page, tmp_path):
+    """Çalışan iş varken yeniden başlatma işi durdurur: pencere bunu açıkça söyler."""
+    from playwright.sync_api import expect
+
+    base, app = server
+    meta = app.state.store.add_file(fx.numbered(tmp_path / "is.pdf", 2, with_toc=False),
+                                    "is.pdf", source="upload")
+    # İş sunucuda başlamaz: arayüz "çalışıyor" bir iş görür ve izler (olay akışı askıda kalır).
+    running = {"id": "x", "type": "compress", "status": "calisiyor", "created": 0, "started": 0,
+               "finished": None, "progress": 0.3, "message": "Sıkıştırılıyor", "outputs": [],
+               "warnings": [], "error": None, "request": {}, "files": []}
+    page.route("**/api/jobs", lambda r: r.fulfill(json=running)
+               if r.request.method == "POST" else r.continue_())
+    page.route("**/api/jobs/x/events", lambda r: None)
+    page.route("**/api/jobs/x", lambda r: r.fulfill(json=running))
+    page.goto(f"{base}/#/sikistir?dosya={meta.id}")
+    page.get_by_role("button", name="Sıkıştır", exact=True).click()
+    expect(page.locator(".topbar").get_by_text("Çalışıyor…")).to_be_visible()
+    page.locator(".topbar").get_by_role("link", name="Ayarlar").click()
+    page.get_by_label("Aynı Wi-Fi'deki telefon ve tabletler", exact=False).click()
+    dialog = page.get_by_role("dialog", name="Telefon modu açılsın mı?")
+    expect(dialog.get_by_text("bir iş çalışıyor")).to_be_visible()
+    expect(dialog.get_by_text("çalışan işleri durdurur")).to_be_visible()
+    dialog.get_by_role("button", name="Vazgeç").click()
+    expect(dialog).to_be_hidden()
+    cfg = app.state.settings.data_dir / "config.toml"
+    assert not cfg.exists() or "lan" not in cfg.read_text(encoding="utf-8")
+    assert app.state.settings.lan is False
+
+
+def test_password_dialog_focuses_password_field(server, page, tmp_path):
+    """React `autoFocus` `showModal`'dan önce çalışıyordu: odak Kapat düğmesine gidiyordu."""
+    from playwright.sync_api import expect
+
+    base, app = server
+    meta = app.state.store.add_file(
+        fx.numbered(tmp_path / "s.pdf", 2, with_toc=False, password="gizli"), "şifreli.pdf",
+        source="upload")
+    page.goto(f"{base}/#/sikistir?dosya={meta.id}")
+    expect(page.get_by_role("dialog", name="Şifreli PDF")).to_be_visible()
+    expect(page.get_by_label("Şifre", exact=True)).to_be_focused()
+    page.keyboard.type("gizli")
+    page.keyboard.press("Enter")
+    expect(page.get_by_role("dialog")).to_have_count(0)
+
+
+@pytest.mark.parametrize("width", [390, 1400])
+def test_top_bar_stays_reachable_at_page_bottom(server, page, width):
+    """Uzun sayfanın en altında da üst çubuk (dar ekranda gezinme satırı) görünür ve çalışır;
+    sayfa içi yapışkan uyarı çubuğun altına girmez."""
+    from playwright.sync_api import expect
+
+    base, _ = server
+    page.set_viewport_size({"width": width, "height": 700})
+    page.goto(f"{base}/#/ayarlar")
+    page.get_by_text("Gelişmiş", exact=True).click()
+    page.get_by_role("heading", name="Kütüphaneler").wait_for()
+    page.evaluate("() => window.scrollTo(0, document.documentElement.scrollHeight)")
+    page.wait_for_timeout(200)
+    assert page.evaluate("() => window.scrollY") > 300, "sayfa kaymadı"
+    tools = page.get_by_role("link", name="Araçlar", exact=True)
+    box = tools.bounding_box()
+    assert box and 0 <= box["y"] < 80, box  # ekranın en üstünde
+    stuck = page.evaluate("() => parseFloat(getComputedStyle(document.documentElement)"
+                          ".getPropertyValue('--topbar-h'))")
+    bar = page.locator(".topbar").bounding_box()
+    assert abs(bar["y"] + bar["height"] - stuck) <= 1, (bar, stuck)
+    tools.click()
+    expect(page.get_by_text("Dosyayı buraya bırak")).to_be_visible()
+
+
 # --- büyük dosyalar (arkadaş denemesi) ----------------------------------------------------------
 
 def test_too_large_upload_in_organizer_is_reported(server, page, tmp_path):
@@ -727,3 +876,35 @@ def test_pdf_to_excel_screen(server, page, tmp_path, width):
     page.get_by_role("link", name="PDF → Word").click()
     page.get_by_role("heading", name="PDF → Word").wait_for()
     assert _no_horizontal_overflow(page), "PDF → Word taşıyor"
+
+
+def test_markdown_user_snippet_save_then_insert(server, page, tmp_path):
+    """Seçili metin ad verilerek şablon olarak kaydedilir (veri klasöründe .md), "Benim
+    şablonlarım"da görünür ve başka bir nota imleç konumuna eklenir."""
+    base, app = server
+    snippet = "> [!tip] Sınav taktiği\n> Önce kolay soruları çöz."
+    note = tmp_path / "sablon.md"
+    note.write_text(f"# Ders\n\n{snippet}\n\nSon.\n", encoding="utf-8")
+    meta = app.state.store.add_file(note, "sablon.md", source="upload")
+    page.goto(f"{base}/#/md?dosya={meta.id}")
+    editor = page.get_by_label("Markdown metni")
+    editor.wait_for()
+    start = editor.input_value().index("> [!tip]")
+    editor.evaluate("(e, [a, b]) => { e.focus(); e.setSelectionRange(a, b); }",
+                    [start, start + len(snippet)])
+    page.get_by_role("button", name="Şablon ekle").click()
+    page.get_by_role("button", name="Seçimi şablon olarak kaydet…").click()
+    dialog = page.get_by_role("dialog")
+    dialog.get_by_label("Şablon adı").fill("Sınav taktiği kutusu")
+    dialog.get_by_role("button", name="Kaydet").click()
+    page.get_by_text("şablonu kaydedildi").wait_for()
+    saved = app.state.settings.data_dir / "sablonlar" / "Sınav taktiği kutusu.md"
+    assert saved.read_text(encoding="utf-8") == snippet
+
+    editor.fill("# Yeni not\n\nİlk paragraf.\n")
+    editor.evaluate("e => { e.focus(); e.setSelectionRange(e.value.length, e.value.length); }")
+    page.get_by_role("button", name="Şablon ekle").click()
+    page.locator(".snippet-user").get_by_text("Sınav taktiği kutusu").click()
+    assert editor.input_value() == f"# Yeni not\n\nİlk paragraf.\n\n{snippet}\n"
+    frame = page.frame_locator("iframe[title='Önizleme']")
+    frame.locator(".callout", has_text="Önce kolay soruları çöz.").wait_for()

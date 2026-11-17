@@ -1,0 +1,292 @@
+/* --- Sayfa düzenleyici; ortak araç çubuğu (editör de kullanır) ------------------------------
+ * Küçük resim kutusu (.thumb-box) ve kâğıt belirteçleri ortak: 02 / 01. */
+
+/* Araç çubuğu: solda araç grupları, sağda kaydetme. Dar ekranda gruplar yatay kayar. */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  position: sticky;
+  top: calc(var(--topbar-h) + 8px);
+  z-index: 5;
+}
+
+/* Gruplar arasında ince ayraç. Her grubun solunda çizgi var; satır başına düşen çizgi kutunun
+ * hemen dışında kalır ve kırpılır (sarılan satır "|" ile başlamasın). */
+.toolbar .tool-groups {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 0;
+  margin-left: -6px;
+  clip-path: inset(-8px -8px -8px 0);
+}
+
+.tool-cluster {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.toolbar .tool-groups .tool-cluster {
+  margin-left: -1px;
+  padding: 0 6px;
+  border-left: 1px solid var(--border);
+}
+
+.tool-cluster.end {
+  flex: none;
+  gap: 8px;
+  margin-left: auto;
+}
+
+/* Gruplardaki düğmeler zeminsiz; ana eylem ve "yeni dosya" kenarlıklı kalır. */
+.toolbar .tool-groups button {
+  gap: 7px;
+  padding: 0 11px;
+  border-color: transparent;
+  background: transparent;
+  font-size: 14px;
+}
+
+.toolbar .tool-groups button:hover:not(:disabled) {
+  border-color: transparent;
+  background: var(--surface-2);
+}
+
+.toolbar .tool-groups select {
+  margin-right: 4px;
+  font-size: 14px;
+}
+
+.toolbar .tool-groups .icon {
+  color: var(--muted);
+}
+
+.toolbar .tool-groups button:hover:not(:disabled) .icon {
+  color: var(--text);
+}
+
+@media (max-width: 760px) {
+  .toolbar {
+    flex-wrap: wrap;
+    position: static;
+  }
+
+  /* Sayfa değil yalnızca araç grupları kayar. */
+  .toolbar .tool-groups {
+    flex: 1 1 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+
+  .toolbar .tool-groups .tool-cluster {
+    flex: none;
+  }
+
+  /* Sığmazsa (360px) düğmeler alt alta, tam genişlikte. */
+  .tool-cluster.end {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    padding: 6px 0 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .tool-cluster.end > * {
+    flex: 1 1 auto;
+  }
+}
+
+/* Seçim / ipucu satırı */
+.selection-line,
+.hint-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  min-height: 30px;
+  margin: 14px 2px 10px;
+}
+
+/* Sayfa ızgarası */
+.page-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(164px, 1fr));
+  gap: 16px;
+  padding: 2px 0 24px;
+  min-height: 200px;
+}
+
+.page-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  transition:
+    border-color 0.12s,
+    background-color 0.12s,
+    box-shadow 0.12s;
+}
+
+.page-tile:hover {
+  border-color: var(--border-strong);
+}
+
+.page-tile .thumb-box {
+  padding: 12px;
+  border-radius: 9px;
+  background: var(--surface-2);
+}
+
+.page-tile.selected {
+  border-color: var(--accent);
+  background: var(--accent-faint);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.page-tile:focus-visible {
+  outline-offset: 3px;
+}
+
+.page-tile.dragging {
+  z-index: 3;
+  cursor: grabbing;
+  box-shadow:
+    0 0 0 3px var(--accent-soft),
+    0 18px 40px rgb(16 24 40 / 0.22);
+}
+
+.page-tile.ghost {
+  opacity: 0.35;
+}
+
+.tile-check {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 0 0 3px var(--surface);
+}
+
+.blank-page {
+  width: 70%;
+  aspect-ratio: 0.707;
+  display: grid;
+  place-items: center;
+  background: var(--paper);
+  box-shadow: var(--paper-shadow);
+  color: var(--paper-ink);
+  font-size: 12.5px;
+  transition: transform 0.2s;
+}
+
+.page-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 22px;
+  font-size: 13px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.page-label-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.src-dot {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.rot-badge {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+.page-tile.selected .rot-badge {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.drag-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: max-content;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 650;
+  box-shadow: 0 8px 22px rgb(16 24 40 / 0.25);
+}
+
+/* Büyük önizleme penceresi */
+.preview-page .thumb-box {
+  aspect-ratio: auto;
+  max-height: 80vh;
+  padding: 16px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.preview-page .thumb-box img {
+  max-height: 76vh;
+}
+
+@media (max-width: 520px) {
+  .page-grid {
+    grid-template-columns: repeat(auto-fill, minmax(124px, 1fr));
+    gap: 10px;
+  }
+
+  .page-tile .thumb-box {
+    padding: 8px;
+  }
+}
+
+/* Başlık yanındaki dosya bilgisi (düzenleyici, editör, Markdown): uzun ad sarılsın. */
+.page-header-extra .meta-chip {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}

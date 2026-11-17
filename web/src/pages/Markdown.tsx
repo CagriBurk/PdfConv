@@ -1,13 +1,32 @@
+import {
+  CircleDot,
+  Download,
+  FileDown,
+  FileText,
+  History,
+  Info,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Paperclip,
+  Plus,
+  WandSparkles,
+  X,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { fixAiNote, FORMULA_FIX_HINT, formulaFixMessage } from "../aiNote";
 import { api, errorMessage, type EnginesResponse, type FileMeta, type MdPreview } from "../api";
 import DropZone from "../components/DropZone";
+import Icon from "../components/Icon";
 import JobPanel from "../components/JobPanel";
 import PageHeader from "../components/PageHeader";
 import PreviewFrame from "../components/PreviewFrame";
+import SnippetMenu, { type InsertableSnippet, type SnippetSource } from "../components/SnippetMenu";
 import { useJob, useKeepAlive, useUpload } from "../hooks";
 import { drafts, draftKey, formatDraftTime, type Draft } from "../drafts";
 import { createSequencer } from "../mdpreview";
 import { idsFrom, LEAVE_MESSAGE, useLeaveGuard, type Route } from "../router";
+import { planInsertion } from "../snippets";
+import { toast } from "../toast";
 import { PAPERS } from "../tools";
 
 interface Options {
@@ -64,6 +83,7 @@ export default function Markdown({ route, engines }: { route: Route; engines: En
   const timer = useRef<number>(undefined);
   const previewSeq = useRef(createSequencer());
   const builtText = useRef<string | null>(null);
+  const editorRef = useRef<HTMLTextAreaElement>(null);
   const browserMissing = engines?.engines.find((e) => e.key === "browser")?.ok === false;
   const dirty = text !== null && saved !== null && text !== saved;
   const key = draftKey(mdFile?.id);
@@ -189,47 +209,125 @@ export default function Markdown({ route, engines }: { route: Route; engines: En
     a.href = url;
     a.download = `${noteName.replace(/\.(md|markdown|txt)$/i, "")}.md`;
     a.click();
-    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
     setSaved(text);
   };
+
+  /** Metni seçili aralıkta günceller; tarayıcı geri alma (Ctrl+Z) geçmişini korumaya çalışır. */
+  const applyEditorEdit = (replacement: string, start: number, end: number, fullNext: string) => {
+    const el = editorRef.current;
+    if (el) {
+      el.focus();
+      el.setSelectionRange(start, end);
+      if (typeof document.execCommand === "function") {
+        document.execCommand("insertText", false, replacement);
+      }
+      if (el.value === fullNext) {
+        setText(fullNext);
+        const cursor = start + replacement.length;
+        window.requestAnimationFrame(() => el.setSelectionRange(cursor, cursor));
+        return;
+      }
+    }
+    setText(fullNext);
+  };
+
+  const onFixFormulas = () => {
+    if (text === null) return;
+    const result = fixAiNote(text);
+    if (result.changed) applyEditorEdit(result.text, 0, text.length, result.text);
+    const message = formulaFixMessage(result);
+    toast[message.kind](message.text);
+  };
+
+  /** Şablon imlece (seçim varsa yerine) eklenir; ön bilgili şablonun kuralı `planInsertion`'da. */
+  const onInsertSnippet = (snippet: InsertableSnippet) => {
+    if (text === null) return;
+    const el = editorRef.current;
+    const plan = planInsertion(
+      text,
+      el?.selectionStart ?? text.length,
+      el?.selectionEnd ?? text.length,
+      snippet.body,
+      snippet.bodyWithFrontMatter,
+    );
+    if (!plan) {
+      toast.info(`Notta zaten ön bilgi var; "${snippet.label}" şablonunda eklenecek başka bir şey yok.`);
+      return;
+    }
+    const next = `${text.slice(0, plan.start)}${plan.insertion}${text.slice(plan.end)}`;
+    applyEditorEdit(plan.insertion, plan.start, plan.end, next);
+    toast.ok(
+      plan.droppedFrontMatter
+        ? `"${snippet.label}" şablonu eklendi; notta zaten ön bilgi olduğu için şablonun ön bilgisi (--- arası) atlandı.`
+        : `"${snippet.label}" şablonu eklendi.`,
+    );
+  };
+
+  /** Şablon olarak kaydedilecek metin: seçim varsa seçili kısım, yoksa notun tamamı. */
+  const snippetSource = (): SnippetSource => {
+    const el = editorRef.current;
+    const all = text ?? "";
+    if (el && el.selectionEnd > el.selectionStart) {
+      const selected = all.slice(el.selectionStart, el.selectionEnd);
+      if (selected.trim()) return { text: selected, selection: true };
+    }
+    return { text: all, selection: false };
+  };
+
   const effective = preview?.options;
 
   return (
     <>
       <PageHeader title="Markdown → PDF">
-        {mdFile && <span className="muted small">{mdFile.name}</span>}
+        {mdFile && (
+          <span className="chip meta-chip">
+            <Icon icon={FileText} size={15} />
+            {mdFile.name}
+          </span>
+        )}
       </PageHeader>
       {browserMissing && (
         <div className="banner error">Edge/Chrome bulunamadı; PDF oluşturulamaz. Ayarlar sayfasına bak.</div>
       )}
       {draftOffer && (
-        <div className="banner warn" role="status">
-          {formatDraftTime(draftOffer.at)} tarihli kaydedilmemiş bir taslak var ({draftOffer.name}).{" "}
-          <button
-            type="button"
-            className="link-button"
-            onClick={() => {
-              // Yeni not ekranından açılırsa "kaydedilmiş" hâl örnek nottur: taslak kirli sayılır.
-              if (text === null) setSaved(SAMPLE);
-              setText(draftOffer.text);
-              setDraftOffer(null);
-            }}
-          >
-            Taslağı aç
-          </button>{" "}
-          <button
-            type="button"
-            className="link-button"
-            onClick={() => {
-              drafts.remove(key);
-              setDraftOffer(null);
-            }}
-          >
-            Sil
-          </button>
+        <div className="banner warn md-band" role="status">
+          <Icon icon={History} />
+          <span className="md-band-text">
+            {formatDraftTime(draftOffer.at)} tarihli kaydedilmemiş bir taslak var ({draftOffer.name}).
+          </span>
+          <span className="md-band-actions">
+            <button
+              type="button"
+              className="small"
+              onClick={() => {
+                // Yeni not ekranından açılırsa "kaydedilmiş" hâl örnek nottur: taslak kirli sayılır.
+                if (text === null) setSaved(SAMPLE);
+                setText(draftOffer.text);
+                setDraftOffer(null);
+              }}
+            >
+              Taslağı aç
+            </button>
+            <button
+              type="button"
+              className="link-button"
+              onClick={() => {
+                drafts.remove(key);
+                setDraftOffer(null);
+              }}
+            >
+              Sil
+            </button>
+          </span>
         </div>
       )}
-      {encodingNote && <div className="banner warn">{encodingNote} İndirirken UTF-8 kullanılır.</div>}
+      {encodingNote && (
+        <div className="banner warn md-band">
+          <Icon icon={Info} />
+          <span className="md-band-text">{encodingNote} İndirirken UTF-8 kullanılır.</span>
+        </div>
+      )}
 
       {text === null ? (
         <>
@@ -240,7 +338,7 @@ export default function Markdown({ route, engines }: { route: Route; engines: En
             title={uploading ? "Yükleniyor…" : "Markdown notunu (ve kullandığı resimleri) bırak"}
             hint="Notta ![[resim.png]] varsa resmi de birlikte bırak; ya da Ayarlar'da Obsidian kasası yolunu tanımla."
           />
-          <p className="center">
+          <p className="center md-start">
             <button type="button" className="link-button" onClick={() => opened(null, SAMPLE, null)}>
               ya da boş bir notla başla
             </button>
@@ -248,8 +346,48 @@ export default function Markdown({ route, engines }: { route: Route; engines: En
           {uploadError && <p className="error-text">{uploadError}</p>}
         </>
       ) : (
-        <div className="md-layout">
-          <section className="md-left">
+        <div className="md-studio">
+          <div className="md-bar">
+            <div className="md-bar-row">
+              <div className="md-tools">
+                <button type="button" onClick={() => setShowEditor((s) => !s)}>
+                  <Icon icon={showEditor ? PanelLeftClose : PanelLeftOpen} size={17} />
+                  {showEditor ? "Düzenleyiciyi gizle" : "Düzenleyiciyi göster"}
+                </button>
+                <button
+                  type="button"
+                  onClick={onFixFormulas}
+                  title={FORMULA_FIX_HINT}
+                  aria-describedby="formul-onar-aciklama"
+                >
+                  <Icon icon={WandSparkles} size={17} />
+                  Formülleri onar
+                </button>
+                <span id="formul-onar-aciklama" className="sr-only">
+                  {FORMULA_FIX_HINT}
+                </span>
+                <SnippetMenu getSource={snippetSource} onInsert={onInsertSnippet} />
+              </div>
+              <button
+                type="button"
+                className="primary md-build"
+                disabled={job.running || browserMissing}
+                onClick={() => {
+                  builtText.current = text;
+                  void job.start({
+                    type: "md_to_pdf",
+                    file: mdFile?.id,
+                    text,
+                    name: noteName,
+                    attachments: attachmentIds,
+                    options,
+                  });
+                }}
+              >
+                <Icon icon={FileDown} />
+                {job.running ? "PDF oluşturuluyor…" : "PDF oluştur"}
+              </button>
+            </div>
             <div className="md-options">
               <label className="field">
                 Tema
@@ -291,7 +429,7 @@ export default function Markdown({ route, engines }: { route: Route; engines: En
               <label className="field">
                 Kenar (mm)
                 <input
-                  className="input narrow"
+                  className="input"
                   type="number"
                   min={0}
                   max={60}
@@ -303,7 +441,7 @@ export default function Markdown({ route, engines }: { route: Route; engines: En
               <label className="field">
                 Yazı (pt)
                 <input
-                  className="input narrow"
+                  className="input"
                   type="number"
                   min={6}
                   max={24}
@@ -314,92 +452,90 @@ export default function Markdown({ route, engines }: { route: Route; engines: En
                 />
               </label>
             </div>
+          </div>
+          <JobPanel job={job.job} error={job.error} />
 
-            <div className="md-actions">
-              <button type="button" className="link-button" onClick={() => setShowEditor((s) => !s)}>
-                {showEditor ? "Düzenleyiciyi gizle" : "Düzenleyiciyi göster"}
-              </button>
-              <DropZone
-                compact
-                onFiles={onFiles}
-                accept=".md,.markdown,.txt,.png,.jpg,.jpeg,.gif,.webp,.svg"
-                disabled={uploading}
-                title={uploading ? "Yükleniyor…" : "+ resim / başka not"}
-              />
-            </div>
-            {attachments.length > 0 && (
-              <ul className="chips" aria-label="Ekler">
-                {attachments.map((a) => (
-                  <li key={a.id}>
-                    {a.name}
-                    <button
-                      type="button"
-                      className="icon-button"
-                      aria-label={`${a.name} çıkar`}
-                      onClick={() => setAttachments((all) => all.filter((x) => x.id !== a.id))}
-                    >
-                      ×
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {showEditor && (
-              <textarea
-                className="md-editor"
-                spellCheck={false}
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                aria-label="Markdown metni"
-              />
-            )}
-            <button
-              type="button"
-              className="primary block"
-              disabled={job.running || browserMissing}
-              onClick={() => {
-                builtText.current = text;
-                void job.start({
-                  type: "md_to_pdf",
-                  file: mdFile?.id,
-                  text,
-                  name: noteName,
-                  attachments: attachmentIds,
-                  options,
-                });
-              }}
-            >
-              {job.running ? "PDF oluşturuluyor…" : "PDF oluştur"}
-            </button>
-            <p className="md-save-line small">
-              {dirty ? (
-                <span className="warn-line">Kaydedilmemiş değişiklik var (taslak bu tarayıcıda tutuluyor).</span>
-              ) : (
-                <span className="muted">Değişiklik yok.</span>
-              )}{" "}
-              <button type="button" className="link-button" onClick={downloadNote}>
-                Notu indir (.md)
-              </button>
-            </p>
-            <JobPanel job={job.job} error={job.error} />
-          </section>
+          <div className={`md-layout${showEditor ? "" : " solo"}`}>
+            <section className="md-left">
+              <div className="md-attach">
+                {attachments.length > 0 && (
+                  <ul className="chips" aria-label="Ekler">
+                    {attachments.map((a) => (
+                      <li key={a.id}>
+                        <Icon icon={Paperclip} size={15} />
+                        <span className="chip-name">{a.name}</span>
+                        <button
+                          type="button"
+                          className="icon-button"
+                          aria-label={`${a.name} çıkar`}
+                          onClick={() => setAttachments((all) => all.filter((x) => x.id !== a.id))}
+                        >
+                          <Icon icon={X} size={16} />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <DropZone
+                  compact
+                  onFiles={onFiles}
+                  accept=".md,.markdown,.txt,.png,.jpg,.jpeg,.gif,.webp,.svg"
+                  disabled={uploading}
+                  title={
+                    uploading ? (
+                      "Yükleniyor…"
+                    ) : (
+                      <>
+                        <Icon icon={Plus} size={16} />
+                        resim / başka not
+                      </>
+                    )
+                  }
+                />
+              </div>
+              {showEditor && (
+                <textarea
+                  ref={editorRef}
+                  className="md-editor"
+                  spellCheck={false}
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  aria-label="Markdown metni"
+                />
+              )}
+              <p className="md-save-line small">
+                {dirty ? (
+                  <span className="warn-line">
+                    <Icon icon={CircleDot} size={14} />
+                    Kaydedilmemiş değişiklik var (taslak bu tarayıcıda tutuluyor).
+                  </span>
+                ) : (
+                  <span className="muted">Değişiklik yok.</span>
+                )}
+                <button type="button" className="link-button" onClick={downloadNote}>
+                  <Icon icon={Download} size={15} />
+                  Notu indir (.md)
+                </button>
+              </p>
+            </section>
 
-          <section className="md-preview" aria-label="Önizleme">
-            {previewError && <div className="banner error">{previewError}</div>}
-            {preview && preview.warnings.length > 0 && (
-              <details className="warnings">
-                <summary>{preview.warnings.length} uyarı</summary>
-                <ul>
-                  {preview.warnings.map((w) => (
-                    <li key={w}>{w}</li>
-                  ))}
-                </ul>
-              </details>
-            )}
-            {/* Önizleme HTML'i içerik güvenlik politikası taşır: yalnızca sunucunun nonce verdiği
-                KaTeX betikleri çalışır, notun içindeki betikler ve ağ istekleri engellenir. */}
-            <PreviewFrame html={preview?.html ?? ""} />
-          </section>
+            <section className="md-preview" aria-label="Önizleme">
+              {previewError && <div className="banner error">{previewError}</div>}
+              {preview && preview.warnings.length > 0 && (
+                <details className="warnings">
+                  <summary>{preview.warnings.length} uyarı</summary>
+                  <ul>
+                    {preview.warnings.map((w) => (
+                      <li key={w}>{w}</li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+              {/* Önizleme HTML'i içerik güvenlik politikası taşır: yalnızca sunucunun nonce verdiği
+                  KaTeX betikleri çalışır, notun içindeki betikler ve ağ istekleri engellenir. */}
+              <PreviewFrame html={preview?.html ?? ""} />
+            </section>
+          </div>
         </div>
       )}
     </>

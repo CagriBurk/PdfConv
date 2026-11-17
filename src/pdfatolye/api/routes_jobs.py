@@ -23,12 +23,19 @@ def _is_local(request: Request) -> bool:
     return (request.client.host if request.client else "") in LOOPBACK_HOSTS
 
 
-def job_view(request: Request, job) -> dict:
+def job_view(request: Request, job, files_cache: dict[str, dict] | None = None) -> dict:
     """İş + çıktı dosyalarının meta verisi (silinmiş çıktılar atlanır)."""
     files = []
+    store = request.app.state.store
     for fid in job.outputs:
+        if files_cache is not None and fid in files_cache:
+            files.append(files_cache[fid])
+            continue
         try:
-            files.append(request.app.state.store.get(fid).to_dict())
+            meta_dict = store.get(fid).to_dict()
+            if files_cache is not None:
+                files_cache[fid] = meta_dict
+            files.append(meta_dict)
         except FileNotInStoreError:
             continue
     return job.view() | {"files": files}
@@ -65,12 +72,14 @@ async def events(request: Request, job_id: str):
 
     async def stream():
         last = -1
+        files_cache: dict[str, dict] = {}
         while True:
             if await request.is_disconnected():
                 return
             if job.rev != last:
                 last = job.rev
-                yield f"data: {json.dumps(job_view(request, job), ensure_ascii=False)}\n\n"
+                payload = job_view(request, job, files_cache)
+                yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
             if job.done:
                 return
             await asyncio.sleep(0.25)

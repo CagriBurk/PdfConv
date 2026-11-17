@@ -88,11 +88,12 @@ def serve(
         "--lan", help="Telefon modu: aynı Wi-Fi'deki cihazlar QR kodla bağlanır")] = False,
     config: ConfigOpt = None,
 ) -> None:
-    """Web arayüzünü başlatır."""
-    import uvicorn
+    """Web arayüzünü başlatır. Ayarlar'da port ya da telefon modu değişince kendini yeni
+    ayarlarla yeniden başlatır; konsol açık kalır.
 
-    from pdfatolye.api.app import create_app
-
+    --port ve --lan yalnızca bu açılış için: yeniden başlatmada Ayarlar'da görünen (ayar
+    dosyasındaki) değerler geçerli olur. Yoksa Ayarlar'dan kapatılan telefon modu --lan yüzünden
+    açık kalırdı."""
     settings = load_settings(config)
     if port is not None:
         settings.port = port
@@ -116,14 +117,54 @@ def serve(
             err=True,
         )
         raise typer.Exit(1)
+    raise typer.Exit(_serve_until_closed(config, settings, open_browser=browser))
 
-    application = create_app(settings)
-    typer.echo(f"PDF Atölyesi çalışıyor: {url}  (kapatmak için Ctrl+C)")
-    if settings.lan:
-        _print_lan(settings.port, application.state.sessions.pair_token)
-    if browser:
-        threading.Timer(1.0, webbrowser.open, args=[url]).start()
-    uvicorn.run(application, host=settings.host, port=settings.port, log_level="warning")
+
+def _serve_until_closed(config: Path | None, settings, *, open_browser: bool = False,
+                        stop: threading.Event | None = None) -> int:
+    """Sunucuyu açar; Ctrl+C (ya da `stop`) gelene kadar çalıştırır. Arayüz yeniden başlatma
+    isteyince (`/api/restart`) sunucu kapanır, ayarlar dosyadan yeniden okunur ve aynı süreçte
+    yenisi açılır (masaüstü uygulamasıyla aynı yol: `desktop._start_server`). Çalışan işler
+    kapanışta olduğu gibi durdurulur."""
+    from pdfatolye.desktop import _start_server
+
+    previous_port: int | None = None
+    while True:
+        if previous_port is not None:
+            settings = load_settings(config)
+        server = None
+        try:
+            # Açılış da `try` içinde: Ctrl+C yeniden başlatmanın ortasına denk gelirse (port
+            # bekleniyor, yeni sunucu açılıyor) yığın izi yerine düzgün kapanış.
+            server = _start_server(settings, previous_port, host=settings.host, lock=False)
+            if server is None:
+                typer.secho("PDF Atölyesi başlatılamadı. Ayrıntı günlük dosyasında: "
+                            f"{settings.logs_dir / 'pdfatolye.log'}", fg="red", err=True)
+                return 1
+            if previous_port is None:
+                typer.echo(f"PDF Atölyesi çalışıyor: {server.url}  (kapatmak için Ctrl+C)")
+            else:
+                typer.echo(f"Yeniden başlatıldı: {server.url}"
+                           + ("" if settings.lan else "  (telefon modu kapalı)"))
+            if settings.lan:
+                _print_lan(settings.port, server.app.state.sessions.pair_token)
+            if open_browser and previous_port is None:
+                webbrowser.open(server.url)
+            reason = server.wait(None, stop)
+        except KeyboardInterrupt:
+            typer.echo("Kapatılıyor…")
+            reason = "closed"
+        finally:
+            if server is not None:
+                server.stop()
+        if reason == "crashed":
+            typer.secho("Sunucu beklenmedik biçimde kapandı. Ayrıntı günlük dosyasında: "
+                        f"{settings.logs_dir / 'pdfatolye.log'}", fg="red", err=True)
+            return 1
+        if reason != "restart":
+            return 0
+        previous_port = settings.port
+        typer.echo("\nAyarlar değişti: sunucu yeni ayarlarla yeniden başlatılıyor…")
 
 
 @app.command()
@@ -159,8 +200,8 @@ def _print_lan(port: int, pair_token: str) -> None:
     typer.echo(f"ya da adresi yaz: {link}")
     typer.secho("Bu kod tek kullanımlık; sonraki cihazlar için Ayarlar sayfasında yenisi çıkar. "
                 "Bağlantı yerel ağda şifresizdir: yalnızca güvendiğin Wi-Fi'de kullan, işin "
-                "bitince sunucuyu kapat. Windows güvenlik duvarı ilk seferde izin isteyebilir.",
-                fg="yellow")
+                "bitince Ayarlar'dan telefon modunu kapat. Windows güvenlik duvarı ilk seferde "
+                "izin isteyebilir.", fg="yellow")
 
 
 def _port_in_use(host: str, port: int) -> bool:

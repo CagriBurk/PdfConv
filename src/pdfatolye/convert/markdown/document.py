@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import datetime as dt
+import functools
 import hashlib
 import html
 import json
@@ -220,8 +221,9 @@ KATEX_SCRIPT = r"""
   await Promise.all([...document.images].map(img => img.complete ? null :
     new Promise(r => { img.onload = img.onerror = r; })));
   await document.fonts.ready;
+  const safeDecode = (s) => { try { return decodeURI(s); } catch { return s; } };
   const broken = [...document.images].filter(i => !i.naturalWidth)
-    .map(i => decodeURI(i.getAttribute('src') || ''));
+    .map(i => safeDecode(i.getAttribute('src') || ''));
   window.__sonuc = {errors, broken};
 })();
 """
@@ -268,18 +270,27 @@ def katex_script_hash() -> str:
     return "sha256-" + base64.b64encode(digest).decode("ascii")
 
 
+@functools.cache
+def _css(theme: str) -> str:
+    """Temel, tema ve Pygments CSS metinlerini önbellekten döndürür."""
+    themes = ASSETS / "themes"
+    theme_file = themes / f"{theme}.css"
+    if not theme_file.is_file():
+        theme_file = themes / "ders.css"
+    return "\n".join([
+        (themes / "base.css").read_text(encoding="utf-8"),
+        theme_file.read_text(encoding="utf-8"),
+        pygments_css(),
+    ])
+
+
 def build_html(parsed: ParsedMarkdown, opts: MdOptions, katex_dir: str = "katex",
                preview: bool = False, csp: str | None = None, nonce: str | None = None) -> str:
     """Tek dosyalık HTML. KaTeX dosyaları `katex_dir` göreli yolundan yüklenir.
 
     `csp` ve `nonce` verilirse sayfaya içerik güvenlik politikası eklenir (tarayıcı önizlemesi).
     """
-    themes = ASSETS / "themes"
-    css = "\n".join([
-        (themes / "base.css").read_text(encoding="utf-8"),
-        (themes / f"{opts.theme}.css").read_text(encoding="utf-8"),
-        pygments_css(),
-    ])
+    css = _css(opts.theme or DEFAULTS.theme or "ders")
     if opts.font_size_pt:
         css += f"\n:root {{ --font-size: {opts.font_size_pt}pt; }}"
     if preview:

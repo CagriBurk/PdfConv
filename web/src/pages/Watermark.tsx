@@ -1,14 +1,17 @@
+import { ImageIcon, Type } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api, type FileMeta, type FontInfo } from "../api";
-import FilePicker, { FileRow } from "../components/FilePicker";
+import FilePicker, { FileRow, FilesCard } from "../components/FilePicker";
+import Icon from "../components/Icon";
 import JobPanel from "../components/JobPanel";
 import PagePreview from "../components/PagePreview";
 import PageHeader from "../components/PageHeader";
+import PasswordDialog from "../components/PasswordDialog";
 import { FONT_CSS, loadBundledFonts } from "../fonts";
-import { useFiles, useJob } from "../hooks";
+import { useFiles, useJob, useUnlockQueue } from "../hooks";
 import { passwords } from "../passwords";
 import { idsFrom, type Route } from "../router";
-import { ACCEPT } from "../tools";
+import { ACCEPT, toolForRoute } from "../tools";
 
 const stem = (name: string) => name.replace(/\.pdf$/i, "");
 
@@ -30,10 +33,20 @@ export default function Watermark({ route }: { route: Route }) {
   const [fonts, setFonts] = useState<FontInfo[]>([]);
   const job = useJob();
 
+  const unlock = useUnlockQueue({
+    onUnlock: ([accepted]) => {
+      if (accepted) setFile(accepted);
+    },
+    onCancel: (cancelled) => {
+      setFile((curr) => (curr?.id === cancelled.id ? null : curr));
+    },
+  });
+  const queueUnlock = unlock.queue;
+
   useEffect(() => {
     const pdf = initial.files.find((f) => f.kind === "pdf");
-    if (pdf) setFile(pdf);
-  }, [initial.files]);
+    if (pdf) queueUnlock([pdf]);
+  }, [initial.files, queueUnlock]);
 
   useEffect(() => {
     // Gömülü fontlar yüklenmeden çizilen önizleme yedek fonta düşerdi.
@@ -63,15 +76,17 @@ export default function Watermark({ route }: { route: Route }) {
     <>
       <PageHeader title="Filigran" />
       <div className="tool-layout">
-        <section>
-          {file ? (
-            <FileRow file={file} onRemove={() => (setFile(null), job.reset())} />
-          ) : (
-            <FilePicker accept={ACCEPT.pdf} kind="pdf" multiple={false} title="Filigran eklenecek PDF'i bırak" onAdd={([f]) => setFile(f)} />
-          )}
+        <div className="tool-main">
+          <FilesCard title="Dosya">
+            {file ? (
+              <FileRow file={file} onRemove={() => (setFile(null), job.reset())} />
+            ) : (
+              <FilePicker accept={ACCEPT.pdf} kind="pdf" multiple={false} title="Filigran eklenecek PDF'i bırak" onAdd={([f]) => setFile(f)} />
+            )}
+          </FilesCard>
           {file && (
             <div className="preview-wrap">
-              <PagePreview file={file} width={360}>
+              <PagePreview file={file} width={400}>
                 {(s) =>
                   mode === "text" ? (
                     <span
@@ -100,13 +115,16 @@ export default function Watermark({ route }: { route: Route }) {
               <p className="muted small">İlk sayfanın yaklaşık önizlemesi.</p>
             </div>
           )}
-        </section>
-        <aside className="options">
-          <div className="segmented" role="group" aria-label="Filigran türü">
+        </div>
+        <aside className="options" aria-labelledby="filigran-secenekler">
+          <h2 id="filigran-secenekler">Seçenekler</h2>
+          <div className="segmented seg-track" role="group" aria-label="Filigran türü">
             <button type="button" className={mode === "text" ? "on" : undefined} onClick={() => setMode("text")}>
+              <Icon icon={Type} size={16} />
               Yazı
             </button>
             <button type="button" className={mode === "image" ? "on" : undefined} onClick={() => setMode("image")}>
+              <Icon icon={ImageIcon} size={16} />
               Resim
             </button>
           </div>
@@ -177,12 +195,14 @@ export default function Watermark({ route }: { route: Route }) {
             Sayfalar (boş = hepsi)
             <input className="input" placeholder="1-3, 5, 8-" value={pages} onChange={(e) => setPages(e.target.value)} />
           </label>
-          <button type="button" className="primary block" disabled={!ready || job.running} onClick={start}>
+          <button type="button" className="primary block action" disabled={!ready || job.running} onClick={start}>
+            <Icon icon={toolForRoute("filigran")!.icon} />
             Filigran ekle
           </button>
           <JobPanel job={job.job} error={job.error ?? initial.error} />
         </aside>
       </div>
+      {unlock.locked && <PasswordDialog file={unlock.locked} onDone={unlock.onDone} />}
     </>
   );
 }

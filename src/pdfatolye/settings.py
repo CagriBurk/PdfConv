@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 import tomllib
 from dataclasses import dataclass, field, fields
 from pathlib import Path
@@ -164,31 +165,35 @@ def dump_toml(raw: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
+_SETTINGS_LOCK = threading.Lock()
+
+
 def save_settings(settings: Settings, changes: dict) -> Path:
     """Değişiklikleri ayar dosyasına yazar (dosyadaki diğer ayarlar korunur) ve yeniden
     başlatma gerektirmeyenleri çalışan `settings` nesnesine uygular. `None` ya da boş dizge:
     ayar dosyadan kaldırılır (varsayılana döner)."""
     if bad := set(changes) - set(EDITABLE):
         raise ValueError(f"Arayüzden değiştirilemeyen ayar(lar): {', '.join(sorted(bad))}")
-    path = settings_file(settings)
-    raw = _read_toml(path) if path.is_file() else {}
-    for key, value in changes.items():
-        if value is None or value == "":
-            raw.pop(key, None)
-        else:
-            raw[key] = str(value) if isinstance(value, Path) else value
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(path.name + ".tmp")
-    tmp.write_text(dump_toml(raw), encoding="utf-8", newline="\n")
-    tmp.replace(path)
-    settings.config_file = path
-    defaults = Settings()
-    for key, value in changes.items():
-        if key in NEEDS_RESTART:
-            continue
-        if key == "vault_path":
-            value = Path(value) if value else None
-        elif value is None or value == "":
-            value = getattr(defaults, key)
-        setattr(settings, key, value)
-    return path
+    with _SETTINGS_LOCK:
+        path = settings_file(settings)
+        raw = _read_toml(path) if path.is_file() else {}
+        for key, value in changes.items():
+            if value is None or value == "":
+                raw.pop(key, None)
+            else:
+                raw[key] = str(value) if isinstance(value, Path) else value
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_name(path.name + ".tmp")
+        tmp.write_text(dump_toml(raw), encoding="utf-8", newline="\n")
+        tmp.replace(path)
+        settings.config_file = path
+        defaults = Settings()
+        for key, value in changes.items():
+            if key in NEEDS_RESTART:
+                continue
+            if key == "vault_path":
+                value = Path(value) if value else None
+            elif value is None or value == "":
+                value = getattr(defaults, key)
+            setattr(settings, key, value)
+        return path

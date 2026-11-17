@@ -81,7 +81,7 @@ def _filter_group(ext: str) -> str:
 def _run_soffice(soffice: str, inputs: list[Path], outdir: Path, export: str,
                  timeout: float) -> str:
     """Girdileri tek çağrıda çevirir (taze profil). LibreOffice'in çıktı metnini döndürür."""
-    with tempfile.TemporaryDirectory(prefix="pa-lo-profil-") as profile:
+    with tempfile.TemporaryDirectory(prefix="pa-lo-profil-", ignore_cleanup_errors=True) as profile:
         uri = Path(profile).resolve().as_uri()
         args = [soffice, f"-env:UserInstallation={uri}", "--headless", "--norestore",
                 "--nolockcheck", "--nodefault", "--nologo", "--convert-to", export,
@@ -108,7 +108,10 @@ def _check_pdf(produced: Path, item: OfficeItem) -> OfficeResult:
         raise OfficeConversionError(f"'{item.name}' boş bir PDF üretti.")
     warnings = font_warnings(item.source, pdf_fonts, item.name)
     item.output.parent.mkdir(parents=True, exist_ok=True)
-    shutil.move(str(produced), item.output)
+    try:
+        shutil.move(str(produced), item.output)
+    except (OSError, PermissionError) as e:
+        raise OfficeConversionError(f"'{item.name}' çıktısı kaydedilemedi: {e}") from e
     return OfficeResult(item.output, pages, warnings)
 
 
@@ -136,7 +139,10 @@ def convert_office(
     with tempfile.TemporaryDirectory(prefix="pa-lo-") as tmp:
         work = Path(tmp)
         src = work / f"girdi{ext}"
-        shutil.copyfile(item.source, src)
+        try:
+            shutil.copyfile(item.source, src)
+        except (OSError, PermissionError) as e:
+            raise OfficeConversionError(f"'{item.name}' okunamadı: {e}") from e
         try:
             log = _run_soffice(soffice, [src], work, _export_filter(ext, pdfa), timeout)
         except _Timeout:
@@ -180,14 +186,23 @@ def convert_office_many(
             inputs = []
             for i in indices:
                 src = work / f"{i:04d}{items[i].source.suffix.lower()}"
-                shutil.copyfile(items[i].source, src)
-                inputs.append(src)
-            ext = items[indices[0]].source.suffix.lower()
-            timeout = 30 + BATCH_TIMEOUT_PER_FILE_S * len(inputs)
-            # Zaman aşımında çıkanlar alınır, kalanlar aşağıda tek tek denenir.
-            with contextlib.suppress(_Timeout):
-                _run_soffice(soffice, inputs, work, _export_filter(ext, pdfa), timeout)
+                try:
+                    shutil.copyfile(items[i].source, src)
+                    inputs.append(src)
+                except (OSError, PermissionError) as e:
+                    results[i] = OfficeConversionError(f"'{items[i].name}' kopyalanamadı: {e}")
+            if inputs:
+                ext = items[indices[0]].source.suffix.lower()
+                timeout = 30 + BATCH_TIMEOUT_PER_FILE_S * len(inputs)
+                # Zaman aşımında çıkanlar alınır, kalanlar aşağıda tek tek denenir.
+                with contextlib.suppress(_Timeout):
+                    _run_soffice(soffice, inputs, work, _export_filter(ext, pdfa), timeout)
             for i in indices:
+                if results[i] is not None:
+                    done += 1
+                    if on_progress:
+                        on_progress(done, len(items))
+                    continue
                 produced = work / f"{i:04d}.pdf"
                 try:
                     if produced.is_file():

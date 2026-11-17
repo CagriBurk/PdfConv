@@ -187,15 +187,19 @@ def run_lines(args: Sequence[str], *, timeout: float, on_line: Callable[[str], N
     with spawn(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT) as proc:
         def pump() -> None:
             assert proc.stdout is not None
-            for raw in iter(proc.stdout.readline, b""):
-                lines.put(raw.decode("utf-8", "replace").rstrip())
-            lines.put(None)
+            try:
+                for raw in iter(proc.stdout.readline, b""):
+                    lines.put(raw.decode("utf-8", "replace").rstrip())
+            finally:
+                lines.put(None)
 
         threading.Thread(target=pump, daemon=True, name="cikti").start()
         while True:
             try:
                 line = lines.get(timeout=POLL_S)
             except queue.Empty:
+                if proc.poll() is not None and lines.empty():
+                    break
                 line = ""
             if line is None:
                 break

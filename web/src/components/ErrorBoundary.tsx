@@ -1,5 +1,7 @@
+import { House, RefreshCw, RotateCcw, TriangleAlert } from "lucide-react";
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { api } from "../api";
+import Icon from "./Icon";
 
 interface Props {
   children: ReactNode;
@@ -38,29 +40,37 @@ export default class ErrorBoundary extends Component<Props, State> {
     const { error, errorId } = this.state;
     if (!error) return this.props.children;
     return (
-      <section className="crash" role="alert">
-        <h2>Bu ekranda bir şeyler ters gitti</h2>
-        <p>
-          Dosyaların güvende: sunucudaki dosyalar ve sürümler etkilenmedi. Ekranı yeniden açmayı dene; olmazsa ana
-          sayfaya dönüp işini oradan sürdür.
-        </p>
-        <p className="mono small break">{error.message}</p>
-        {errorId && (
-          <p className="muted small">
-            Hata kimliği: <strong className="mono">{errorId}</strong> (ayrıntısı günlük dosyasında, yolu Ayarlar →
-            Gelişmiş'te).
+      <section className="card crash" role="alert">
+        <span className="tile lg crash-icon">
+          <Icon icon={TriangleAlert} size={25} strokeWidth={1.9} />
+        </span>
+        <div className="crash-body">
+          <h2>Bu ekranda bir şeyler ters gitti</h2>
+          <p>
+            Dosyaların güvende: sunucudaki dosyalar ve sürümler etkilenmedi. Ekranı yeniden açmayı dene; olmazsa ana
+            sayfaya dönüp işini oradan sürdür.
           </p>
-        )}
-        <div className="crash-actions">
-          <button type="button" className="primary" onClick={() => this.setState({ error: null, errorId: null })}>
-            Yeniden dene
-          </button>
-          <a className="button" href="#/araclar">
-            Ana sayfaya dön
-          </a>
-          <button type="button" onClick={() => window.location.reload()}>
-            Sayfayı yenile
-          </button>
+          <p className="mono small break crash-detail">{error.message}</p>
+          {errorId && (
+            <p className="muted small">
+              Hata kimliği: <strong className="mono">{errorId}</strong> (ayrıntısı günlük dosyasında, yolu Ayarlar →
+              Gelişmiş'te).
+            </p>
+          )}
+          <div className="crash-actions">
+            <button type="button" className="primary" onClick={() => this.setState({ error: null, errorId: null })}>
+              <Icon icon={RotateCcw} size={17} />
+              Yeniden dene
+            </button>
+            <a className="button" href="#/araclar">
+              <Icon icon={House} size={17} />
+              Ana sayfaya dön
+            </a>
+            <button type="button" onClick={() => window.location.reload()}>
+              <Icon icon={RefreshCw} size={17} />
+              Sayfayı yenile
+            </button>
+          </div>
         </div>
       </section>
     );

@@ -15,3 +15,39 @@
 h1 { font-size: 1.7em; }
 h2 { border-bottom: 1px solid var(--rule); padding-bottom: 0.15em; }
 h3 { color: var(--accent); }
+
+/* Geniş tabloların sayfadan taşmadan okunaklı kırılması */
+table {
+  table-layout: auto;
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+th, td {
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+/* 2 sütunlu sınav özeti / kopya kağıdı yerleşimi */
+.two-col {
+  column-count: 2;
+  column-gap: 1.4rem;
+  margin: 0.6em 0 1em;
+}
+.two-col > :first-child { margin-top: 0; }
+.two-col > :last-child { margin-bottom: 0; }
+.two-col h1,
+.two-col h2,
+.two-col h3,
+.two-col h4,
+.two-col .callout,
+.two-col pre.code,
+.two-col .math-display {
+  break-inside: avoid;
+}
+.two-col h1,
+.two-col h2,
+.two-col h3,
+.two-col h4 {
+  break-after: avoid;
+}

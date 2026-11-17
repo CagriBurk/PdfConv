@@ -1,6 +1,8 @@
+import { Lock } from "lucide-react";
 import { useState } from "react";
 import { api, errorMessage, type FileMeta } from "../api";
 import { passwords } from "../passwords";
+import Icon from "./Icon";
 import Modal from "./Modal";
 
 interface Props {
@@ -30,18 +32,24 @@ export default function PasswordDialog({ file, onDone }: Props) {
   return (
     <Modal title="Şifreli PDF" onClose={() => onDone(false)}>
       <form
+        className="password-form"
         onSubmit={(e) => {
           e.preventDefault();
           void submit();
         }}
       >
-        <p>
-          <strong>{file.name}</strong> şifreli. Açmak için şifresini gir. Şifre yalnızca bu sekmede
-          tutulur, kaydedilmez.
-        </p>
+        <div className="password-intro">
+          <span className="tile">
+            <Icon icon={Lock} />
+          </span>
+          <p>
+            <strong className="break">{file.name}</strong> şifreli. Açmak için şifresini gir. Şifre yalnızca bu
+            sekmede tutulur, kaydedilmez.
+          </p>
+        </div>
         <input
           type="password"
-          autoFocus
+          data-autofocus
           value={value}
           onChange={(e) => setValue(e.target.value)}
           aria-label="Şifre"

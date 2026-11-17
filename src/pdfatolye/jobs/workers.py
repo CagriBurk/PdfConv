@@ -17,6 +17,7 @@ from pdfatolye import engines
 from pdfatolye.convert.markdown.render import BrowserNotFoundError
 from pdfatolye.core import compress as compresslib
 from pdfatolye.core import content, images, pages, security
+from pdfatolye.core import layout as layoutlib
 from pdfatolye.core.pdfio import base_name, safe_filename, split_ext, strip_ext
 from pdfatolye.errors import EncryptedPdfError, PdfAtolyeError, UnsupportedFileError
 from pdfatolye.storage import FileMeta
@@ -88,6 +89,7 @@ def run(manager, req, report: Report, job_id: str) -> WorkResult:
         "apply": apply,
         "compress": compress,
         "ocr": ocr,
+        "layout": layout,
         "encrypt": encrypt,
         "decrypt": decrypt,
         "clean_metadata": clean_metadata,
@@ -426,6 +428,52 @@ def ocr(store, settings, req, report, tmp: Path, job_id) -> WorkResult:
     notes = _protect(store, req, req.file, out)
     return WorkResult([_single_output(store, req, meta, out, "OCR", "ocr", job_id)],
                       [summary, *r.warnings, *notes])
+
+
+_LAYOUT_LABELS = {
+    "nup": ("Sayfalar yerleştiriliyor", "nup"),
+    "crop": ("Kenar boşlukları kırpılıyor", "kirpilmis"),
+    "poster": ("Poster parçalarına bölünüyor", "poster"),
+    "resize": ("Sayfa boyutu değiştiriliyor", "boyut"),
+}
+
+
+def layout(store, settings, req, report, tmp: Path, job_id) -> WorkResult:
+    meta, path = _require(store, req.file, "pdf")
+    label, suffix = _LAYOUT_LABELS[req.mode]
+    report(0.1, label)
+    out = tmp / f"{suffix}.pdf"
+    pw = req.passwords.get(req.file)
+    def progress(f: float) -> None:
+        report(0.1 + 0.8 * f, label)
+    if req.mode == "nup":
+        layoutlib.nup_pdf(
+            path, out, spec=req.spec, paper=req.paper, orientation=req.orientation,
+            per_sheet=req.per_sheet, notes_side=req.notes_side, margin_mm=req.margin_mm,
+            gap_mm=req.gap_mm, border=req.border, password=pw, on_progress=progress,
+        )
+    elif req.mode == "crop":
+        layoutlib.crop_margins_pdf(
+            path, out, spec=req.spec, crop_mode=req.crop_mode, margin_mm=req.margin_mm,
+            crop_top_mm=req.crop_top_mm, crop_right_mm=req.crop_right_mm,
+            crop_bottom_mm=req.crop_bottom_mm, crop_left_mm=req.crop_left_mm,
+            password=pw, on_progress=progress,
+        )
+    elif req.mode == "poster":
+        layoutlib.poster_split_pdf(
+            path, out, spec=req.spec, paper=req.paper, orientation=req.orientation,
+            poster_cols=req.poster_cols, poster_rows=req.poster_rows,
+            overlap_mm=req.overlap_mm, margin_mm=req.margin_mm, password=pw, on_progress=progress,
+        )
+    else:
+        layoutlib.resize_pages_pdf(
+            path, out, spec=req.spec, paper=req.paper, orientation=req.orientation,
+            margin_mm=req.margin_mm, password=pw, on_progress=progress,
+        )
+    report(0.92, "Kaydediliyor")
+    notes = _protect(store, req, req.file, out)
+    return WorkResult([store.add_file(out, _out_name(None, f"{_stem(meta)}_{suffix}"),
+                                      job_id=job_id)], notes)
 
 
 def encrypt(store, settings, req, report, tmp: Path, job_id) -> WorkResult:

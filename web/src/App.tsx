@@ -1,7 +1,9 @@
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { api, errorMessage, type EnginesResponse, type SettingsResponse } from "./api";
+import CommandPalette from "./components/CommandPalette";
 import ErrorBoundary from "./components/ErrorBoundary";
 import Toaster from "./components/Toaster";
+import TopBar from "./components/TopBar";
 import Home from "./pages/Home";
 import Jobs from "./pages/Jobs";
 import Markdown from "./pages/Markdown";
@@ -24,7 +26,9 @@ const Organizer = lazy(() => import("./pages/Organizer"));
 const Editor = lazy(() => import("./pages/Editor"));
 const Watermark = lazy(() => import("./pages/Watermark"));
 const PageNumbers = lazy(() => import("./pages/PageNumbers"));
+const LayoutTool = lazy(() => import("./pages/LayoutTool"));
 
+// Sekme başlıkları için ekran adları (menünün kendisi TopBar'da).
 const NAV = [
   { route: "araclar", label: "Araçlar" },
   { route: "isler", label: "İşler ve dosyalar" },
@@ -47,7 +51,9 @@ export default function App() {
   const [showWelcome, setShowWelcome] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [cmdOpen, setCmdOpen] = useState(false);
   const main = useRef<HTMLElement>(null);
+  const openSearch = useCallback(() => setCmdOpen(true), []);
 
   const loadEngines = async (refresh = false) => {
     setRefreshing(true);
@@ -90,7 +96,6 @@ export default function App() {
 
   const [page, id] = route.path;
   const section = page ?? "araclar";
-  const current = NAV.some((n) => n.route === section) ? section : "araclar";
   const screenKey = `${section}/${id ?? ""}`;
 
   // Ekran değişince odak içeriğe: klavye ve ekran okuyucu kullanıcısı yeni ekranın başından başlar.
@@ -148,6 +153,12 @@ export default function App() {
   else if (section === "guvenlik") content = <Protect route={route} />;
   else if (section === "birlestir") content = <Merge route={route} />;
   else if (section === "bol") content = <Split route={route} />;
+  else if (section === "yazdirma")
+    content = (
+      <Suspense fallback={null}>
+        <LayoutTool route={route} />
+      </Suspense>
+    );
   else if (section === "md") content = <Markdown route={route} engines={engines} />;
   else if (section === "office")
     content = <Office route={route} engines={engines} onEnginesChanged={() => void loadEngines(true)} />;
@@ -170,38 +181,14 @@ export default function App() {
         }}
       />
     );
-  else content = <Home engines={engines} />;
+  else content = <Home engines={engines} onSearch={openSearch} />;
 
   return (
     <div className={`shell${["duzenle", "md", "editor"].includes(section) ? " wide" : ""}`}>
       <a className="skip-link" href="#icerik" onClick={(e) => (e.preventDefault(), main.current?.focus())}>
         İçeriğe geç
       </a>
-      <header className="topbar">
-        <a className="brand" href="#/araclar">
-          <span className="brand-mark" aria-hidden="true" />
-          PDF Atölyesi
-        </a>
-        <nav aria-label="Ana menü">
-          {NAV.map((n) => {
-            const active = current === n.route && NAV.some((x) => x.route === section);
-            return (
-              <a key={n.route} href={`#/${n.route}`} className={active ? "active" : undefined} aria-current={active ? "page" : undefined}>
-                {n.label}
-              </a>
-            );
-          })}
-        </nav>
-        {settings?.running.lan ? (
-          <a className="offline-badge lan" href="#/ayarlar" title="Aynı Wi-Fi'deki eşleşmiş cihazlar bağlanabilir">
-            Telefon modu açık
-          </a>
-        ) : (
-          <span className="offline-badge" title="Dosyalar bu bilgisayardan çıkmaz">
-            Çevrimdışı
-          </span>
-        )}
-      </header>
+      <TopBar section={section} lan={!!settings?.running.lan} onSearch={openSearch} />
       <main id="icerik" ref={main} tabIndex={-1}>
         {error && (
           <div className="banner error" role="alert">
@@ -212,6 +199,7 @@ export default function App() {
           {content}
         </ErrorBoundary>
       </main>
+      <CommandPalette open={cmdOpen} onOpenChange={setCmdOpen} route={route} engines={engines} />
       <Toaster />
     </div>
   );

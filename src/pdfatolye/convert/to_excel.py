@@ -20,7 +20,7 @@ from pathlib import Path
 
 from pdfatolye.core.pdfio import atomic_output, opened
 from pdfatolye.core.ranges import parse_ranges
-from pdfatolye.errors import PdfAtolyeError
+from pdfatolye.errors import PageRangeError, PdfAtolyeError
 
 Progress = Callable[[float, str], None]
 
@@ -187,6 +187,8 @@ def pdf_to_excel(
     has_text = False
     with opened(input, password) as doc:
         pages = list(dict.fromkeys(parse_ranges(spec, doc.page_count)))
+        if not pages:
+            raise PageRangeError("Seçilen aralıkta sayfa bulunamadı.")
         for i, p in enumerate(pages):
             report(0.05 + 0.75 * i / len(pages), f"Tablolar aranıyor: {i + 1}/{len(pages)} sayfa")
             page = doc[p]
