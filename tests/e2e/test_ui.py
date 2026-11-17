@@ -307,6 +307,11 @@ def test_first_run_welcome_then_home(server, page):
         assert page.locator(".dropzone").count() == 0  # önce tanıtım
         page.get_by_role("button", name="Başla").click()
         page.get_by_text("Dosyayı buraya bırak").wait_for()
+        # Ana sayfa hemen açılır, ayar arkadan kaydedilir: kayıt beklenir.
+        for _ in range(100):
+            if app.state.settings.welcome_done:
+                break
+            time.sleep(0.1)
         assert app.state.settings.welcome_done is True
         cfg = app.state.settings.data_dir / "config.toml"
         assert "welcome_done = true" in cfg.read_text(encoding="utf-8")
