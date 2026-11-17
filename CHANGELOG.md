@@ -1,5 +1,57 @@
 # Değişiklikler
 
+## 0.11.0 — 2026-11-17
+
+Yeni görünüm, yeni araç (Sayfa Düzeni ve Yazdırma), Markdown şablonları ve telefon modunun
+tek tıkla açılması.
+
+**Kurulum ve güncelleme**: yeni paketi indirip ayıkla, **Kur**'a çift tıkla. Eski sürümü
+kaldırmaya gerek yok; belgelerin, imzaların ve ayarların korunur. Kurarken PDF Atölyesi
+penceresi kapalı olmalı.
+
+### Yeni görünüm
+- Arayüz baştan tasarlandı: ferah açık zemin, her araç grubunun kendi rengi ve ikonu, daha
+  okunur yazı tipi. **Açık / koyu tema** düğmesi üst çubukta (seçmezsen Windows'un temasını
+  izler).
+- Üst menü sayfayı kaydırınca da yerinde kalıyor. **Araçlar**'ın yanındaki ok, 16 aracın hepsini
+  her ekrandan açıyor; **Araç ara** (Ctrl+K ya da `/`) yazarak araca götürüyor.
+- Ana sayfada **Son dosyalar** ve bir dosyayı bırakınca hangi aracın açılacağı görünüyor.
+- Bir iş başka ekrandayken biterse üst çubukta "1 iş bitti" yazıyor.
+- Araç ekranları aynı düzende: solda dosyalar ve seçenekler, sağda özet ve büyük eylem
+  düğmesi; sonuç kartında dosya adları artık kesilmiyor.
+
+### Yeni araç: Sayfa Düzeni ve Yazdırma
+- Bir kağıda birden çok sayfa (N-up), ders slaytlarının yanına çizgili not alanı, kenar kırpma ve
+  büyük sayfayı birkaç A4'e bölerek poster basma.
+
+### Markdown → PDF
+- **Şablon ekle** menüsü: 14 hazır şablon (ders notu başlığı, ödev / lab raporu, tanım, teorem,
+  örnek ve çözüm, soru – cevap, dikkat ve özet kutuları, 2 sütunlu sınav özeti, numaralı formül,
+  tablo, kod, görev listesi, sayfa sonu).
+- **Kendi şablonların**: editörde bir metni seç (ya da seçmeden notun tamamını) ve "şablon
+  olarak kaydet"; sonra tek tıkla eklenir. Yeniden adlandırılabilir, silinebilir. Şablonlar
+  belgelerin yanında `sablonlar` klasöründe `.md` dosyaları olarak durur, temizlikte silinmez.
+- **Formülleri onar** düğmesi: ChatGPT gibi araçlardan yapıştırılan `\( … \)` ve `\[ … \]`
+  formüllerini `$ … $` biçimine çevirir (Ctrl+Z ile geri alınır). Önizleme bu formülleri onarmadan
+  da doğru çiziyor.
+- Yeni "2 sütunlu sınav özeti" düzeni. Obsidian'daki `[[#Başlık]]` bağlantıları PDF'te o başlığa
+  götüren tıklanır bağlantı oluyor.
+
+### Telefon modu
+- Ayarlar'da telefon modunu açınca ne olacağını anlatan bir pencere çıkıyor; **Aç ve yeniden
+  başlat** deyince uygulama birkaç saniyede kendini yeniden başlatıyor ve QR kod görünüyor.
+  Artık "baslat.bat'ı çalıştır" gibi bir adım yok.
+- Wi-Fi Windows'ta "Ortak ağ" olarak görünüyorsa telefon bağlanamaz; pencere bunu ve nasıl
+  düzeltileceğini anlatıyor.
+
+### Düzeltmeler
+- **Klasörde göster** her dosyada Belgeler klasörünü açıyordu; artık dosyanın klasörünü açıp
+  dosyayı seçili gösteriyor.
+- Şifre penceresi açılınca yazmaya doğrudan şifre alanında başlanıyor.
+- Büyük ya da bozuk dosyalarda çökme ve bellek sorunları giderildi; sayfa düzenleyicide
+  kaydetme sürerken ikinci bir kaydetme başlamıyor; büyük PDF'lerde küçük resimler daha hızlı.
+- Koyu temada açılışta bir an beyaz ekran görünmüyor.
+
 ## 0.10.0 — 2026-11-08
 
 Yeni araçlar: PDF → Word ve PDF → Excel; A0'a kadar kağıt.
