@@ -113,8 +113,14 @@ def test_serve_restarts_into_phone_mode_and_back(tmp_path, monkeypatch, capsys):
             view = c.get("/api/settings").json()
             assert view["running"]["lan"] is True and view["restart_pending"] is False
             assert c.get("/api/lan").json()["enabled"] is True
-        out = capsys.readouterr().out
-        assert "Yeniden başlatıldı" in out and "http://192.168.1.10:" in out  # konsola QR/adres
+        # Sunucu dinlemeye başladıktan hemen sonra yazar: çıktı gelene kadar beklenir.
+        out = [""]
+
+        def printed() -> bool:
+            out[0] += capsys.readouterr().out
+            return "Yeniden başlatıldı" in out[0] and "http://192.168.1.10:" in out[0]
+
+        assert wait_until(printed, 10), out[0]  # konsola QR/adres
 
         _restart(url, {"lan": False})
         assert wait_until(lambda: _listening(port) == {"127.0.0.1"})
