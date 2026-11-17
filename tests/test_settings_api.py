@@ -143,7 +143,10 @@ def test_restart_pending_and_hook(tmp_path):
         r = c.put("/api/settings", json={"port": 9400})
         assert r.json()["restart_pending"] is True and r.json()["running"]["port"] == 8790
         r = c.post("/api/restart")
-        assert r.status_code == 400 and "baslat.bat" in r.json()["detail"]  # `serve`'de kanca yok
+        # Kancasız (ör. testte doğrudan create_app): çalışma biçimine özgü dosya adı söylenmez.
+        detail = r.json()["detail"]
+        assert r.status_code == 400 and "kapatıp yeniden aç" in detail
+        assert "baslat.bat" not in detail
         called = threading.Event()
         c.app.state.restart = called.set
         assert c.get("/api/settings").json()["restart_available"] is True
@@ -234,6 +237,17 @@ def test_reveal_exports_copy_with_real_name(tmp_path, monkeypatch):
         store.delete(b.id)
         c.post(f"/api/files/{a.id}/reveal")
         assert not (s.data_dir / native.REVEAL_DIR / b.id).exists()  # silinen dosyanın kopyası
+
+
+def test_reveal_quotes_only_the_path(tmp_path, monkeypatch):
+    """Boşluklu yol: tırnak `/select,` ifadesini değil yalnızca yolu sarar (yoksa Gezgin
+    Belgeler'i açar)."""
+    calls: list = []
+    monkeypatch.setattr(native.os, "name", "nt")
+    monkeypatch.setattr(native.subprocess, "Popen", lambda cmd, **kw: calls.append(cmd))
+    target = tmp_path / "Dışa aktarılanlar" / "abc" / "Ödev — son.pdf"
+    native.reveal(target)
+    assert calls == [f'explorer.exe /select,"{target}"']
 
 
 def test_pick_folder_returns_choice(tmp_path, monkeypatch):

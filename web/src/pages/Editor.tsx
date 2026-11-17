@@ -1,7 +1,33 @@
+import {
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Circle,
+  Download,
+  Eraser,
+  EyeOff,
+  Highlighter,
+  History,
+  ImagePlus,
+  LayoutGrid,
+  Minus,
+  MousePointer2,
+  MoveUpRight,
+  Redo2,
+  Signature,
+  Square,
+  Trash2,
+  TriangleAlert,
+  Type,
+  Undo2,
+  ZoomIn,
+  type LucideIcon,
+} from "lucide-react";
 import type { PDFDocumentProxy } from "pdfjs-dist/legacy/build/pdf.mjs";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, errorMessage, type FileMeta, type FontInfo } from "../api";
 import FilePicker from "../components/FilePicker";
+import Icon from "../components/Icon";
 import JobPanel from "../components/JobPanel";
 import PageHeader from "../components/PageHeader";
 import PasswordDialog from "../components/PasswordDialog";
@@ -34,6 +60,19 @@ const TOOL_GROUPS: Tool[][] = [
   ["highlight", "rect", "ellipse", "line", "arrow"],
   ["redact", "whiteout"],
 ];
+const TOOL_ICONS: Record<Tool, LucideIcon> = {
+  select: MousePointer2,
+  text: Type,
+  image: ImagePlus,
+  signature: Signature,
+  highlight: Highlighter,
+  rect: Square,
+  ellipse: Circle,
+  line: Minus,
+  arrow: MoveUpRight,
+  redact: EyeOff,
+  whiteout: Eraser,
+};
 // Bu araçlar art arda kullanılır; nesne çizildikten sonra seçili kalır.
 const STICKY: Tool[] = ["highlight", "redact", "whiteout"];
 const ZOOMS = [0.5, 0.75, 1, 1.25, 1.5, 2, 3];
@@ -310,82 +349,76 @@ export default function Editor({ fileId }: { fileId?: string }) {
     <>
       <PageHeader title="İçerik Ekle">
         {meta && (
-          <span className="muted small">
-            {meta.name} · {meta.version}. sürüm
+          <>
+            <span className="chip meta-chip">
+              {meta.name} · {meta.version}. sürüm
+            </span>
             {meta.version > 1 && (
-              <button type="button" className="link-button" onClick={() => void undoVersion()} disabled={dirty}>
+              <button type="button" onClick={() => void undoVersion()} disabled={dirty}>
+                <Icon icon={History} size={16} />
                 Önceki sürüme dön
               </button>
             )}
-            <button type="button" className="link-button" onClick={() => navigate(`duzenle/${meta.id}`)} disabled={dirty}>
+            <button type="button" onClick={() => navigate(`duzenle/${meta.id}`)} disabled={dirty}>
+              <Icon icon={LayoutGrid} size={16} />
               Sayfa düzenleyicide aç
             </button>
-          </span>
+            <a className="button" href={api.downloadUrl(meta.id)}>
+              <Icon icon={Download} size={16} />
+              İndir
+            </a>
+          </>
         )}
       </PageHeader>
 
       <div className="toolbar" role="toolbar" aria-label="Editör araçları">
-        {TOOL_GROUPS.map((group, i) => (
-          <div key={i} className="tool-cluster">
-            {group.map((t) => (
-              <button
-                key={t}
-                type="button"
-                className={`tool-button${tool === t ? " on" : ""}${t === "redact" ? " danger" : ""}`}
-                aria-pressed={tool === t}
-                onClick={() => chooseTool(t)}
-                disabled={!doc || (t === "image" && uploading)}
-              >
-                {TOOL_LABELS[t]}
-              </button>
-            ))}
+        <div className="tool-groups">
+          {TOOL_GROUPS.map((group, i) => (
+            <div key={i} className="tool-cluster">
+              {group.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  className={`tool-button${tool === t ? " on" : ""}${t === "redact" ? " danger" : ""}`}
+                  aria-pressed={tool === t}
+                  onClick={() => chooseTool(t)}
+                  disabled={!doc || (t === "image" && uploading)}
+                >
+                  <Icon icon={TOOL_ICONS[t]} size={17} />
+                  {TOOL_LABELS[t]}
+                </button>
+              ))}
+            </div>
+          ))}
+          <div className="tool-cluster">
+            <button type="button" onClick={undo} disabled={!past.length} title="Geri al (Ctrl+Z)">
+              <Icon icon={Undo2} size={17} />
+              Geri
+            </button>
+            <button type="button" onClick={redo} disabled={!future.length} title="İleri (Ctrl+Y)">
+              <Icon icon={Redo2} size={17} />
+              İleri
+            </button>
           </div>
-        ))}
-        <div className="tool-cluster">
-          <button type="button" onClick={undo} disabled={!past.length} title="Geri al (Ctrl+Z)">
-            Geri
-          </button>
-          <button type="button" onClick={redo} disabled={!future.length} title="İleri (Ctrl+Y)">
-            İleri
-          </button>
-          <select
-            className="input narrow"
-            value={zoom}
-            onChange={(e) => setZoom(Number(e.target.value))}
-            aria-label="Yakınlaştırma"
-          >
-            {ZOOMS.map((z) => (
-              <option key={z} value={z}>
-                %{Math.round(z * 100)}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="tool-cluster end">
-          {meta && (
-            <a className="button" href={api.downloadUrl(meta.id)}>
-              İndir
-            </a>
-          )}
-          <button type="button" onClick={() => apply("new")} disabled={!dirty || job.running}>
-            Yeni dosya olarak
-          </button>
-          <button type="button" className="primary" onClick={() => apply("version")} disabled={!dirty || job.running}>
-            {job.running ? "Uygulanıyor…" : `Uygula${dirty ? ` (${objects.length})` : ""}`}
-          </button>
         </div>
       </div>
 
       {tool === "redact" && (
-        <p className="banner warn">
-          <strong>Karartma</strong>: işaretlediğin alandaki yazı, resim pikselleri ve çizimler "Uygula" ile dosyadan
-          kalıcı olarak silinir. Şekillerle siyah kutu çizmek karartma değildir; alttaki yazı kopyalanabilir kalır.
+        <p className="banner warn ed-note">
+          <Icon icon={TriangleAlert} />
+          <span>
+            <strong>Karartma</strong>: işaretlediğin alandaki yazı, resim pikselleri ve çizimler "Uygula" ile dosyadan
+            kalıcı olarak silinir. Şekillerle siyah kutu çizmek karartma değildir; alttaki yazı kopyalanabilir kalır.
+          </span>
         </p>
       )}
       {tool === "whiteout" && (
-        <p className="banner warn">
-          <strong>Beyazla kapat</strong>: alandaki yazı silinir ve üstü boyanır (resim ve çizgiler yalnızca örtülür).
-          Düzeltilmiş metni Yazı aracıyla üstüne ekle. Bu, mevcut yazıyı yerinde düzenleme değildir.
+        <p className="banner warn ed-note">
+          <Icon icon={TriangleAlert} />
+          <span>
+            <strong>Beyazla kapat</strong>: alandaki yazı silinir ve üstü boyanır (resim ve çizgiler yalnızca örtülür).
+            Düzeltilmiş metni Yazı aracıyla üstüne ekle. Bu, mevcut yazıyı yerinde düzenleme değildir.
+          </span>
         </p>
       )}
       {error && (
@@ -422,20 +455,45 @@ export default function Editor({ fileId }: { fileId?: string }) {
         <section className="editor-main" ref={mainRef}>
           {doc && (
             <>
-              <div className="page-nav">
-                <button type="button" onClick={() => setPageIndex((p) => Math.max(0, p - 1))} disabled={pageIndex === 0}>
-                  ←
-                </button>
-                <span>
-                  {pageIndex + 1} / {pageCount}
+              <div className="stage-bar">
+                <div className="page-nav">
+                  <button
+                    type="button"
+                    className="icon-button"
+                    aria-label="Önceki sayfa"
+                    onClick={() => setPageIndex((p) => Math.max(0, p - 1))}
+                    disabled={pageIndex === 0}
+                  >
+                    <Icon icon={ChevronLeft} />
+                  </button>
+                  <span>
+                    {pageIndex + 1} / {pageCount}
+                  </span>
+                  <button
+                    type="button"
+                    className="icon-button"
+                    aria-label="Sonraki sayfa"
+                    onClick={() => setPageIndex((p) => Math.min(pageCount - 1, p + 1))}
+                    disabled={pageIndex >= pageCount - 1}
+                  >
+                    <Icon icon={ChevronRight} />
+                  </button>
+                </div>
+                <span className="zoom">
+                  <Icon icon={ZoomIn} size={16} />
+                  <select
+                    className="input narrow"
+                    value={zoom}
+                    onChange={(e) => setZoom(Number(e.target.value))}
+                    aria-label="Yakınlaştırma"
+                  >
+                    {ZOOMS.map((z) => (
+                      <option key={z} value={z}>
+                        %{Math.round(z * 100)}
+                      </option>
+                    ))}
+                  </select>
                 </span>
-                <button
-                  type="button"
-                  onClick={() => setPageIndex((p) => Math.min(pageCount - 1, p + 1))}
-                  disabled={pageIndex >= pageCount - 1}
-                >
-                  →
-                </button>
               </div>
               <PageCanvas
                 doc={doc}
@@ -454,26 +512,45 @@ export default function Editor({ fileId }: { fileId?: string }) {
           )}
         </section>
 
-        <aside className="editor-props options">
-          {selected ? (
-            <Properties
-              obj={selected}
-              fonts={fonts}
-              textRef={textRef}
-              onChange={update}
-              onRemove={() => remove(selected.id)}
-            />
-          ) : (
-            <div className="muted small">
-              <p>
-                Bir araç seç ve sayfaya tıkla ya da sürükleyerek alan çiz. Nesneyi seçip taşı, köşelerinden
-                boyutlandır; özellikleri burada değişir.
-              </p>
-              <p>Delete: sil · Esc: bırak · oklar: kaydır (Shift ile 10) · Ctrl+Z / Ctrl+Y</p>
-              {dirty && <p>{objects.length} değişiklik henüz uygulanmadı.</p>}
-            </div>
-          )}
-        </aside>
+        <div className="editor-side">
+          <div className="editor-apply">
+            <button
+              type="button"
+              className="primary block"
+              onClick={() => apply("version")}
+              disabled={!dirty || job.running}
+            >
+              <Icon icon={Check} />
+              {job.running ? "Uygulanıyor…" : `Uygula${dirty ? ` (${objects.length})` : ""}`}
+            </button>
+            <button type="button" className="block" onClick={() => apply("new")} disabled={!dirty || job.running}>
+              Yeni dosya olarak
+            </button>
+          </div>
+          <aside className="editor-props options">
+            {selected ? (
+              <Properties
+                obj={selected}
+                fonts={fonts}
+                textRef={textRef}
+                onChange={update}
+                onRemove={() => remove(selected.id)}
+              />
+            ) : (
+              <div className="editor-props-empty">
+                <h2>Özellikler</h2>
+                <div className="muted small">
+                  <p>
+                    Bir araç seç ve sayfaya tıkla ya da sürükleyerek alan çiz. Nesneyi seçip taşı, köşelerinden
+                    boyutlandır; özellikleri burada değişir.
+                  </p>
+                  <p>Delete: sil · Esc: bırak · oklar: kaydır (Shift ile 10) · Ctrl+Z / Ctrl+Y</p>
+                  {dirty && <p>{objects.length} değişiklik henüz uygulanmadı.</p>}
+                </div>
+              </div>
+            )}
+          </aside>
+        </div>
       </div>
 
       <input
@@ -542,7 +619,7 @@ function Properties({ obj, fonts, textRef, onChange, onRemove }: PropsPanel) {
 
   return (
     <div className="props">
-      <h3>{obj.kind === "image" && obj.signature ? "İmza" : KIND_LABELS[obj.kind]}</h3>
+      <h2>{obj.kind === "image" && obj.signature ? "İmza" : KIND_LABELS[obj.kind]}</h2>
       {obj.kind === "text" && (
         <>
           <label className="field">
@@ -591,7 +668,7 @@ function Properties({ obj, fonts, textRef, onChange, onRemove }: PropsPanel) {
               Kalın
             </label>
           </div>
-          <div className="segmented" role="group" aria-label="Hizalama">
+          <div className="segmented seg-track" role="group" aria-label="Hizalama">
             {(
               [
                 ["left", "Sol"],
@@ -699,6 +776,7 @@ function Properties({ obj, fonts, textRef, onChange, onRemove }: PropsPanel) {
         </label>
       )}
       <button type="button" className="danger block" onClick={onRemove}>
+        <Icon icon={Trash2} size={17} />
         Sil
       </button>
     </div>

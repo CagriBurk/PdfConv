@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { FileMeta } from "../api";
-import FilePicker, { FileRow } from "../components/FilePicker";
-import JobPanel from "../components/JobPanel";
+import FilePicker, { FileRow, FilesCard, fileSummary } from "../components/FilePicker";
+import JobPanel, { ActionCard } from "../components/JobPanel";
 import PageHeader from "../components/PageHeader";
 import PasswordDialog from "../components/PasswordDialog";
 import { useFiles, useJob, useUnlockQueue } from "../hooks";
@@ -48,41 +48,53 @@ export default function Split({ route }: { route: Route }) {
     <>
       <PageHeader title="Böl" />
       <div className="tool-layout">
-        <section>
-          {file ? (
-            <FileRow file={file} onRemove={() => (setFile(null), job.reset())} />
-          ) : (
-            <FilePicker accept={ACCEPT.pdf} kind="pdf" multiple={false} title="Bölünecek PDF'i bırak" onAdd={([f]) => setFile(f)} />
-          )}
-          <fieldset className="radio-cards">
-            <legend>Nasıl bölünsün?</legend>
-            {MODES.map((m) => (
-              <label key={m.value} className={`radio-card${mode === m.value ? " on" : ""}`}>
-                <input type="radio" name="mode" value={m.value} checked={mode === m.value} onChange={() => setMode(m.value)} />
-                <strong>{m.label}</strong>
-                <span className="muted small">{m.hint}</span>
+        <div className="tool-main">
+          <FilesCard title="Dosya">
+            {file ? (
+              <FileRow file={file} onRemove={() => (setFile(null), job.reset())} />
+            ) : (
+              <FilePicker accept={ACCEPT.pdf} kind="pdf" multiple={false} title="Bölünecek PDF'i bırak" onAdd={([f]) => setFile(f)} />
+            )}
+          </FilesCard>
+          <section className="card">
+            <fieldset className="radio-cards">
+              <legend>Nasıl bölünsün?</legend>
+              {MODES.map((m) => (
+                <label key={m.value} className={`radio-card${mode === m.value ? " on" : ""}`}>
+                  <input type="radio" name="mode" value={m.value} checked={mode === m.value} onChange={() => setMode(m.value)} />
+                  <span className="radio-card-head">
+                    <strong>{m.label}</strong>
+                    <span className="radio-dot" aria-hidden="true" />
+                  </span>
+                  <span className="muted small">{m.hint}</span>
+                </label>
+              ))}
+            </fieldset>
+            {mode === "n" && (
+              <label className="field inline">
+                Kaç sayfada bir
+                <input className="input narrow" type="number" min={1} value={every} onChange={(e) => setEvery(Number(e.target.value))} />
               </label>
-            ))}
-          </fieldset>
-          {mode === "n" && (
-            <label className="field inline">
-              Kaç sayfada bir
-              <input className="input narrow" type="number" min={1} value={every} onChange={(e) => setEvery(Number(e.target.value))} />
-            </label>
-          )}
-          {mode === "aralik" && (
-            <label className="field">
-              Aralıklar
-              <input className="input" placeholder="1-3, 4-10, 11-" value={spec} onChange={(e) => setSpec(e.target.value)} />
-            </label>
-          )}
-        </section>
-        <aside className="options">
-          <button
-            type="button"
-            className="primary block"
+            )}
+            {mode === "aralik" && (
+              <label className="field">
+                Aralıklar
+                <input className="input" placeholder="1-3, 4-10, 11-" value={spec} onChange={(e) => setSpec(e.target.value)} />
+              </label>
+            )}
+          </section>
+        </div>
+        <aside className="tool-side">
+          <ActionCard
+            rows={[
+              ["Dosya", fileSummary(file)],
+              ["Yöntem", MODES.find((m) => m.value === mode)?.label],
+              ...(parts ? ([["Çıktı", `${parts} dosya`]] as [string, string][]) : []),
+            ]}
+            label={parts ? `Böl (${parts} dosya)` : "Böl"}
             disabled={!file || job.running || (mode === "aralik" && !spec.trim())}
-            onClick={() =>
+            busy={job.running}
+            onRun={() =>
               file &&
               job.start({
                 type: "split",
@@ -93,9 +105,7 @@ export default function Split({ route }: { route: Route }) {
                 passwords: passwords.forFiles([file.id]),
               })
             }
-          >
-            {parts ? `Böl (${parts} dosya)` : "Böl"}
-          </button>
+          />
           <JobPanel job={job.job} error={job.error ?? initial.error} zipName={file ? `${file.name.replace(/\.pdf$/i, "")}_parcalar` : undefined} />
         </aside>
       </div>

@@ -24,6 +24,7 @@ from pdfatolye.api import (
     routes_jobs,
     routes_md,
     routes_settings,
+    routes_snippets,
 )
 from pdfatolye.api.limits import RequestLimits
 from pdfatolye.api.security import COOKIE, SecurityHeaders, SessionGuard, Sessions, app_csp
@@ -160,7 +161,7 @@ def create_app(settings: Settings, *, start_background: bool = True) -> FastAPI:
     app.state.store = store
     app.state.jobs = jobs
     app.state.sessions = sessions
-    # Masaüstü uygulaması yeniden başlatma kancasını buraya koyar (desktop.run); `serve`'de yok.
+    # Yeniden başlatma kancasını sunucuyu açan döngü koyar (desktop._Server: masaüstü ve `serve`).
     app.state.restart = None
     app.state.restart_pending = set()
     app.state.preview_assets = routes_md.PreviewAssets(sessions.local)
@@ -253,6 +254,7 @@ def create_app(settings: Settings, *, start_background: bool = True) -> FastAPI:
     app.include_router(routes_files.router)
     app.include_router(routes_jobs.router)
     app.include_router(routes_md.router)
+    app.include_router(routes_snippets.router)
     app.include_router(routes_content.router)
     app.include_router(routes_settings.router)
     app.mount("/api/md/katex", StaticFiles(directory=MD_ASSETS / "katex"), name="katex")

@@ -11,7 +11,7 @@
 - Konsol yok (`pythonw`): çıktılar günlük dosyasına; açılış hatası ileti kutusuyla gösterilir.
 - **Telefon modu** Ayarlar'dan açılır (`lan = true`): sunucu yerel ağdan da dinler, pencere
   127.0.0.1'e bağlı kalır. Port ya da telefon modu değişince sunucu pencere kapanmadan yeniden
-  başlar.
+  başlar (`_Server` / `_start_server`; `pdfatolye serve` de aynısını kullanır).
 """
 
 from __future__ import annotations
@@ -203,6 +203,8 @@ def run(config: Path | None = None, *, wait_window: bool = True) -> int:
             message_box("PDF Atölyesi başlatılamadı. Ayrıntı günlük dosyasında:\n"
                         f"{settings.logs_dir / 'pdfatolye.log'}")
             return 1
+        log.info("Masaüstü uygulaması açıldı: %s%s", server.url,
+                 " (telefon modu)" if settings.lan else "")
         try:
             if window is None:
                 window = open_window(settings, server.url)
@@ -217,21 +219,24 @@ def run(config: Path | None = None, *, wait_window: bool = True) -> int:
 
 
 class _Server:
-    """Arka planda çalışan uvicorn sunucusu + yeniden başlatma isteği."""
+    """Arka planda çalışan uvicorn sunucusu + yeniden başlatma isteği. Masaüstü uygulaması ve
+    `pdfatolye serve` (baslat.bat) ortak kullanır. `lock`: tek örnek kilidi (yalnızca masaüstü)."""
 
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self, settings: Settings, *, host: str = "127.0.0.1", lock: bool = True) -> None:
         import uvicorn
 
         from pdfatolye.api.app import create_app
 
         self.settings = settings
-        self.url = f"http://127.0.0.1:{settings.port}"
+        self.lock = lock
         self.restart = threading.Event()
-        application = create_app(settings)
-        application.state.restart = self.restart.set
+        self.app = create_app(settings)
+        self.app.state.restart = self.restart.set
         # Telefon modu: yerel ağdan da dinler. Pencere yine 127.0.0.1'e bağlanır.
-        host = "0.0.0.0" if settings.lan else "127.0.0.1"
-        self.server = uvicorn.Server(uvicorn.Config(application, host=host, port=settings.port,
+        if settings.lan:
+            host = "0.0.0.0"
+        self.url = f"http://{'127.0.0.1' if host == '0.0.0.0' else host}:{settings.port}"
+        self.server = uvicorn.Server(uvicorn.Config(self.app, host=host, port=settings.port,
                                                     log_level="warning", log_config=None))
         self.thread = threading.Thread(target=self.server.run, daemon=True, name="sunucu")
 
@@ -242,33 +247,39 @@ class _Server:
             if not self.thread.is_alive() or time.monotonic() > deadline:
                 return False
             time.sleep(0.1)
-        lock = self.settings.data_dir / LOCK_NAME
-        lock.write_text(json.dumps({"pid": os.getpid(), "port": self.settings.port}),
-                        encoding="utf-8")
-        log.info("Masaüstü uygulaması açıldı: %s%s", self.url,
-                 " (telefon modu)" if self.settings.lan else "")
+        if self.lock:
+            lock = self.settings.data_dir / LOCK_NAME
+            lock.write_text(json.dumps({"pid": os.getpid(), "port": self.settings.port}),
+                            encoding="utf-8")
         return True
 
-    def wait(self, window: subprocess.Popen | None) -> str:
+    def wait(self, window: subprocess.Popen | None,
+             stop: threading.Event | None = None) -> str:
         """Pencere kapanana ("closed") ya da yeniden başlatma istenene ("restart") kadar bekler.
-        Pencere yoksa (Edge/Chrome bulunamadı) sunucu süreç sonlanana kadar açık kalır."""
+        Pencere yoksa (Edge/Chrome bulunamadı; `serve`) sunucu süreç sonlanana ya da `stop`
+        gelene kadar açık kalır. Sunucu kendiliğinden durursa "crashed"."""
         while True:
             if self.restart.wait(0.25):
                 return "restart"
             if window is not None and window.poll() is not None:
                 return "closed"
-            if not self.thread.is_alive():
+            if stop is not None and stop.is_set():
                 return "closed"
+            if not self.thread.is_alive():
+                return "crashed" if window is None else "closed"
 
     def stop(self) -> None:
         self.server.should_exit = True
         self.thread.join(timeout=15)
+        if not self.lock:
+            return
         with contextlib.suppress(OSError):
             if (read_lock(self.settings) or {}).get("pid") == os.getpid():
                 (self.settings.data_dir / LOCK_NAME).unlink()
 
 
-def _start_server(settings: Settings, previous_port: int | None) -> _Server | None:
+def _start_server(settings: Settings, previous_port: int | None,
+                  **server_options) -> _Server | None:
     """Sunucuyu açar. Yeniden başlatmada istenen port bir süre beklenir (eski sunucu yeni
     kapandı); hâlâ doluysa eski port kullanılır (pencere onu biliyor), o da doluysa boş bir port."""
     wanted = settings.port
@@ -280,8 +291,15 @@ def _start_server(settings: Settings, previous_port: int | None) -> _Server | No
             log.warning("Port %s kullanımda; %s ile devam ediliyor", wanted, previous_port)
             wanted = previous_port
     settings.port = pick_port(wanted)
-    server = _Server(settings)
-    return server if server.start() else None
+    server = _Server(settings, **server_options)
+    try:
+        if server.start():
+            return server
+    except BaseException:  # Ctrl+C açılışın ortasında: yarım sunucu (ve işleri) kalmasın
+        server.stop()
+        raise
+    server.stop()
+    return None
 
 
 def _quiet_console(settings: Settings) -> None:

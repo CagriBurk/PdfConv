@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, type FileMeta, type FontInfo } from "../api";
-import FilePicker, { FileRow } from "../components/FilePicker";
+import FilePicker, { FileRow, FilesCard } from "../components/FilePicker";
+import Icon from "../components/Icon";
 import JobPanel from "../components/JobPanel";
 import PagePreview from "../components/PagePreview";
 import PageHeader from "../components/PageHeader";
@@ -9,7 +10,7 @@ import { FONT_CSS, loadBundledFonts } from "../fonts";
 import { useFiles, useJob, useUnlockQueue } from "../hooks";
 import { passwords } from "../passwords";
 import { idsFrom, type Route } from "../router";
-import { ACCEPT } from "../tools";
+import { ACCEPT, toolForRoute } from "../tools";
 
 type Position = "top-left" | "top-center" | "top-right" | "bottom-left" | "bottom-center" | "bottom-right";
 
@@ -85,15 +86,17 @@ export default function PageNumbers({ route }: { route: Route }) {
     <>
       <PageHeader title="Sayfa Numarası" />
       <div className="tool-layout">
-        <section>
-          {file ? (
-            <FileRow file={file} onRemove={() => (setFile(null), job.reset())} />
-          ) : (
-            <FilePicker accept={ACCEPT.pdf} kind="pdf" multiple={false} title="Numaralanacak PDF'i bırak" onAdd={([f]) => setFile(f)} />
-          )}
+        <div className="tool-main">
+          <FilesCard title="Dosya">
+            {file ? (
+              <FileRow file={file} onRemove={() => (setFile(null), job.reset())} />
+            ) : (
+              <FilePicker accept={ACCEPT.pdf} kind="pdf" multiple={false} title="Numaralanacak PDF'i bırak" onAdd={([f]) => setFile(f)} />
+            )}
+          </FilesCard>
           {file && (
             <div className="preview-wrap">
-              <PagePreview file={file} page={previewPage} width={360}>
+              <PagePreview file={file} page={previewPage} width={400}>
                 {(s) => (
                   <span
                     className="pn-preview"
@@ -114,8 +117,9 @@ export default function PageNumbers({ route }: { route: Route }) {
               <p className="muted small">{previewPage + 1}. sayfanın önizlemesi.</p>
             </div>
           )}
-        </section>
-        <aside className="options">
+        </div>
+        <aside className="options" aria-labelledby="sayfa-no-secenekler">
+          <h2 id="sayfa-no-secenekler">Seçenekler</h2>
           <label className="field">
             Biçim
             <input className="input" list="pn-formats" value={format} onChange={(e) => setFormat(e.target.value)} />
@@ -181,7 +185,8 @@ export default function PageNumbers({ route }: { route: Route }) {
               <input type="color" value={color} onChange={(e) => setColor(e.target.value)} />
             </label>
           </div>
-          <button type="button" className="primary block" disabled={!file || !validFormat || job.running} onClick={run}>
+          <button type="button" className="primary block action" disabled={!file || !validFormat || job.running} onClick={run}>
+            <Icon icon={toolForRoute("sayfa-no")!.icon} />
             Numaraları ekle
           </button>
           <JobPanel job={job.job} error={job.error ?? initial.error} />

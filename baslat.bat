@@ -18,7 +18,7 @@ if errorlevel 1 (
 )
 
 rem Arayuz hic derlenmediyse veya kaynak dosyalar derlemeden yeniyse yeniden derle.
-powershell -NoProfile -Command "$d = Get-Item 'web\dist\index.html' -ErrorAction SilentlyContinue; $s = Get-ChildItem 'web\src','web\index.html','web\package.json' -Recurse -File | Sort-Object LastWriteTime -Descending | Select-Object -First 1; if (-not $d -or $s.LastWriteTime -gt $d.LastWriteTime) { exit 1 }"
+powershell -NoProfile -Command "$d = Get-Item 'web\dist\index.html' -ErrorAction SilentlyContinue; $s = Get-ChildItem 'web\src','web\public','web\index.html','web\package.json' -Recurse -File | Sort-Object LastWriteTime -Descending | Select-Object -First 1; if (-not $d -or $s.LastWriteTime -gt $d.LastWriteTime) { exit 1 }"
 if errorlevel 1 (
   where npm >nul 2>nul
   if errorlevel 1 (

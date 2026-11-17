@@ -1,6 +1,8 @@
+import { Check, Eraser, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import SignaturePad from "signature_pad";
 import { api, errorMessage, type FileMeta } from "../api";
+import Icon from "../components/Icon";
 import Modal from "../components/Modal";
 
 type Tab = "kayitli" | "ciz" | "yukle";
@@ -92,88 +94,98 @@ export default function SignatureDialog({ onPick, onClose }: Props) {
 
   return (
     <Modal title="İmza ekle" onClose={onClose} wide>
-      <div className="tabs" role="tablist">
-        {(
-          [
-            ["kayitli", `İmzalarım${list ? ` (${list.length})` : ""}`],
-            ["ciz", "Çiz"],
-            ["yukle", "Resimden yükle"],
-          ] as [Tab, string][]
-        ).map(([value, label]) => (
-          <button
-            key={value}
-            type="button"
-            role="tab"
-            aria-selected={tab === value}
-            className={tab === value ? "on" : undefined}
-            onClick={() => setTab(value)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {tab === "kayitli" &&
-        (list?.length ? (
-          <ul className="signature-grid">
-            {list.map((s) => (
-              <li key={s.id}>
-                <button type="button" className="signature-tile" onClick={() => onPick(s)} title="Bu imzayı ekle">
-                  <img src={api.rawUrl(s.id)} alt={s.name} />
-                </button>
-                <button type="button" className="link-button danger small" onClick={() => void remove(s)}>
-                  Sil
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="muted">{list ? "Henüz kayıtlı imza yok. Çiz ya da resimden yükle." : "Yükleniyor…"}</p>
-        ))}
-
-      {tab === "ciz" && (
-        <>
-          <canvas ref={canvasRef} className="signature-pad" aria-label="İmza çizim alanı" />
-          <div className="modal-actions spread">
-            <span className="tool-cluster">
-              {INKS.map((i) => (
-                <label key={i.value} className="check">
-                  <input type="radio" name="ink" checked={ink === i.value} onChange={() => setInk(i.value)} />
-                  {i.label}
-                </label>
-              ))}
-              <button type="button" onClick={() => (padRef.current?.clear(), setEmpty(true))}>
-                Temizle
-              </button>
-            </span>
-            <button type="button" className="primary" disabled={empty || busy} onClick={() => void saveDrawing()}>
-              Kaydet ve ekle
+      <div className="sig-dialog">
+        <div className="tabs seg-track" role="tablist">
+          {(
+            [
+              ["kayitli", `İmzalarım${list ? ` (${list.length})` : ""}`],
+              ["ciz", "Çiz"],
+              ["yukle", "Resimden yükle"],
+            ] as [Tab, string][]
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              role="tab"
+              aria-selected={tab === value}
+              className={tab === value ? "on" : undefined}
+              onClick={() => setTab(value)}
+            >
+              {label}
             </button>
+          ))}
+        </div>
+
+        {tab === "kayitli" &&
+          (list?.length ? (
+            <ul className="signature-grid">
+              {list.map((s) => (
+                <li key={s.id}>
+                  <button type="button" className="signature-tile" onClick={() => onPick(s)} title="Bu imzayı ekle">
+                    <img src={api.rawUrl(s.id)} alt={s.name} />
+                  </button>
+                  <button type="button" className="link-button danger small" onClick={() => void remove(s)}>
+                    Sil
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="muted">{list ? "Henüz kayıtlı imza yok. Çiz ya da resimden yükle." : "Yükleniyor…"}</p>
+          ))}
+
+        {tab === "ciz" && (
+          <>
+            <canvas ref={canvasRef} className="signature-pad" aria-label="İmza çizim alanı" />
+            <div className="modal-actions spread">
+              <span className="tool-cluster">
+                {INKS.map((i) => (
+                  <label key={i.value} className="check ink">
+                    <input type="radio" name="ink" checked={ink === i.value} onChange={() => setInk(i.value)} />
+                    <span className="ink-dot" style={{ background: i.value }} />
+                    {i.label}
+                  </label>
+                ))}
+                <button type="button" onClick={() => (padRef.current?.clear(), setEmpty(true))}>
+                  <Icon icon={Eraser} size={17} />
+                  Temizle
+                </button>
+              </span>
+              <button type="button" className="primary" disabled={empty || busy} onClick={() => void saveDrawing()}>
+                <Icon icon={Check} />
+                Kaydet ve ekle
+              </button>
+            </div>
+          </>
+        )}
+
+        {tab === "yukle" && (
+          <div className="sig-upload">
+            <p className="muted small">
+              Beyaz kâğıda atılmış imzanın fotoğrafı ya da taraması. Kâğıt otomatik saydamlaştırılır, kenar boşlukları
+              kırpılır.
+            </p>
+            <label className="button">
+              <Icon icon={Upload} />
+              Resim seç
+              <input
+                className="sr-only"
+                type="file"
+                accept=".png,.jpg,.jpeg,.webp,.heic,.heif,.bmp"
+                disabled={busy}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) void save(f, f.name);
+                  e.target.value = "";
+                }}
+              />
+            </label>
           </div>
-        </>
-      )}
+        )}
 
-      {tab === "yukle" && (
-        <>
-          <p className="muted small">
-            Beyaz kâğıda atılmış imzanın fotoğrafı ya da taraması. Kâğıt otomatik saydamlaştırılır, kenar boşlukları
-            kırpılır.
-          </p>
-          <input
-            type="file"
-            accept=".png,.jpg,.jpeg,.webp,.heic,.heif,.bmp"
-            disabled={busy}
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) void save(f, f.name);
-              e.target.value = "";
-            }}
-          />
-        </>
-      )}
-
-      <p className="muted small">İmzalar bu bilgisayarda kalıcı saklanır (otomatik temizlik silmez).</p>
-      {error && <p className="error-text">{error}</p>}
+        <p className="muted small">İmzalar bu bilgisayarda kalıcı saklanır (otomatik temizlik silmez).</p>
+        {error && <p className="error-text">{error}</p>}
+      </div>
     </Modal>
   );
 }

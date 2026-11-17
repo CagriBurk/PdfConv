@@ -1,7 +1,9 @@
+import { Crop, Grid2x2, LayoutGrid, Scaling, type LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { FileMeta } from "../api";
-import FilePicker, { FileRow } from "../components/FilePicker";
-import JobPanel from "../components/JobPanel";
+import FilePicker, { FileRow, FilesCard, fileSummary } from "../components/FilePicker";
+import Icon from "../components/Icon";
+import JobPanel, { ActionCard } from "../components/JobPanel";
 import PageHeader from "../components/PageHeader";
 import PasswordDialog from "../components/PasswordDialog";
 import { useFiles, useJob, useUnlockQueue } from "../hooks";
@@ -15,24 +17,28 @@ type Orientation = "otomatik" | "dikey" | "yatay";
 type PerSheet = 1 | 2 | 4 | 6 | 9 | 16;
 type CropMode = "auto" | "manual";
 
-const MODES: { value: LayoutMode; label: string; hint: string }[] = [
+const MODES: { value: LayoutMode; label: string; hint: string; icon: LucideIcon }[] = [
   {
     value: "nup",
+    icon: LayoutGrid,
     label: "Çoklu Sayfa (N-up)",
     hint: "Birden fazla sayfayı ya da ders slaytını tek kağıda sığdır; istersen sağda not çizgileri aç.",
   },
   {
     value: "crop",
+    icon: Crop,
     label: "Kenar Kırpma",
     hint: "Boş kenarlıkları otomatik kırp veya üst, sağ, alt ve sol kenarlardan milimetre cinsinden kes.",
   },
   {
     value: "poster",
+    icon: Grid2x2,
     label: "Poster Bölme",
     hint: "Büyük bir sayfayı sütun ve satırlara bölerek birden çok kağıda dağıt.",
   },
   {
     value: "resize",
+    icon: Scaling,
     label: "Sayfa Boyutu",
     hint: "Tüm sayfaları seçilen kağıt boyutuna orantılı şekilde ortalayarak yeniden boyutlandır.",
   },
@@ -125,42 +131,45 @@ export default function LayoutTool({ route }: { route: Route }) {
     <>
       <PageHeader title="Sayfa Düzeni ve Yazdırma" />
       <div className="tool-layout">
-        <section>
-          {file ? (
-            <FileRow file={file} onRemove={() => (setFile(null), job.reset())} />
-          ) : (
-            <FilePicker
-              accept={ACCEPT.pdf}
-              kind="pdf"
-              multiple={false}
-              title="Düzenlenecek PDF'i bırak"
-              onAdd={([f]) => (setFile(f), job.reset())}
-            />
-          )}
+        <div className="tool-main">
+          <FilesCard title="Dosya">
+            {file ? (
+              <FileRow file={file} onRemove={() => (setFile(null), job.reset())} />
+            ) : (
+              <FilePicker
+                accept={ACCEPT.pdf}
+                kind="pdf"
+                multiple={false}
+                title="Düzenlenecek PDF'i bırak"
+                onAdd={([f]) => (setFile(f), job.reset())}
+              />
+            )}
+          </FilesCard>
 
-          <div className="tabs layout-tabs" role="tablist" aria-label="Sayfa düzeni modları">
-            {MODES.map((m) => (
-              <button
-                key={m.value}
-                type="button"
-                role="tab"
-                aria-selected={mode === m.value}
-                className={mode === m.value ? "on" : undefined}
-                onClick={() => (setMode(m.value), job.reset())}
-              >
-                {m.label}
-              </button>
-            ))}
-          </div>
+          <section className="card layout-card">
+            <div className="tabs layout-tabs" role="tablist" aria-label="Sayfa düzeni modları">
+              {MODES.map((m) => (
+                <button
+                  key={m.value}
+                  type="button"
+                  role="tab"
+                  aria-selected={mode === m.value}
+                  className={mode === m.value ? "on" : undefined}
+                  onClick={() => (setMode(m.value), job.reset())}
+                >
+                  <Icon icon={m.icon} />
+                  {m.label}
+                </button>
+              ))}
+            </div>
 
-          <p className="muted small layout-mode-hint">{activeMode.hint}</p>
+            <p className="muted small layout-mode-hint">{activeMode.hint}</p>
 
-          <div className="layout-card">
             {mode === "nup" && (
               <>
                 <fieldset className="field plain">
                   <legend>Kağıt başına sayfa sayısı</legend>
-                  <div className="segmented" role="group" aria-label="Kağıt başına sayfa sayısı">
+                  <div className="segmented seg-track" role="group" aria-label="Kağıt başına sayfa sayısı">
                     {PER_SHEET_OPTIONS.map((n) => (
                       <button
                         key={n}
@@ -188,7 +197,7 @@ export default function LayoutTool({ route }: { route: Route }) {
                   </span>
                 </label>
 
-                <div className="layout-grid-2">
+                <div className="fields">
                   <label className="field">
                     Kenar boşluğu (mm)
                     <input
@@ -226,7 +235,7 @@ export default function LayoutTool({ route }: { route: Route }) {
               <>
                 <fieldset className="field plain">
                   <legend>Kırpma yöntemi</legend>
-                  <div className="segmented" role="group" aria-label="Kırpma yöntemi">
+                  <div className="segmented seg-track" role="group" aria-label="Kırpma yöntemi">
                     <button
                       type="button"
                       className={cropMode === "auto" ? "on" : undefined}
@@ -258,7 +267,7 @@ export default function LayoutTool({ route }: { route: Route }) {
                     />
                   </label>
                 ) : (
-                  <div className="layout-grid-2">
+                  <div className="fields">
                     <label className="field">
                       Üstten kes (mm)
                       <input
@@ -314,7 +323,7 @@ export default function LayoutTool({ route }: { route: Route }) {
 
             {mode === "poster" && (
               <>
-                <div className="layout-grid-2">
+                <div className="fields">
                   <label className="field">
                     Sütun sayısı (yatay parça)
                     <input
@@ -372,45 +381,58 @@ export default function LayoutTool({ route }: { route: Route }) {
                 />
               </label>
             )}
-          </div>
-        </section>
+          </section>
 
-        <aside className="options">
-          <h2>Seçenekler</h2>
-          {mode !== "crop" && (
-            <>
+          <section className="card">
+            <h2>Seçenekler</h2>
+            <div className="fields">
+              {mode !== "crop" && (
+                <label className="field">
+                  Kağıt boyutu
+                  <select value={paper} onChange={(e) => setPaper(e.target.value)}>
+                    {PAPERS.map((p) => (
+                      <option key={p} value={p}>
+                        {p}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              {mode !== "crop" && (
+                <label className="field">
+                  Yön
+                  <select value={orientation} onChange={(e) => setOrientation(e.target.value as Orientation)}>
+                    <option value="otomatik">Otomatik</option>
+                    <option value="dikey">Dikey</option>
+                    <option value="yatay">Yatay</option>
+                  </select>
+                </label>
+              )}
               <label className="field">
-                Kağıt boyutu
-                <select value={paper} onChange={(e) => setPaper(e.target.value)}>
-                  {PAPERS.map((p) => (
-                    <option key={p} value={p}>
-                      {p}
-                    </option>
-                  ))}
-                </select>
+                Sayfalar (isteğe bağlı)
+                <input
+                  className="input"
+                  placeholder="hepsi (ör. 1-3, 5)"
+                  value={spec}
+                  onChange={(e) => setSpec(e.target.value)}
+                />
               </label>
-              <label className="field">
-                Yön
-                <select value={orientation} onChange={(e) => setOrientation(e.target.value as Orientation)}>
-                  <option value="otomatik">Otomatik</option>
-                  <option value="dikey">Dikey</option>
-                  <option value="yatay">Yatay</option>
-                </select>
-              </label>
-            </>
-          )}
-          <label className="field">
-            Sayfalar (isteğe bağlı)
-            <input
-              className="input"
-              placeholder="hepsi (ör. 1-3, 5)"
-              value={spec}
-              onChange={(e) => setSpec(e.target.value)}
-            />
-          </label>
-          <button type="button" className="primary block" disabled={!file || job.running} onClick={start}>
-            {job.running ? "İşleniyor…" : "Uygula"}
-          </button>
+            </div>
+          </section>
+        </div>
+
+        <aside className="tool-side">
+          <ActionCard
+            rows={[
+              ["Dosya", fileSummary(file)],
+              ["Mod", activeMode.label],
+              ...(mode !== "crop" ? ([["Kağıt", paper]] as [string, string][]) : []),
+            ]}
+            label={job.running ? "İşleniyor…" : "Uygula"}
+            disabled={!file || job.running}
+            busy={job.running}
+            onRun={start}
+          />
           <JobPanel
             job={job.job}
             error={job.error ?? initial.error}

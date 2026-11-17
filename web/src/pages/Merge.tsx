@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { FileMeta } from "../api";
-import FilePicker, { FileRow } from "../components/FilePicker";
-import JobPanel from "../components/JobPanel";
+import FilePicker, { FileRow, FilesCard, filesSummary } from "../components/FilePicker";
+import JobPanel, { ActionCard } from "../components/JobPanel";
 import PageHeader from "../components/PageHeader";
 import PasswordDialog from "../components/PasswordDialog";
 import SortableList from "../components/SortableList";
@@ -33,17 +33,9 @@ export default function Merge({ route }: { route: Route }) {
     <>
       <PageHeader title="Birleştir" />
       <div className="tool-layout">
-        <section>
-          <FilePicker
-            accept={ACCEPT.pdf}
-            kind="pdf"
-            compact={files.length > 0}
-            title={files.length ? "+ PDF ekle" : "Birleştirilecek PDF'leri bırak"}
-            onAdd={(added) => setFiles((f) => [...f, ...added])}
-          />
-          {files.length > 0 && (
-            <>
-              <p className="muted small">Sırayı değiştirmek için sürükle.</p>
+        <div className="tool-main">
+          <FilesCard count={files.length} hint={files.length > 0 && "Sırayı değiştirmek için sürükle."}>
+            {files.length > 0 && (
               <SortableList
                 items={files}
                 getKey={(f) => f.id}
@@ -52,24 +44,37 @@ export default function Merge({ route }: { route: Route }) {
                   <FileRow draggable file={f} onRemove={() => setFiles((all) => all.filter((x) => x.id !== f.id))} />
                 )}
               />
-            </>
-          )}
-        </section>
-        <aside className="options">
-          <h2>Seçenekler</h2>
-          <label className="check">
-            <input type="checkbox" checked={bookmarks} onChange={(e) => setBookmarks(e.target.checked)} />
-            Her dosya için adıyla yer imi ekle
-          </label>
-          <label className="field">
-            Çıktı adı
-            <input className="input" placeholder="otomatik" value={name} onChange={(e) => setName(e.target.value)} />
-          </label>
-          <button
-            type="button"
-            className="primary block"
+            )}
+            <FilePicker
+              accept={ACCEPT.pdf}
+              kind="pdf"
+              compact={files.length > 0}
+              title={files.length ? "PDF ekle" : "Birleştirilecek PDF'leri bırak"}
+              onAdd={(added) => setFiles((f) => [...f, ...added])}
+            />
+          </FilesCard>
+          <section className="card">
+            <h2>Seçenekler</h2>
+            <label className="check">
+              <input type="checkbox" checked={bookmarks} onChange={(e) => setBookmarks(e.target.checked)} />
+              Her dosya için adıyla yer imi ekle
+            </label>
+            <label className="field">
+              Çıktı adı
+              <input className="input" placeholder="otomatik" value={name} onChange={(e) => setName(e.target.value)} />
+            </label>
+          </section>
+        </div>
+        <aside className="tool-side">
+          <ActionCard
+            rows={[
+              ["Dosya", filesSummary(files, "PDF")],
+              ["Toplam", files.length ? `${totalPages} sayfa` : "—"],
+            ]}
+            label={files.length < 2 ? "En az iki PDF ekle" : `Birleştir (${totalPages} sayfa)`}
             disabled={files.length < 2 || job.running}
-            onClick={() =>
+            busy={job.running}
+            onRun={() =>
               job.start({
                 type: "merge",
                 files: files.map((f) => f.id),
@@ -78,9 +83,7 @@ export default function Merge({ route }: { route: Route }) {
                 passwords: passwords.forFiles(files.map((f) => f.id)),
               })
             }
-          >
-            {files.length < 2 ? "En az iki PDF ekle" : `Birleştir (${totalPages} sayfa)`}
-          </button>
+          />
           <JobPanel job={job.job} error={job.error ?? initial.error} />
         </aside>
       </div>

@@ -13,17 +13,19 @@ async function reachable(url: string): Promise<boolean> {
   }
 }
 
-/** Masaüstü uygulamasını yeni ayarlarla (port, telefon modu) yeniden başlatır; pencere açık kalır.
- * Yeni sunucu açılınca sayfa yeni adreste yeniden yüklenir. Sunucu aynı porttaysa yeni örneğin
- * açıldığı `instance` alanından anlaşılır (eski sunucu kapanmadan önce yanıt verebilir). */
+/** Uygulamayı (masaüstü ya da `pdfatolye serve`) yeni ayarlarla (port, telefon modu) yeniden
+ * başlatır; pencere açık kalır. Yeni sunucu açılınca sayfa yeni adreste yeniden yüklenir. Sunucu
+ * aynı porttaysa yeni örneğin açıldığı `instance` alanından anlaşılır (eski sunucu kapanmadan
+ * önce yanıt verebilir). Port karşılaştırılır, köken değil: sayfa "localhost" ile açıldıysa eski
+ * sunucu henüz kapanmamışken 127.0.0.1 adresi "yeni sunucu" sanılmasın. */
 export async function restartApp(timeoutMs = 60_000): Promise<void> {
   const before = await api.health().catch(() => null);
   const { url } = await api.restart();
-  const sameOrigin = new URL(url).origin === window.location.origin;
+  const samePort = new URL(url).port === window.location.port;
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     await sleep(500);
-    if (!sameOrigin && (await reachable(url))) {
+    if (!samePort && (await reachable(url))) {
       window.location.replace(`${url.replace(/\/+$/, "")}/${window.location.hash}`);
       return;
     }
@@ -38,5 +40,5 @@ export async function restartApp(timeoutMs = 60_000): Promise<void> {
       /* sunucu henüz açılmadı */
     }
   }
-  throw new Error("Uygulama yeniden açılamadı. Pencereyi kapatıp masaüstündeki simgeden yeniden aç.");
+  throw new Error("Uygulama yeniden açılamadı. Uygulamayı kapatıp yeniden aç.");
 }

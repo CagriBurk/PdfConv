@@ -1,0 +1,646 @@
+/* --- Araç ekranları: yerleşim, kartlar, alanlar, seçim kartları, dosya satırları ------------- */
+
+/* Solda içerik (dosya ve seçenek kartları), sağda eylem kartı; dar ekranda alt alta. */
+.tool-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 24px;
+  align-items: start;
+}
+
+.tool-main {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+.tool-main > .card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  align-content: start;
+  min-width: 0;
+}
+
+.tool-main > .card > h2,
+.card-head h2 {
+  margin: 0;
+}
+
+.tool-main > .banner {
+  margin: 0;
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.card-hint {
+  margin: 0;
+}
+
+.tool-side {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  position: sticky;
+  top: calc(var(--topbar-h) + 16px);
+}
+
+.tool-side > .banner {
+  margin: 0;
+}
+
+/* Eylem kartı. Yenilenmemiş ekranlarda bütün seçenekler de burada durur. */
+.options {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  align-content: start;
+  min-width: 0;
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  position: sticky;
+  top: calc(var(--topbar-h) + 16px);
+}
+
+.tool-side > .options {
+  position: static;
+}
+
+.options h2 {
+  margin: 0;
+}
+
+.summary {
+  margin: 0;
+  display: grid;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.summary > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.summary dt {
+  flex: none;
+  color: var(--muted);
+}
+
+.summary dd {
+  margin: 0;
+  min-width: 0;
+  font-weight: 650;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.side-note {
+  padding: 12px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+button.action {
+  min-height: 48px;
+  margin-top: 4px;
+  font-size: 15px;
+}
+
+/* --- Bırakma alanı (temel kurallar 01-temel.css'te) --- */
+
+.dropzone {
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background-color 0.15s;
+}
+
+.dropzone:hover {
+  border-color: var(--accent);
+}
+
+.dropzone.over {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.dropzone.compact {
+  margin-top: 0;
+  min-height: 56px;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius);
+}
+
+.dropzone.compact .dropzone-title {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.dropzone.compact:hover .dropzone-title,
+.dropzone.compact.over .dropzone-title {
+  color: var(--text);
+}
+
+.dropzone.disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.tool-files .dropzone {
+  margin: 0;
+}
+
+.tool-files .dropzone:not(.compact) {
+  padding: 28px 16px;
+  background: var(--accent-faint);
+}
+
+.tool-files .dropzone.over {
+  background: var(--accent-soft);
+}
+
+/* FilePicker'ın ikonu: küçük alanda satır içi, büyükte yuvarlak kutu. */
+.drop-icon {
+  display: inline-flex;
+  margin-right: 8px;
+  vertical-align: -4px;
+}
+
+.dropzone:not(.compact) .drop-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin: 0 auto 12px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+/* --- Alanlar --- */
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
+  gap: 14px 16px;
+  align-items: start;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.field > select,
+.field > .input {
+  max-width: 100%;
+  font-weight: 400;
+}
+
+.field > .small {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.field > input[type="range"] {
+  width: 100%;
+  min-height: 28px;
+  margin: 0;
+}
+
+.field.inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+/* Yan yana onay kutuları (fieldset.field.plain.checks). */
+.field.checks {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 24px;
+  row-gap: 0;
+}
+
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 40px;
+  padding: 9px 0;
+  color: var(--text);
+  font-size: 14.5px;
+  font-weight: 400;
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.check > input {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+}
+
+/* Kenarsız alan grubu (fieldset.field.plain). */
+.field.plain {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.field.plain legend {
+  padding: 0;
+  margin-bottom: 0.3rem;
+}
+
+/* --- Sekme ve bölmeli düğme (.tabs / .segmented; gri raylı görünüm için + .seg-track) --- */
+
+.segmented,
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.tabs {
+  margin-bottom: 1rem;
+}
+
+.segmented button.on,
+.tabs button.on {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+/* Gri ray, seçili parça yüzey rengiyle kalkık (üst menüdeki gibi). */
+.seg-track {
+  flex-wrap: nowrap;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+.seg-track button {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 38px;
+  padding: 0 10px;
+  border-color: transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13.5px;
+}
+
+.seg-track button:hover:not(:disabled) {
+  border-color: transparent;
+  color: var(--text);
+}
+
+.seg-track button.on {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text);
+  box-shadow: 0 1px 2px rgb(16 24 40 / 0.08);
+}
+
+/* Dokunmatik ve dar ekranda dokunma hedefi 40px. */
+@media (pointer: coarse), (max-width: 640px) {
+  .seg-track button {
+    min-height: 40px;
+  }
+}
+
+.tool-intro {
+  max-width: 68ch;
+  padding: 0 4px;
+}
+
+.tool-intro p {
+  margin: 0 0 8px;
+}
+
+/* --- Seçim kartları (radyo) --- */
+
+.radio-cards {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(170px, 100%), 1fr));
+  gap: 12px;
+}
+
+.radio-cards legend {
+  margin-bottom: 14px;
+  padding: 0;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.radio-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px;
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  cursor: pointer;
+  transition:
+    border-color 0.12s,
+    background-color 0.12s,
+    box-shadow 0.12s;
+}
+
+.radio-card:hover {
+  border-color: var(--border-strong);
+}
+
+.radio-card.on {
+  border-color: var(--accent);
+  background: var(--accent-faint);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.radio-card input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.radio-card:has(input:focus-visible) {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+
+.radio-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.radio-card-head strong {
+  font-size: 15.5px;
+  font-weight: 700;
+}
+
+.radio-dot {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border-strong);
+  border-radius: 50%;
+  background: var(--surface);
+}
+
+.radio-card.on .radio-dot {
+  border: 6px solid var(--accent);
+  background: #fff;
+}
+
+/* Sıkıştır: kalite / küçültme göstergesi. */
+.level-meter {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 7px 12px;
+  align-items: center;
+  margin-top: auto;
+  padding-top: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.meter {
+  display: flex;
+  gap: 4px;
+}
+
+.meter > span {
+  flex: 1 1 0;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border);
+}
+
+.meter > .on {
+  background: var(--g4-fg);
+}
+
+/* --- Listeler ve dosya satırları --- */
+
+.sortable-list,
+.sortable-grid,
+.file-list,
+.page-grid,
+.output-list,
+.job-list,
+.chips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sortable-list,
+.file-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+
+.sortable-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.sortable-item {
+  border-radius: var(--radius);
+  touch-action: none;
+  cursor: grab;
+}
+
+.sortable-item.dragging {
+  z-index: 2;
+  cursor: grabbing;
+}
+
+.sortable-item:hover .file-row.draggable,
+.sortable-item:hover .image-tile {
+  border-color: var(--border-strong);
+}
+
+.sortable-item.dragging .file-row,
+.sortable-item.dragging .image-tile {
+  border-color: var(--accent);
+  box-shadow: var(--shadow);
+}
+
+.file-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.file-row .icon-button {
+  margin: -4px 0;
+}
+
+.drag-handle {
+  flex: none;
+  display: inline-flex;
+  margin-right: -4px;
+  color: var(--muted);
+}
+
+/* Dosya satırı ve çıktı satırı: ad tek satır (taşarsa üç nokta), altında bilgi. */
+.file-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.file-name {
+  overflow: hidden;
+  font-size: 14.5px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-meta {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+/* Sayfa / resim küçük resmi (düzenleyici, editör, resim listesi). Flex: resmin yüzde boyları
+ * kutunun en-boy oranından gelen yüksekliğe göre çözülsün, 90° döndürülen sayfa da kutuya sığsın. */
+.thumb-box {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.thumb-box img {
+  max-width: 100%;
+  max-height: 100%;
+  background: var(--paper);
+  box-shadow: var(--paper-shadow);
+  transition: transform 0.2s;
+}
+
+.thumb-placeholder {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.image-tile {
+  margin: 0;
+  display: grid;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.image-tile .thumb-box {
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.image-tile figcaption {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  padding-left: 4px;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.image-tile figcaption span {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* LibreOffice kurulumu (Office → PDF bandı, Ayarlar). */
+.install-engine {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.install-engine .job-panel {
+  justify-self: stretch;
+}
+
+@media (max-width: 900px) {
+  .tool-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tool-side,
+  .options {
+    position: static;
+  }
+}
+
+@media (max-width: 560px) {
+  .tool-main,
+  .tool-side {
+    gap: 16px;
+  }
+
+  .tool-main > .card,
+  .options {
+    padding: 18px 16px;
+  }
+}

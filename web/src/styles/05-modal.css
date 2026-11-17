@@ -1,0 +1,84 @@
+/* --- Pencere (Modal, PasswordDialog) ------------------------------------------------------ */
+
+.modal {
+  width: min(460px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 24px 64px rgb(0 0 0 / 0.25);
+}
+
+.modal.wide {
+  width: min(900px, calc(100vw - 32px));
+}
+
+.modal::backdrop {
+  background: rgb(10 14 22 / 0.45);
+}
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 12px 4px 22px;
+}
+
+.modal-head h2 {
+  margin: 0;
+  min-width: 0;
+  font-size: 18px;
+  overflow-wrap: anywhere;
+}
+
+.modal-body {
+  padding: 8px 22px 22px;
+}
+
+.modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+/* Solda seçenekler / ikincil eylem, sağda onay (imza çizimi). */
+.modal-actions.spread {
+  justify-content: space-between;
+  align-items: center;
+}
+
+.password-intro {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.password-intro p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.password-intro strong {
+  color: var(--text);
+}
+
+.password-form .error-text {
+  margin: 10px 0 0;
+}
+
+@media (max-width: 560px) {
+  .modal-head {
+    padding-left: 16px;
+  }
+
+  .modal-body {
+    padding: 8px 16px 18px;
+  }
+}

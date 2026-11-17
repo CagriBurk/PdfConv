@@ -1,7 +1,9 @@
+import { X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api, type FileMeta } from "../api";
-import FilePicker, { FileRow } from "../components/FilePicker";
-import JobPanel from "../components/JobPanel";
+import FilePicker, { FileRow, FilesCard, fileSummary, filesSummary } from "../components/FilePicker";
+import Icon from "../components/Icon";
+import JobPanel, { ActionCard } from "../components/JobPanel";
 import PageHeader from "../components/PageHeader";
 import SortableList from "../components/SortableList";
 import { useFiles, useJob } from "../hooks";
@@ -29,17 +31,13 @@ export function ImagesToPdf({ route }: { route: Route }) {
     <>
       <PageHeader title="Resim → PDF" />
       <div className="tool-layout">
-        <section>
-          <FilePicker
-            accept={ACCEPT.images}
-            kind="image"
-            compact={files.length > 0}
-            title={files.length ? "+ Resim ekle" : "Resimleri bırak (JPG, PNG, HEIC, WEBP, TIFF)"}
-            onAdd={(added) => setFiles((f) => [...f, ...added])}
-          />
-          {files.length > 0 && (
-            <>
-              <p className="muted small">Her resim bir sayfa olur. Sırayı sürükleyerek değiştir.</p>
+        <div className="tool-main">
+          <FilesCard
+            title="Resimler"
+            count={files.length}
+            hint={files.length > 0 && "Her resim bir sayfa olur. Sırayı sürükleyerek değiştir."}
+          >
+            {files.length > 0 && (
               <SortableList
                 grid
                 items={files}
@@ -55,7 +53,9 @@ export function ImagesToPdf({ route }: { route: Route }) {
                       )}
                     </div>
                     <figcaption>
-                      <span>{i + 1}. {f.name}</span>
+                      <span title={f.name}>
+                        {i + 1}. {f.name}
+                      </span>
                       <button
                         type="button"
                         className="icon-button"
@@ -63,53 +63,68 @@ export function ImagesToPdf({ route }: { route: Route }) {
                         onPointerDown={(e) => e.stopPropagation()}
                         onClick={() => setFiles((all) => all.filter((x) => x.id !== f.id))}
                       >
-                        ×
+                        <Icon icon={X} />
                       </button>
                     </figcaption>
                   </figure>
                 )}
               />
-            </>
-          )}
-        </section>
-        <aside className="options">
-          <h2>Seçenekler</h2>
-          <label className="field">
-            Sayfa boyutu
-            <select value={pageSize} onChange={(e) => setPageSize(e.target.value)}>
-              {PAPERS.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-              <option value="resim">Resmin kendi boyutu</option>
-            </select>
-          </label>
-          {pageSize !== "resim" && (
-            <>
+            )}
+            <FilePicker
+              accept={ACCEPT.images}
+              kind="image"
+              compact={files.length > 0}
+              title={files.length ? "Resim ekle" : "Resimleri bırak (JPG, PNG, HEIC, WEBP, TIFF)"}
+              onAdd={(added) => setFiles((f) => [...f, ...added])}
+            />
+          </FilesCard>
+          <section className="card">
+            <h2>Seçenekler</h2>
+            <div className="fields">
               <label className="field">
-                Yön
-                <select value={orientation} onChange={(e) => setOrientation(e.target.value)}>
-                  <option value="otomatik">Otomatik (resme göre)</option>
-                  <option value="dikey">Dikey</option>
-                  <option value="yatay">Yatay</option>
+                Sayfa boyutu
+                <select value={pageSize} onChange={(e) => setPageSize(e.target.value)}>
+                  {PAPERS.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                  <option value="resim">Resmin kendi boyutu</option>
                 </select>
               </label>
+              {pageSize !== "resim" && (
+                <label className="field">
+                  Yön
+                  <select value={orientation} onChange={(e) => setOrientation(e.target.value)}>
+                    <option value="otomatik">Otomatik (resme göre)</option>
+                    <option value="dikey">Dikey</option>
+                    <option value="yatay">Yatay</option>
+                  </select>
+                </label>
+              )}
+              {pageSize !== "resim" && (
+                <label className="field">
+                  Kenar boşluğu: {margin} mm
+                  <input type="range" min={0} max={30} value={margin} onChange={(e) => setMargin(Number(e.target.value))} />
+                </label>
+              )}
               <label className="field">
-                Kenar boşluğu: {margin} mm
-                <input type="range" min={0} max={30} value={margin} onChange={(e) => setMargin(Number(e.target.value))} />
+                Çıktı adı
+                <input className="input" placeholder="otomatik" value={name} onChange={(e) => setName(e.target.value)} />
               </label>
-            </>
-          )}
-          <label className="field">
-            Çıktı adı
-            <input className="input" placeholder="otomatik" value={name} onChange={(e) => setName(e.target.value)} />
-          </label>
-          <button
-            type="button"
-            className="primary block"
+            </div>
+          </section>
+        </div>
+        <aside className="tool-side">
+          <ActionCard
+            rows={[
+              ["Resim", filesSummary(files, "resim")],
+              ["Sayfa boyutu", pageSize === "resim" ? "Resmin kendi boyutu" : pageSize],
+            ]}
+            label="PDF oluştur"
             disabled={!files.length || job.running}
-            onClick={() =>
+            busy={job.running}
+            onRun={() =>
               job.start({
                 type: "images_to_pdf",
                 files: files.map((f) => f.id),
@@ -119,9 +134,7 @@ export function ImagesToPdf({ route }: { route: Route }) {
                 name: name || undefined,
               })
             }
-          >
-            PDF oluştur
-          </button>
+          />
           <JobPanel job={job.job} error={job.error ?? initial.error} />
         </aside>
       </div>
@@ -146,45 +159,54 @@ export function PdfToImages({ route }: { route: Route }) {
     <>
       <PageHeader title="PDF → Resim" />
       <div className="tool-layout">
-        <section>
-          {file ? (
-            <FileRow file={file} onRemove={() => (setFile(null), job.reset())} />
-          ) : (
-            <FilePicker accept={ACCEPT.pdf} kind="pdf" multiple={false} title="PDF'i bırak" onAdd={([f]) => setFile(f)} />
-          )}
-        </section>
-        <aside className="options">
-          <h2>Seçenekler</h2>
-          <label className="field">
-            Çözünürlük
-            <select value={dpi} onChange={(e) => setDpi(Number(e.target.value))}>
-              <option value={72}>72 DPI (ekran, küçük)</option>
-              <option value={150}>150 DPI (önerilen)</option>
-              <option value={200}>200 DPI</option>
-              <option value={300}>300 DPI (baskı kalitesi)</option>
-            </select>
-          </label>
-          <label className="field">
-            Biçim
-            <select value={fmt} onChange={(e) => setFmt(e.target.value)}>
-              <option value="png">PNG (kayıpsız)</option>
-              <option value="jpg">JPG (küçük dosya)</option>
-            </select>
-          </label>
-          <label className="field">
-            Sayfalar
-            <input className="input" placeholder="hepsi (ör. 1-3, 5)" value={spec} onChange={(e) => setSpec(e.target.value)} />
-          </label>
-          <button
-            type="button"
-            className="primary block"
+        <div className="tool-main">
+          <FilesCard title="Dosya">
+            {file ? (
+              <FileRow file={file} onRemove={() => (setFile(null), job.reset())} />
+            ) : (
+              <FilePicker accept={ACCEPT.pdf} kind="pdf" multiple={false} title="PDF'i bırak" onAdd={([f]) => setFile(f)} />
+            )}
+          </FilesCard>
+          <section className="card">
+            <h2>Seçenekler</h2>
+            <div className="fields">
+              <label className="field">
+                Çözünürlük
+                <select value={dpi} onChange={(e) => setDpi(Number(e.target.value))}>
+                  <option value={72}>72 DPI (ekran, küçük)</option>
+                  <option value={150}>150 DPI (önerilen)</option>
+                  <option value={200}>200 DPI</option>
+                  <option value={300}>300 DPI (baskı kalitesi)</option>
+                </select>
+              </label>
+              <label className="field">
+                Biçim
+                <select value={fmt} onChange={(e) => setFmt(e.target.value)}>
+                  <option value="png">PNG (kayıpsız)</option>
+                  <option value="jpg">JPG (küçük dosya)</option>
+                </select>
+              </label>
+              <label className="field">
+                Sayfalar
+                <input className="input" placeholder="hepsi (ör. 1-3, 5)" value={spec} onChange={(e) => setSpec(e.target.value)} />
+              </label>
+            </div>
+          </section>
+        </div>
+        <aside className="tool-side">
+          <ActionCard
+            rows={[
+              ["Dosya", fileSummary(file)],
+              ["Çıktı", `${fmt.toUpperCase()} · ${dpi} DPI`],
+              ["Sayfalar", spec.trim() || "hepsi"],
+            ]}
+            label="Resimlere dönüştür"
             disabled={!file || job.running}
-            onClick={() =>
+            busy={job.running}
+            onRun={() =>
               file && job.start({ type: "pdf_to_images", file: file.id, dpi, fmt, spec, passwords: passwords.forFiles([file.id]) })
             }
-          >
-            Resimlere dönüştür
-          </button>
+          />
           <JobPanel job={job.job} error={job.error ?? initial.error} zipName={file ? `${file.name.replace(/\.pdf$/i, "")}_resimler` : undefined} />
         </aside>
       </div>

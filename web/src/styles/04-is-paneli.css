@@ -1,0 +1,217 @@
+/* --- İş paneli (JobPanel): ilerleme, uyarılar, çıktılar ------------------------------------ */
+
+.job-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.job-panel.status-bitti {
+  border-color: color-mix(in srgb, var(--ok) 40%, var(--border));
+}
+
+.job-panel.status-hata {
+  border-color: color-mix(in srgb, var(--bad) 45%, var(--border));
+}
+
+/* Başka bir kartın ya da bandın içindeyken ikinci kart gibi durmasın. */
+.options .job-panel,
+.banner .job-panel {
+  padding: 14px;
+  border-radius: var(--radius);
+  box-shadow: none;
+}
+
+.job-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.job-icon {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.status-bitti .job-icon {
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+
+.status-hata .job-icon {
+  background: var(--bad-soft);
+  color: var(--bad);
+}
+
+.status-iptal .job-icon {
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
+.job-panel-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  font-size: 13.5px;
+}
+
+.job-panel-text strong {
+  color: var(--text);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.job-panel-text .muted strong {
+  font-size: inherit;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.job-elapsed {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.progress {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-2);
+}
+
+.progress > div {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 0.25s;
+}
+
+.job-panel .error-text {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--bad-soft);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.job-repair {
+  justify-self: start;
+}
+
+.warnings {
+  padding: 2px 14px 10px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  font-size: 13.5px;
+}
+
+.warnings summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  list-style: none;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.warnings summary::-webkit-details-marker {
+  display: none;
+}
+
+.warnings-caret {
+  color: var(--muted);
+  transition: transform 0.15s;
+}
+
+.warnings[open] .warnings-caret {
+  transform: rotate(90deg);
+}
+
+.warnings ul {
+  margin: 0;
+  padding-left: 22px;
+  overflow-wrap: anywhere;
+}
+
+/* Çıktı satırı: ad tam genişlikte (dar yan sütunda erken kesilmesin), eylemler altında. */
+.output-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+  container: outputs / inline-size;
+}
+
+.output-list li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    "type text"
+    "acts acts";
+  align-items: center;
+  gap: 8px 10px;
+  min-width: 0;
+  padding: 8px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.output-list .ftype {
+  grid-area: type;
+}
+
+.output-list .file-text {
+  grid-area: text;
+}
+
+.output-list .file-name {
+  font-size: 13.5px;
+}
+
+.output-actions {
+  grid-area: acts;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+}
+
+.output-actions .link-button {
+  min-height: 40px;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.output-actions .link-button:hover {
+  text-decoration: underline;
+}
+
+.output-download {
+  margin-left: auto;
+  padding: 0.45rem 0.85rem;
+}
+
+/* Yalnızca "İndir" varsa (PDF olmayan çıktı) ya da yer genişse tek satır. */
+.output-list li:not(:has(.link-button)) {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: "type text acts";
+}
+
+@container outputs (min-width: 520px) {
+  .output-list li {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: "type text acts";
+  }
+}

@@ -1,24 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { ArrowRight, ChevronRight } from "lucide-react";
+import { useEffect, useState } from "react";
 import type { EnginesResponse, FileMeta } from "../api";
 import DropZone from "../components/DropZone";
+import Icon from "../components/Icon";
+import RecentFiles from "../components/RecentFiles";
 import { useUpload } from "../hooks";
 import { navigate } from "../router";
-import { GROUPS, TOOLS } from "../tools";
-
-/** Arama eşleştirmesinde Türkçe harf ve büyük/küçük harf duyarlılığını kaldırır. */
-function normalizeTr(str: string): string {
-  return str
-    .replace(/İ/g, "i")
-    .replace(/I/g, "ı")
-    .toLocaleLowerCase("tr")
-    .replace(/ç/g, "c")
-    .replace(/ğ/g, "g")
-    .replace(/ı/g, "i")
-    .replace(/ö/g, "o")
-    .replace(/ş/g, "s")
-    .replace(/ü/g, "u")
-    .trim();
-}
+import { GROUP_TONE, GROUPS, TOOLS } from "../tools";
 
 /** Bırakılan dosyaların türüne göre en uygun araca yönlendirir. */
 function routeFor(files: FileMeta[]): string | null {
@@ -47,12 +35,21 @@ function routeFor(files: FileMeta[]): string | null {
   return "Bu dosya türleri birlikte işlenemiyor. PDF, resim ya da Markdown bırak.";
 }
 
-export default function Home({ engines }: { engines: EnginesResponse | null }) {
+// `routeFor`un sırasıyla aynı: Markdown varsa yanındakiler eki sayılır.
+const ROUTES: [string, string][] = [
+  ["Tek PDF", "düzenleyicide açılır"],
+  ["Birden çok PDF", "birleştirilir"],
+  ["Resimler", "tek PDF olur"],
+  ["Markdown (+ resimleri)", "PDF'e dönüşür"],
+  ["Word, Excel, PowerPoint, HTML, TXT", "PDF olur"],
+];
+
+export default function Home({ engines, onSearch }: { engines: EnginesResponse | null; onSearch: () => void }) {
   const { upload, uploading, progress, error } = useUpload();
   const [notice, setNotice] = useState<string | null>(null);
-  const [query, setQuery] = useState("");
-  const searchRef = useRef<HTMLInputElement>(null);
+  const [uploads, setUploads] = useState(0);
 
+  // "/" araç aramasını (komut paleti) açar; yazı alanında ya da açık pencerede değilken.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "/" && !e.ctrlKey && !e.metaKey && !e.altKey) {
@@ -63,13 +60,12 @@ export default function Home({ engines }: { engines: EnginesResponse | null }) {
           return;
         }
         e.preventDefault();
-        searchRef.current?.focus();
-        searchRef.current?.select();
+        onSearch();
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [onSearch]);
 
   const missing = (keys: string[] = []) =>
     engines ? engines.engines.filter((e) => keys.includes(e.key) && !e.ok).map((e) => e.name) : [];
@@ -77,81 +73,104 @@ export default function Home({ engines }: { engines: EnginesResponse | null }) {
   const onFiles = async (files: File[]) => {
     setNotice(null);
     const metas = await upload(files);
-    if (metas.length) setNotice(routeFor(metas));
-  };
-
-  const q = normalizeTr(query);
-  const filteredTools = q
-    ? TOOLS.filter((t) => normalizeTr(t.title).includes(q) || normalizeTr(t.description).includes(q))
-    : TOOLS;
-  const firstMatch = q && filteredTools.length > 0 ? filteredTools[0] : null;
-
-  const onSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && firstMatch) {
-      e.preventDefault();
-      navigate(firstMatch.route);
-    } else if (e.key === "Escape") {
-      setQuery("");
-      searchRef.current?.blur();
+    if (metas.length) {
+      setUploads((n) => n + 1);
+      setNotice(routeFor(metas));
     }
   };
 
   return (
-    <>
-      <DropZone
-        onFiles={onFiles}
-        disabled={uploading}
-        title={uploading ? `Yükleniyor… %${Math.round((progress ?? 0) * 100)}` : "Dosyayı buraya bırak"}
-        hint="PDF → sayfa düzenleyici · birden çok PDF → birleştir · resimler → PDF · Markdown (+ resimleri) → PDF · Word/Excel/PowerPoint → PDF"
-      />
-      {(error || notice) && (
-        <div className="banner error" role="alert">
-          {error ?? notice}
-        </div>
-      )}
-
-      <div className="home-search" style={{ margin: "1.5rem 0 1rem" }}>
-        <input
-          ref={searchRef}
-          type="search"
-          className="input"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={onSearchKeyDown}
-          placeholder="Araç ara… (/)"
-          aria-label="Araç ara"
-        />
+    <div className="home">
+      <div className="home-top">
+        <section className="card home-hero" aria-labelledby="home-baslik">
+          <div>
+            <h1 id="home-baslik">Ne yapmak istersin?</h1>
+            <p className="home-lead">Dosyayı bırak, uygun araç kendiliğinden açılsın. Hiçbir dosya bu bilgisayardan çıkmaz.</p>
+          </div>
+          <DropZone
+            hero
+            onFiles={onFiles}
+            disabled={uploading}
+            title={uploading ? `Yükleniyor… %${Math.round((progress ?? 0) * 100)}` : "Dosyayı buraya bırak"}
+            hint="PDF, Word, Excel, PowerPoint, Markdown ya da fotoğraf · birden çok dosya olur"
+          />
+          {(error || notice) && (
+            <div className="banner error" role="alert">
+              {error ?? notice}
+            </div>
+          )}
+          <div>
+            <h2 className="home-sub" id="home-yonlendirme">
+              Bırakınca ne olur?
+            </h2>
+            <ul className="route-list" aria-labelledby="home-yonlendirme">
+              {ROUTES.map(([what, result]) => (
+                <li key={what} className="route">
+                  <b>{what}</b> <Icon icon={ArrowRight} size={14} /> {result}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+        <RecentFiles retentionHours={engines?.retention_hours} refreshKey={uploads} />
       </div>
 
-      {q && filteredTools.length === 0 && (
-        <p className="muted center" style={{ margin: "2rem 0" }}>
-          Eşleşen araç bulunamadı.
-        </p>
-      )}
+      <section aria-labelledby="home-araclar">
+        <div className="home-tools-head">
+          <div>
+            <h2 id="home-araclar">Tüm araçlar</h2>
+            <p className="muted">
+              {TOOLS.length} araç, {GROUPS.length} başlıkta. Birine tıkla ya da dosyanı yukarı bırak.
+            </p>
+          </div>
+          <p className="home-keys">
+            Klavyeden <kbd>Ctrl</kbd>
+            <kbd>K</kbd> ya da <kbd>/</kbd>
+          </p>
+        </div>
+        <div className="tool-groups">
+          {GROUPS.map((group) => {
+            const tools = TOOLS.filter((t) => t.group === group);
+            const tone = GROUP_TONE[group];
+            return (
+              <div key={group} className="card tool-group">
+                <div className="tool-group-head">
+                  <span className={`dot ${tone}`} aria-hidden="true" />
+                  <h3 id={`grup-${tone}`}>{group}</h3>
+                  <span className="tool-group-count" aria-hidden="true">
+                    {tools.length}
+                  </span>
+                </div>
+                <ul className="tool-list" aria-labelledby={`grup-${tone}`}>
+                  {tools.map((t) => {
+                    const lacking = missing(t.needs);
+                    return (
+                      <li key={t.id}>
+                        <a className="tool-card active" href={`#/${t.route}`}>
+                          <span className={`tile ${t.tone}`}>
+                            <Icon icon={t.icon} size={19} strokeWidth={1.9} />
+                          </span>
+                          <span className="tool-card-text">
+                            <span className="tool-card-title">{t.title}</span>
+                            <span className="tool-card-desc">{t.description}</span>
+                            {lacking.length > 0 && <span className="chip warn small">Eksik: {lacking.join(", ")}</span>}
+                          </span>
+                          <Icon icon={ChevronRight} size={16} className="go" />
+                        </a>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            );
+          })}
+        </div>
+      </section>
 
-      {GROUPS.map((group) => {
-        const groupTools = filteredTools.filter((t) => t.group === group);
-        if (!groupTools.length) return null;
-        return (
-          <section key={group} className="tool-group">
-            <h2>{group}</h2>
-            <div className="tool-grid">
-              {groupTools.map((t) => {
-                const lacking = missing(t.needs);
-                return (
-                  <a key={t.id} className="tool-card active" href={`#/${t.route}`}>
-                    <div className="tool-card-head">
-                      <h3>{t.title}</h3>
-                    </div>
-                    <p>{t.description}</p>
-                    {lacking.length > 0 && <p className="warn-line">Eksik: {lacking.join(", ")}</p>}
-                  </a>
-                );
-              })}
-            </div>
-          </section>
-        );
-      })}
-    </>
+      <footer className="home-foot">
+        <span>PDF Atölyesi{engines ? ` ${engines.version}` : ""}</span>
+        <span>Dosyaların bu bilgisayarda kalır · kayıt yok, reklam yok</span>
+      </footer>
+    </div>
   );
 }

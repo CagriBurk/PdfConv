@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { api, errorMessage, watchJob, type FileMeta, type Job } from "./api";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { api, errorMessage, watchJob, type FileMeta, type Job, type JobStatus } from "./api";
 import { passwords } from "./passwords";
 import { toast } from "./toast";
 
@@ -27,22 +27,92 @@ export function useUpload({ toastErrors = false }: { toastErrors?: boolean } = {
   return { upload, uploading: progress !== null, progress, error, setError };
 }
 
+const isRunning = (job: Job | null) => !!job && (job.status === "bekliyor" || job.status === "calisiyor");
+
+/* Üst çubuktaki iş rozeti için bu oturumda `useJob` ile başlatılan işlerin özeti. Sunucu ayrıca
+ * yoklanmaz: `useJob`'un zaten aldığı güncellemeler buraya da yazılır. Ekranında biten iş orada
+ * görülür; rozette yalnızca çalışanlar ve ekranından ayrıldıktan sonra bitenler sayılır. */
+export interface JobActivity {
+  running: number;
+  done: number;
+  failed: number;
+}
+
+const tracked = new Map<string, JobStatus>();
+const activityListeners = new Set<() => void>();
+let activity: JobActivity = { running: 0, done: 0, failed: 0 };
+
+function publishActivity(): void {
+  const next: JobActivity = { running: 0, done: 0, failed: 0 };
+  for (const status of tracked.values()) {
+    if (status === "bitti") next.done++;
+    else if (status === "hata") next.failed++;
+    else next.running++;
+  }
+  if (next.running === activity.running && next.done === activity.done && next.failed === activity.failed) return;
+  activity = next;
+  activityListeners.forEach((l) => l());
+}
+
+function trackJob(job: Job, away: boolean): void {
+  if (isRunning(job) || (away && (job.status === "bitti" || job.status === "hata"))) tracked.set(job.id, job.status);
+  else tracked.delete(job.id);
+  publishActivity();
+}
+
+function untrackJob(job: Job | null): void {
+  if (job && tracked.delete(job.id)) publishActivity();
+}
+
+/** Biten işler görüldü (İşler ekranı açıldı): rozette yalnızca çalışanlar kalır. */
+export function clearFinishedJobs(): void {
+  for (const [id, status] of tracked) if (status === "bitti" || status === "hata") tracked.delete(id);
+  publishActivity();
+}
+
+function subscribeActivity(listener: () => void): () => void {
+  activityListeners.add(listener);
+  return () => activityListeners.delete(listener);
+}
+
+export function useJobActivity(): JobActivity {
+  return useSyncExternalStore(subscribeActivity, () => activity);
+}
+
 /** İş başlatır ve bitene kadar canlı izler. */
 export function useJob() {
   const [job, setJob] = useState<Job | null>(null);
   const [error, setError] = useState<string | null>(null);
   const stop = useRef<(() => void) | null>(null);
+  const latest = useRef<Job | null>(null);
+  const away = useRef(false);
 
-  useEffect(() => () => stop.current?.(), []);
+  useEffect(() => {
+    away.current = false;
+    return () => {
+      away.current = true;
+      // Ekrandan ayrılırken çalışan işin izlenmesi sürer (rozet bitişi görsün); izleyici iş
+      // bitince kendiliğinden kapanır.
+      if (!isRunning(latest.current)) stop.current?.();
+    };
+  }, []);
 
   const start = useCallback(async (payload: Record<string, unknown>) => {
     stop.current?.();
+    untrackJob(latest.current);
+    latest.current = null;
     setError(null);
     setJob(null);
     try {
       const j = await api.submitJob(payload);
-      setJob(j);
-      stop.current = watchJob(j.id, setJob);
+      const onUpdate = (u: Job) => {
+        latest.current = u;
+        trackJob(u, away.current);
+        if (!away.current) setJob(u);
+      };
+      onUpdate(j);
+      // İzleyici bıraktıysa (sunucuya ulaşılamıyor) rozet "Çalışıyor…"da takılı kalmasın.
+      stop.current = watchJob(j.id, onUpdate, () => untrackJob(j));
       return j;
     } catch (e) {
       setError(errorMessage(e));
@@ -52,11 +122,13 @@ export function useJob() {
 
   const reset = useCallback(() => {
     stop.current?.();
+    untrackJob(latest.current);
+    latest.current = null;
     setJob(null);
     setError(null);
   }, []);
 
-  const running = !!job && (job.status === "bekliyor" || job.status === "calisiyor");
+  const running = isRunning(job);
   return { job, start, reset, running, error };
 }
 

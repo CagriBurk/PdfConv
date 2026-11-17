@@ -1,0 +1,456 @@
+/* --- Markdown stüdyosu: araç kartı (eylemler + belge seçenekleri), metin | önizleme ------- */
+
+.md-start {
+  margin: 16px 0 0;
+}
+
+.md-band {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.md-band > .icon {
+  color: var(--warn);
+}
+
+.md-band-text {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+.md-band-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.md-studio {
+  display: grid;
+  gap: 16px;
+}
+
+.md-bar {
+  display: grid;
+  gap: 12px;
+  padding: 10px 12px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+}
+
+.md-bar-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
+.md-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.md-tools > button,
+.snippet-trigger {
+  padding: 0 11px;
+  border-color: transparent;
+  background: transparent;
+  font-size: 14px;
+}
+
+.md-tools > button:hover:not(:disabled),
+.snippet-trigger:hover:not(:disabled),
+.snippet-trigger[aria-expanded="true"] {
+  border-color: transparent;
+  background: var(--surface-2);
+}
+
+.md-tools > button .icon,
+.snippet-trigger .icon {
+  color: var(--muted);
+}
+
+/* --- Şablon menüsü (SnippetMenu): düğme + açılır panel, ad / onay pencereleri ------------- */
+
+.snippet-menu {
+  position: relative;
+}
+
+.snippet-trigger {
+  gap: 6px;
+}
+
+.snippet-trigger .flip {
+  transform: rotate(180deg);
+}
+
+/* Yatay konumu bileşen ayarlar (pencereden taşmasın). */
+.snippet-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 30;
+  width: min(380px, calc(100vw - 32px));
+  max-height: min(560px, calc(100dvh - 160px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: grid;
+  gap: 12px;
+  padding: 12px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: 0 24px 60px rgb(10 14 22 / 0.18);
+}
+
+.snippet-panel section + section {
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.snippet-head {
+  margin: 0 0 6px;
+  padding: 0 10px;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.snippet-panel ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.snippet-row {
+  flex: 1 1 auto;
+  justify-content: flex-start;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 6px 10px;
+  border-color: transparent;
+  border-radius: 10px;
+  background: transparent;
+  text-align: left;
+  font-weight: 600;
+}
+
+.snippet-row:hover:not(:disabled) {
+  border-color: transparent;
+  background: var(--surface-2);
+}
+
+.snippet-row > .icon {
+  color: var(--muted);
+}
+
+.snippet-text {
+  display: grid;
+  min-width: 0;
+}
+
+.snippet-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+.snippet-hint {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.snippet-user {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.snippet-save {
+  margin-top: 4px;
+  color: var(--accent-text);
+}
+
+.snippet-save > .icon {
+  color: var(--accent-text);
+}
+
+.snippet-note {
+  margin: 0 10px 4px;
+  font-size: 13.5px;
+}
+
+.snippet-form {
+  display: grid;
+  gap: 14px;
+}
+
+.snippet-form p {
+  margin: 0;
+}
+
+.snippet-form .modal-actions {
+  margin-top: 6px;
+}
+
+.snippet-form .error-text {
+  margin: -4px 0 0;
+}
+
+.snippet-source {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.snippet-source pre {
+  max-height: 168px;
+  margin: 0;
+  overflow: auto;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.snippet-folder .mono {
+  font-size: 12px;
+}
+
+.md-build {
+  min-width: 170px;
+}
+
+.md-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 10px 12px;
+  padding: 12px 4px 0;
+  border-top: 1px solid var(--border);
+}
+
+.md-options .field {
+  gap: 4px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.md-options select,
+.md-options .input {
+  width: 100%;
+  min-width: 0;
+  font-size: 14px;
+}
+
+/* İki bölme aynı yükseklikte; birkaç satır kaydırınca ekranı doldurur. */
+.md-layout {
+  --md-pane: max(460px, calc(100vh - var(--topbar-h) - 48px));
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.md-layout.solo {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.md-left {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  height: var(--md-pane);
+}
+
+.md-layout.solo .md-left {
+  height: auto;
+}
+
+.md-attach {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.md-attach .dropzone.compact {
+  flex: 1 1 220px;
+  min-height: 40px;
+  padding: 6px 12px;
+}
+
+.md-attach .dropzone-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.md-attach .chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.md-attach .chips li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  min-height: 40px;
+  padding: 0 2px 0 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.md-attach .chips li > .icon {
+  color: var(--muted);
+}
+
+.chip-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.md-attach .chips .icon-button {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+}
+
+.md-editor {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  resize: none;
+  padding: 16px 18px;
+  font-family: var(--mono);
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  tab-size: 2;
+}
+
+.md-save-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 12px;
+  min-height: 28px;
+  margin: 0;
+}
+
+.md-save-line .warn-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-weight: 600;
+}
+
+.md-save-line .link-button {
+  gap: 6px;
+  min-height: 28px;
+  text-decoration: none;
+  font-size: 13.5px;
+}
+
+.md-save-line .link-button:hover {
+  text-decoration: underline;
+}
+
+.md-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  height: var(--md-pane);
+}
+
+.md-preview .banner,
+.md-preview .warnings {
+  margin: 0;
+}
+
+/* Çerçevenin içi (PDF temaları) bu işin dışında; yalnızca dış çerçeve temaya uyar. */
+.md-preview iframe {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-2);
+  box-shadow: var(--shadow);
+}
+
+@media (max-width: 900px) {
+  .md-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .md-left,
+  .md-preview {
+    height: auto;
+  }
+
+  .md-editor {
+    flex: none;
+    height: 60vh;
+    min-height: 320px;
+    resize: vertical;
+  }
+
+  .md-preview iframe {
+    flex: none;
+    height: 70vh;
+  }
+
+  .md-build {
+    flex: 1 1 100%;
+  }
+}
+
+/* Dokunmatik ve dar ekranda dokunma hedefi 40px. */
+@media (pointer: coarse), (max-width: 640px) {
+  .md-attach .chips .icon-button {
+    width: 40px;
+    height: 40px;
+  }
+
+  .md-save-line .link-button,
+  .md-start .link-button {
+    min-height: 40px;
+  }
+}

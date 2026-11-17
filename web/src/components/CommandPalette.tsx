@@ -1,7 +1,9 @@
+import { Clock, FolderOpen, House, Search, SlidersHorizontal, type LucideIcon } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { EnginesResponse } from "../api";
 import { idsFrom, navigate, type Route } from "../router";
-import { TOOLS, type Tool } from "../tools";
+import { TOOLS, type Tone, type Tool } from "../tools";
+import Icon from "./Icon";
 
 interface Props {
   open: boolean;
@@ -18,6 +20,9 @@ interface PaletteItem {
   group: string;
   route: string;
   tool?: Tool;
+  icon: LucideIcon;
+  /** Araçlarda grup tonu; gezinme öğeleri nötr. */
+  tone?: Tone;
   searchText: string;
   lacking: string[];
   handoff: boolean;
@@ -42,10 +47,10 @@ const PDF_ROUTES = new Set([
 const NON_PDF_ROUTES = new Set(["md", "office", "resimden"]);
 
 const QUICK_ACTIONS = [
-  { id: "nav-home", title: "Ana Sayfa", subtitle: "Tüm araçlar ve dosya bırakma alanı", route: "araclar", group: "Gezinme" },
-  { id: "nav-files", title: "Dosyalar", subtitle: "Yüklenen ve oluşturulan dosyalar", route: "isler", group: "Gezinme" },
-  { id: "nav-jobs", title: "İşler", subtitle: "Çalışan ve tamamlanan arka plan işleri", route: "isler", group: "Gezinme" },
-  { id: "nav-settings", title: "Ayarlar", subtitle: "Kayıt kasası, saklama süresi, telefon modu, motorlar", route: "ayarlar", group: "Gezinme" },
+  { id: "nav-home", title: "Ana Sayfa", subtitle: "Tüm araçlar ve dosya bırakma alanı", route: "araclar", group: "Gezinme", icon: House },
+  { id: "nav-files", title: "Dosyalar", subtitle: "Yüklenen ve oluşturulan dosyalar", route: "isler", group: "Gezinme", icon: FolderOpen },
+  { id: "nav-jobs", title: "İşler", subtitle: "Çalışan ve tamamlanan arka plan işleri", route: "isler", group: "Gezinme", icon: Clock },
+  { id: "nav-settings", title: "Ayarlar", subtitle: "Kayıt kasası, saklama süresi, telefon modu, motorlar", route: "ayarlar", group: "Gezinme", icon: SlidersHorizontal },
 ];
 
 /** Arama eşleştirmesinde Türkçe harf ve büyük/küçük harf duyarlılığını kaldırır. */
@@ -119,6 +124,8 @@ function CommandPaletteDialog({
       group: t.group,
       route: t.route,
       tool: t,
+      icon: t.icon,
+      tone: t.tone,
       searchText: normalizeTr(`${t.title} ${t.description} ${t.group} ${t.route}`),
       lacking: missingFor(t.needs),
       handoff: canHandoffToTool(section, ids, t.route),
@@ -131,6 +138,7 @@ function CommandPaletteDialog({
       subtitle: a.subtitle,
       group: a.group,
       route: a.route,
+      icon: a.icon,
       searchText: normalizeTr(`${a.title} ${a.subtitle} ${a.group} ${a.route}`),
       lacking: [],
       handoff: false,
@@ -203,6 +211,7 @@ function CommandPaletteDialog({
       }}
     >
       <div className="cmd-palette-head">
+        <Icon icon={Search} />
         <input
           ref={inputRef}
           type="search"
@@ -220,8 +229,8 @@ function CommandPaletteDialog({
           aria-controls={listId}
           aria-activedescendant={activeIndex >= 0 ? items[activeIndex].id : undefined}
         />
-        <button type="button" className="icon-button" aria-label="Kapat" onClick={onClose}>
-          ×
+        <button type="button" className="kbd-button" aria-label="Kapat (Esc)" onClick={onClose}>
+          Esc
         </button>
       </div>
       {hasPdfHandoff && (
@@ -247,13 +256,16 @@ function CommandPaletteDialog({
                 }}
                 onClick={() => activate(item)}
               >
+                <span className={`tile sm${item.tone ? ` ${item.tone}` : ""}`}>
+                  <Icon icon={item.icon} size={16} />
+                </span>
                 <div className="cmd-palette-item-main">
                   <strong>{item.title}</strong>
                   <span className="muted small">{item.subtitle}</span>
                 </div>
                 <div className="cmd-palette-item-meta">
-                  {item.handoff && <span className="cmd-badge">Aktif dosya</span>}
-                  {item.lacking.length > 0 && <span className="cmd-badge warn">Eksik: {item.lacking.join(", ")}</span>}
+                  {item.handoff && <span className="chip accent small">Aktif dosya</span>}
+                  {item.lacking.length > 0 && <span className="chip warn small">Eksik: {item.lacking.join(", ")}</span>}
                   <span className="cmd-group">{item.group}</span>
                 </div>
               </li>

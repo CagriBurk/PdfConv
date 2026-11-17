@@ -82,8 +82,15 @@ def reveal(path: Path) -> None:
     if os.name != "nt":
         raise NativeUnavailableError()
     # explorer.exe hemen döner (işi çalışan Gezgin'e devreder); çıkış kodu anlamsızdır.
-    subprocess.Popen(["explorer.exe", f"/select,{path}"],
+    subprocess.Popen(reveal_command(path),
                      creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+
+
+def reveal_command(path: Path) -> str:
+    """Gezgin'in komut satırı. Liste yerine dize: yolda boşluk varsa (`Dışa aktarılanlar` hep
+    var) Python bağımsız değişkenin tamamını tırnağa alır, Gezgin `"/select,…"` biçimini
+    tanımaz ve Belgeler'i açar. Tırnak yalnızca yolu sarmalı."""
+    return f'explorer.exe /select,"{path}"'
 
 
 def export_copy(store, data_dir: Path, file_id: str) -> Path:

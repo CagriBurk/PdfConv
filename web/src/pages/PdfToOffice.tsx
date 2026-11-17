@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import type { FileMeta } from "../api";
-import FilePicker, { FileRow } from "../components/FilePicker";
-import JobPanel from "../components/JobPanel";
+import FilePicker, { FileRow, FilesCard, fileSummary } from "../components/FilePicker";
+import JobPanel, { ActionCard } from "../components/JobPanel";
 import PageHeader from "../components/PageHeader";
 import PasswordDialog from "../components/PasswordDialog";
 import { useFiles, useJob, useUnlockQueue } from "../hooks";
@@ -49,29 +49,35 @@ function SinglePdfTool({
     <>
       <PageHeader title={title} />
       <div className="tool-layout">
-        <section>
-          {file ? (
-            <FileRow file={file} onRemove={() => (setFile(null), job.reset())} />
-          ) : (
-            <FilePicker accept={ACCEPT.pdf} kind="pdf" multiple={false} title="PDF'i bırak" onAdd={([f]) => setFile(f)} />
-          )}
+        <div className="tool-main">
+          <FilesCard title="Dosya">
+            {file ? (
+              <FileRow file={file} onRemove={() => (setFile(null), job.reset())} />
+            ) : (
+              <FilePicker accept={ACCEPT.pdf} kind="pdf" multiple={false} title="PDF'i bırak" onAdd={([f]) => setFile(f)} />
+            )}
+          </FilesCard>
+          <section className="card">
+            <h2>Seçenekler</h2>
+            <label className="field">
+              Sayfalar
+              <input className="input" placeholder="hepsi (ör. 1-3, 5)" value={spec} onChange={(e) => setSpec(e.target.value)} />
+            </label>
+            {options}
+          </section>
           <div className="muted small tool-intro">{intro}</div>
-        </section>
-        <aside className="options">
-          <h2>Seçenekler</h2>
-          <label className="field">
-            Sayfalar
-            <input className="input" placeholder="hepsi (ör. 1-3, 5)" value={spec} onChange={(e) => setSpec(e.target.value)} />
-          </label>
-          {options}
-          <button
-            type="button"
-            className="primary block"
+        </div>
+        <aside className="tool-side">
+          <ActionCard
+            rows={[
+              ["Dosya", fileSummary(file)],
+              ["Sayfalar", spec.trim() || "hepsi"],
+            ]}
+            label={action}
             disabled={!file || job.running}
-            onClick={() => file && job.start({ ...request(file), file: file.id, spec, passwords: passwords.forFiles([file.id]) })}
-          >
-            {action}
-          </button>
+            busy={job.running}
+            onRun={() => file && job.start({ ...request(file), file: file.id, spec, passwords: passwords.forFiles([file.id]) })}
+          />
           <JobPanel job={job.job} error={job.error ?? initial.error} />
         </aside>
       </div>
