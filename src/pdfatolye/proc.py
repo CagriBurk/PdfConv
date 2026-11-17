@@ -163,7 +163,9 @@ def run(args: Sequence[str], *, timeout: float, marker: str | None = None,
     with spawn(args, marker=marker, marker_name=marker_name, **popen) as proc:
         while True:
             try:
-                out, err = proc.communicate(timeout=POLL_S)
+                # Bekleme süre sonunu aşmasın: kısa zaman aşımı da tam zamanında uygulanır.
+                wait = min(POLL_S, max(0.01, deadline - time.monotonic()))
+                out, err = proc.communicate(timeout=wait)
                 break
             except subprocess.TimeoutExpired:
                 if check():

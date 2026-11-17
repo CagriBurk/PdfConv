@@ -57,6 +57,11 @@ def is_our_server(url: str, timeout: float = 2) -> bool:
 
 def port_free(port: int) -> bool:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        # uvicorn POSIX'te SO_REUSEADDR ile dinler: yeni kapanmış portun TIME_WAIT bağlantıları onu
+        # engellemez, bu denetim de engellenmemeli (yoksa yeniden başlatma başka porta kaçar).
+        # Windows'ta aynı seçenek dolu portu paylaşmaya izin verir: orada konmaz.
+        if os.name != "nt":
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
             s.bind(("127.0.0.1", port))
         except OSError:
@@ -236,8 +241,12 @@ class _Server:
         if settings.lan:
             host = "0.0.0.0"
         self.url = f"http://{'127.0.0.1' if host == '0.0.0.0' else host}:{settings.port}"
+        # Kapanışta açık bağlantı (ör. bir işin canlı durum akışı) süresiz beklenmez: süre dolunca
+        # uvicorn onları keser, lifespan kapanışı (temizlik iş parçacığı, iş kuyruğu) yine çalışır.
+        # Yoksa yeniden başlatmada eski sunucu yarı açık kalırdı (stop() 15 sn bekleyip bırakır).
         self.server = uvicorn.Server(uvicorn.Config(self.app, host=host, port=settings.port,
-                                                    log_level="warning", log_config=None))
+                                                    log_level="warning", log_config=None,
+                                                    timeout_graceful_shutdown=5))
         self.thread = threading.Thread(target=self.server.run, daemon=True, name="sunucu")
 
     def start(self, timeout: float = 60) -> bool:

@@ -26,9 +26,17 @@ def _annotate(nodeid: str, text: str) -> None:
         return v.replace(":", "%3A").replace(",", "%2C") if prop else v
 
     # Başta satır sonu: pytest ilerleme satırı ("....F") satır sonu olmadan biter; komut satır
-    # başında olmalı, yoksa GitHub tanımaz.
-    sys.__stdout__.write(f"\n::error title={esc(nodeid, True)}::{esc(text[-1500:])}\n")
-    sys.__stdout__.flush()
+    # başında olmalı, yoksa GitHub tanımaz. Windows çalıştırıcısında konsol cp1252: "ı", "ş"
+    # yazılamaz ve hata pytest'in kendisini (INTERNALERROR) durdururdu; UTF-8 bayt yazılır.
+    line = f"\n::error title={esc(nodeid, True)}::{esc(text[-1500:])}\n"
+    out = sys.__stdout__
+    out.flush()
+    if hasattr(out, "buffer"):
+        out.buffer.write(line.encode("utf-8", "replace"))
+        out.buffer.flush()
+    else:
+        out.write(line)
+        out.flush()
 
 
 _annotated = [0]
