@@ -15,20 +15,35 @@ Sözdizimi (virgül veya noktalı virgülle ayrılmış parçalar):
 from __future__ import annotations
 
 import re
+import unicodedata
 
 from pdfatolye.errors import PageRangeError
 
 _LAST = {"son", "last", "n"}
 _ALL = {"tümü", "tumu", "hepsi", "all", "*"}
 _PART = re.compile(r"^(?P<a>[^-]*)(?P<dash>-)?(?P<b>[^-]*)$")
+_DIGITS = re.compile(r"[0-9]+")  # yalnız ASCII rakam: "²" ya da "٣" sayfa numarası sayılmaz
+_MAX_DIGITS = 9  # bundan uzun bir sayı hiçbir belgede sayfa olamaz; int() sınırına da takılmaz
+
+
+def _key(text: str) -> str:
+    """Anahtar sözcük karşılaştırması için: "HEPSİ" → "hepsi", ayrışık "tümü" → birleşik."""
+    return unicodedata.normalize("NFC", text).strip().replace("İ", "i").lower()
+
+
+def _unclear(part: str) -> PageRangeError:
+    shown = part if len(part) <= 20 else part[:20] + "…"
+    return PageRangeError(f"'{shown}' anlaşılmadı. Örnek: 1-3, 5, 8-")
 
 
 def _number(token: str, page_count: int, part: str) -> int:
-    token = token.strip().lower()
+    token = _key(token)
     if token in _LAST:
         return page_count
-    if not token.isdigit():
-        raise PageRangeError(f"'{part}' anlaşılmadı. Örnek: 1-3, 5, 8-")
+    if not _DIGITS.fullmatch(token):
+        raise _unclear(part)
+    if len(token.lstrip("0")) > _MAX_DIGITS:
+        raise PageRangeError(f"Sayfa numarası çok büyük; belgede {page_count} sayfa var.")
     n = int(token)
     if n < 1 or n > page_count:
         raise PageRangeError(f"{n}. sayfa yok; belgede {page_count} sayfa var.")
@@ -40,7 +55,7 @@ def parse_range_groups(spec: str, page_count: int) -> list[list[int]]:
     if page_count < 1:
         raise PageRangeError("Belgede hiç sayfa yok.")
     text = (spec or "").strip()
-    if not text or text.lower() in _ALL:
+    if not text or _key(text) in _ALL:
         return [list(range(page_count))]
 
     groups: list[list[int]] = []
@@ -48,13 +63,16 @@ def parse_range_groups(spec: str, page_count: int) -> list[list[int]]:
         part = raw.strip()
         if not part:
             continue
-        if part.lower() in _ALL:
+        if _key(part) in _ALL:
             groups.append(list(range(page_count)))
             continue
-        m = _PART.match(part.replace(" ", ""))
+        # Boşluklar silinmez, yalnız uçlardan kırpılır: "1 3" on üçüncü sayfa değil, hatadır.
+        m = _PART.match(part)
         if not m:
-            raise PageRangeError(f"'{part}' anlaşılmadı. Örnek: 1-3, 5, 8-")
-        a, b = m["a"], m["b"]
+            raise _unclear(part)
+        a, b = m["a"].strip(), m["b"].strip()
+        if m["dash"] and not a and not b:
+            raise _unclear(part)  # tek başına "-" ne başı ne sonu belirtir
         if not m["dash"]:
             n = _number(a, page_count, part)
             groups.append([n - 1])

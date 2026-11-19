@@ -22,6 +22,11 @@ from pdfatolye.errors import PageRangeError
         ("2,2", [1, 1]),
         ("1-3,,5,", [0, 1, 2, 4]),
         ("SON", [9]),
+        ("HEPSİ", list(range(10))),
+        ("1, HEPSİ", [0, *range(10)]),
+        ("tümü", list(range(10))),  # ayrışık (NFD) yazılmış "tümü"
+        ("3 - SON", [2, 3, 4, 5, 6, 7, 8, 9]),
+        ("007", [6]),
     ],
 )
 def test_parse_ranges(spec, expected):
@@ -38,6 +43,18 @@ def test_parse_ranges(spec, expected):
         ("1-2-3", "anlaşılmadı"),
         ("1.5", "anlaşılmadı"),
         (",", "boş"),
+        # Rakam gibi görünen ama ASCII olmayan karakterler ValueError değil, PageRangeError verir.
+        ("²", "anlaşılmadı"),
+        ("1-³", "anlaşılmadı"),
+        ("٣", "anlaşılmadı"),
+        ("9" * 4301, "çok büyük"),
+        ("1" + "0" * 9, "çok büyük"),
+        # Parça içindeki boşluk sayıları birleştirmez: "1 3" on üçüncü sayfa değildir.
+        ("1 3", "anlaşılmadı"),
+        ("1 2-5", "anlaşılmadı"),
+        # Tek başına tire ne başı ne sonu belirtir.
+        ("-", "anlaşılmadı"),
+        ("1, -, 3", "anlaşılmadı"),
     ],
 )
 def test_parse_ranges_errors(spec, message):
