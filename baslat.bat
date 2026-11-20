@@ -1,5 +1,5 @@
 @echo off
-rem PDF Atolyesi baslatici: bagimliliklari kurar, gerekirse arayuzu derler, sunucuyu acar.
+rem Toolia baslatici: bagimliliklari kurar, gerekirse arayuzu derler, sunucuyu acar.
 setlocal
 cd /d "%~dp0"
 
@@ -36,5 +36,5 @@ if errorlevel 1 (
   )
 )
 
-uv run python -m pdfatolye serve %*
+uv run python -m toolia serve %*
 if errorlevel 1 pause

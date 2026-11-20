@@ -1,4 +1,4 @@
-"""`pdfatolye serve` (baslat.bat) da kendini yeniden başlatır: Ayarlar'da telefon modu ya da port
+"""`toolia serve` (baslat.bat) da kendini yeniden başlatır: Ayarlar'da telefon modu ya da port
 değişince sunucu aynı süreçte yeni ayarlarla yeniden açılır (masaüstü uygulamasıyla aynı yol)."""
 
 from __future__ import annotations
@@ -14,8 +14,8 @@ import httpx
 import psutil
 import pytest
 
-from pdfatolye import cli, desktop, lan
-from pdfatolye.settings import load_settings
+from toolia import cli, desktop, lan
+from toolia.settings import load_settings
 
 
 def wait_until(cond, timeout=20.0, step=0.05) -> bool:
@@ -191,9 +191,9 @@ def test_lan_flag_applies_only_to_first_start(tmp_path, monkeypatch):
 _SIGINT_SCRIPT = r"""
 import _thread, signal, sys, threading, time, json, urllib.request
 import httpx
-from pdfatolye import cli
+from toolia import cli
 from pathlib import Path
-from pdfatolye.settings import load_settings
+from toolia.settings import load_settings
 cfg, url = Path(sys.argv[1]), sys.argv[2]
 
 def health():
@@ -257,5 +257,5 @@ def test_ctrl_c_closes_cleanly_and_crash_is_reported(tmp_path, monkeypatch, even
 
     monkeypatch.setattr(desktop._Server, "wait", fake_wait)
     assert cli._serve_until_closed(cfg, load_settings(cfg)) == code
-    assert seen and seen[0]["app"] == "pdfatolye"  # sunucu açıktı
+    assert seen and seen[0]["app"] == "toolia"  # sunucu açıktı
     assert _health(url) is None  # ve kapandı

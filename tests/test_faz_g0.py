@@ -14,13 +14,13 @@ from fastapi.testclient import TestClient
 from PIL import Image
 from pydantic import TypeAdapter
 
-from pdfatolye import engines
-from pdfatolye.api import app as app_module
-from pdfatolye.convert import to_excel, to_word
-from pdfatolye.core import compress, content, ocr, security
-from pdfatolye.errors import PageRangeError
-from pdfatolye.settings import Settings
 from tests.fixtures import make_fixtures as fx
+from toolia import engines
+from toolia.api import app as app_module
+from toolia.convert import to_excel, to_word
+from toolia.core import compress, content, ocr, security
+from toolia.errors import PageRangeError
+from toolia.settings import Settings
 
 OPS = TypeAdapter(list[content.Op])
 

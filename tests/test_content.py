@@ -8,9 +8,9 @@ import pytest
 from PIL import Image
 from pydantic import TypeAdapter, ValidationError
 
-from pdfatolye.core import content, fonts, geometry
-from pdfatolye.errors import PageRangeError
 from tests.fixtures import make_fixtures as fx
+from toolia.core import content, fonts, geometry
+from toolia.errors import PageRangeError
 
 # Bazı testler bilerek bir Windows yazı tipini (Arial) kullanır; Linux'ta yoktur.
 needs_arial = pytest.mark.skipif(not Path("C:/Windows/Fonts/arial.ttf").is_file(),

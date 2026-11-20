@@ -1,53 +1,68 @@
-import { ArrowRight, ChevronRight } from "lucide-react";
-import { useEffect, useState } from "react";
+import { ArrowLeftRight, ArrowRight, ChevronRight, FileText, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { EnginesResponse, FileMeta } from "../api";
 import DropZone from "../components/DropZone";
 import Icon from "../components/Icon";
 import RecentFiles from "../components/RecentFiles";
 import { useUpload } from "../hooks";
 import { navigate } from "../router";
-import { GROUP_TONE, GROUPS, TOOLS } from "../tools";
+import { commonConvertTargets, GROUP_TONE, GROUPS, TOOLS } from "../tools";
 
-/** Bırakılan dosyaların türüne göre en uygun araca yönlendirir. */
-function routeFor(files: FileMeta[]): string | null {
-  const ids = (k: FileMeta["kind"]) => files.filter((f) => f.kind === k).map((f) => f.id);
+type Query = Record<string, string | string[]>;
+type Dropped = Pick<FileMeta, "id" | "name" | "kind">;
+
+/** Bırakılan dosyalar için yapılacak iş: doğrudan bir araca git, PDF ile başka biçim arasında
+ * seçtir ya da birlikte işlenemediklerini söyle. */
+export type HomeRoute =
+  | { type: "go"; path: string; query?: Query }
+  | { type: "choose"; pdfPath: string; ids: string[]; targets: string[]; what: string }
+  | { type: "error"; message: string };
+
+/** Bırakılan dosyaların türüne göre en uygun araç. Hepsi resim ya da hepsi Office belgesiyse ve
+ * ortak bir dönüştürme hedefi varsa PDF ile başka biçim arasında seçim sorulur. */
+export function homeRoute(files: Dropped[]): HomeRoute {
   const md = files.find((f) => f.kind === "markdown");
   if (md) {
     const ek = files.filter((f) => f.id !== md.id).map((f) => f.id);
-    navigate("md", ek.length ? { dosya: md.id, ek } : { dosya: md.id });
-    return null;
+    return { type: "go", path: "md", query: ek.length ? { dosya: md.id, ek } : { dosya: md.id } };
   }
-  const pdfs = ids("pdf");
-  if (pdfs.length === files.length) {
-    navigate(pdfs.length === 1 ? `duzenle/${pdfs[0]}` : "birlestir", pdfs.length > 1 ? { dosya: pdfs } : undefined);
-    return null;
+  const ids = files.map((f) => f.id);
+  const all = (...kinds: FileMeta["kind"][]) => files.every((f) => kinds.includes(f.kind));
+  if (all("pdf")) {
+    return ids.length === 1 ? { type: "go", path: `duzenle/${ids[0]}` } : { type: "go", path: "birlestir", query: { dosya: ids } };
   }
-  const imgs = ids("image");
-  if (imgs.length === files.length) {
-    navigate("resimden", { dosya: imgs });
-    return null;
-  }
-  const docs = files.filter((f) => f.kind === "office" || f.kind === "html" || f.kind === "text");
-  if (docs.length === files.length) {
-    navigate("office", { dosya: docs.map((f) => f.id) });
-    return null;
-  }
-  return "Bu dosya türleri birlikte işlenemiyor. PDF, resim ya da Markdown bırak.";
+  const pdfPath = all("image") ? "resimden" : all("office", "html", "text") ? "office" : null;
+  if (!pdfPath) return { type: "error", message: "Bu dosya türleri birlikte işlenemiyor. PDF, resim ya da Markdown bırak." };
+  // HTML / TXT'nin dönüştürme hedefi yok; yalnız saf resim ya da saf Office seçimi sorulur.
+  const targets = pdfPath === "resimden" || all("office") ? commonConvertTargets(files.map((f) => f.name)) : [];
+  if (!targets.length) return { type: "go", path: pdfPath, query: { dosya: ids } };
+  const n = files.length;
+  const what = pdfPath === "resimden" ? `${n} resim yüklendi.` : n === 1 ? "Belge yüklendi." : `${n} belge yüklendi.`;
+  return { type: "choose", pdfPath, ids, targets, what };
 }
 
-// `routeFor`un sırasıyla aynı: Markdown varsa yanındakiler eki sayılır.
+/** Hedeflerin kısa adları: [".jpg", ".png"] → "JPG, PNG". */
+export function targetNames(targets: string[]): string {
+  return targets.map((t) => t.replace(/^\./, "").toUpperCase()).join(", ");
+}
+
+// `homeRoute`un sırasıyla aynı: Markdown varsa yanındakiler eki sayılır.
 const ROUTES: [string, string][] = [
   ["Tek PDF", "düzenleyicide açılır"],
   ["Birden çok PDF", "birleştirilir"],
-  ["Resimler", "tek PDF olur"],
+  ["Resimler", "tek PDF ya da başka biçim"],
   ["Markdown (+ resimleri)", "PDF'e dönüşür"],
-  ["Word, Excel, PowerPoint, HTML, TXT", "PDF olur"],
+  ["Word, Excel, PowerPoint", "PDF ya da başka biçim"],
+  ["HTML, TXT", "PDF olur"],
 ];
 
 export default function Home({ engines, onSearch }: { engines: EnginesResponse | null; onSearch: () => void }) {
   const { upload, uploading, progress, error } = useUpload();
   const [notice, setNotice] = useState<string | null>(null);
+  const [choice, setChoice] = useState<Extract<HomeRoute, { type: "choose" }> | null>(null);
   const [uploads, setUploads] = useState(0);
+  const hero = useRef<HTMLElement>(null);
+  const toPdf = useRef<HTMLButtonElement>(null);
 
   // "/" araç aramasını (komut paleti) açar; yazı alanında ya da açık pencerede değilken.
   useEffect(() => {
@@ -67,22 +82,45 @@ export default function Home({ engines, onSearch }: { engines: EnginesResponse |
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [onSearch]);
 
+  const closeChoice = useCallback(() => {
+    // Odak karttaysa kaybolmasın: bırakma alanına döner.
+    const inside = hero.current?.querySelector(".home-choice")?.contains(document.activeElement);
+    setChoice(null);
+    if (inside) hero.current?.querySelector<HTMLElement>(".dropzone")?.focus();
+  }, []);
+
+  // Seçim kartı: odak birincil düğmede (Enter = PDF'e çevir); Esc kapatır.
+  useEffect(() => {
+    if (!choice) return;
+    toPdf.current?.focus();
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.defaultPrevented || document.querySelector("dialog[open], .modal")) return;
+      e.preventDefault();
+      closeChoice();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [choice, closeChoice]);
+
   const missing = (keys: string[] = []) =>
     engines ? engines.engines.filter((e) => keys.includes(e.key) && !e.ok).map((e) => e.name) : [];
 
   const onFiles = async (files: File[]) => {
     setNotice(null);
+    setChoice(null);
     const metas = await upload(files);
-    if (metas.length) {
-      setUploads((n) => n + 1);
-      setNotice(routeFor(metas));
-    }
+    if (!metas.length) return;
+    setUploads((n) => n + 1);
+    const next = homeRoute(metas);
+    if (next.type === "go") navigate(next.path, next.query);
+    else if (next.type === "choose") setChoice(next);
+    else setNotice(next.message);
   };
 
   return (
     <div className="home">
       <div className="home-top">
-        <section className="card home-hero" aria-labelledby="home-baslik">
+        <section ref={hero} className="card home-hero" aria-labelledby="home-baslik">
           <div>
             <h1 id="home-baslik">Ne yapmak istersin?</h1>
             <p className="home-lead">Dosyayı bırak, uygun araç kendiliğinden açılsın. Hiçbir dosya bu bilgisayardan çıkmaz.</p>
@@ -94,6 +132,41 @@ export default function Home({ engines, onSearch }: { engines: EnginesResponse |
             title={uploading ? `Yükleniyor… %${Math.round((progress ?? 0) * 100)}` : "Dosyayı buraya bırak"}
             hint="PDF, Word, Excel, PowerPoint, Markdown ya da fotoğraf · birden çok dosya olur"
           />
+          {choice && (
+            <section className="home-choice" aria-labelledby="home-secim">
+              <div className="home-choice-head">
+                <div>
+                  <h2 id="home-secim">Ne yapmak istiyorsun?</h2>
+                  <p className="muted small">{choice.what}</p>
+                </div>
+                <button type="button" className="icon-button" aria-label="Kapat (Esc)" title="Kapat (Esc)" onClick={closeChoice}>
+                  <Icon icon={X} />
+                </button>
+              </div>
+              <div className="home-choice-actions">
+                <button
+                  ref={toPdf}
+                  type="button"
+                  className="primary"
+                  onClick={() => navigate(choice.pdfPath, { dosya: choice.ids })}
+                >
+                  <Icon icon={FileText} />
+                  PDF'e çevir
+                </button>
+                <button
+                  type="button"
+                  aria-describedby="home-secim-hedef"
+                  onClick={() => navigate("donustur", { dosya: choice.ids })}
+                >
+                  <Icon icon={ArrowLeftRight} />
+                  Başka biçime dönüştür
+                </button>
+              </div>
+              <p id="home-secim-hedef" className="muted small">
+                Başka biçim: {targetNames(choice.targets)}
+              </p>
+            </section>
+          )}
           {(error || notice) && (
             <div className="banner error" role="alert">
               {error ?? notice}
@@ -168,7 +241,7 @@ export default function Home({ engines, onSearch }: { engines: EnginesResponse |
       </section>
 
       <footer className="home-foot">
-        <span>PDF Atölyesi{engines ? ` ${engines.version}` : ""}</span>
+        <span>Toolia{engines ? ` ${engines.version}` : ""}</span>
         <span>Dosyaların bu bilgisayarda kalır · kayıt yok, reklam yok</span>
       </footer>
     </div>

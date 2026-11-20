@@ -1,4 +1,5 @@
 import {
+  ArrowLeftRight,
   Droplet,
   FileCode,
   FileIcon,
@@ -53,6 +54,8 @@ const DEFS: Omit<Tool, "tone">[] = [
   { id: "pdf2img", title: "PDF → Resim", description: "Sayfaları PNG / JPG olarak çıkar", route: "resme", group: "Dönüştür", icon: Images },
   { id: "pdf2word", title: "PDF → Word", description: "Düzenlenebilir Word belgesi (.docx)", route: "word", group: "Dönüştür", icon: FileIcon },
   { id: "pdf2excel", title: "PDF → Excel", description: "Tabloları Excel'e aktar (.xlsx)", route: "excel", group: "Dönüştür", icon: Table },
+  // `needs` yok: resimler motorsuz çevrilir; LibreOffice uyarısını ekran Office dosyası seçilince gösterir.
+  { id: "convert", title: "Biçim Dönüştür", description: "Resim ve Office dosyalarını başka biçime çevir (JPG ↔ PNG, DOCX ↔ ODT, XLSX ↔ CSV…)", route: "donustur", group: "Dönüştür", icon: ArrowLeftRight },
   { id: "edit", title: "İçerik Ekle", description: "Yazı, resim, imza, vurgu, şekil, karartma", route: "editor", group: "Ekle", icon: PenLine },
   { id: "watermark", title: "Filigran", description: "Yazı veya resim filigranı", route: "filigran", group: "Ekle", icon: Droplet },
   { id: "pagenum", title: "Sayfa Numarası", description: "\"Sayfa 3 / 10\" biçiminde numaralandır", route: "sayfa-no", group: "Ekle", icon: Hash },
@@ -70,13 +73,66 @@ export function toolForRoute(section: string | undefined): Tool | undefined {
   return TOOLS.find((t) => t.route === section);
 }
 
-// Kağıt boyutları. Tek kaynak: src/pdfatolye/core/paper.py (tests/test_robustness.py denetler).
+// Kağıt boyutları. Tek kaynak: src/toolia/core/paper.py (tests/test_robustness.py denetler).
 export const PAPERS = ["A4", "A5", "A3", "A2", "A1", "A0", "Letter", "Legal"];
+
+// Biçim Dönüştür: aile başına kaynak ve hedef uzantılar. Tek kaynak: src/toolia/formats.py
+// (RASTER_IMAGE_EXTS + IMAGE_CONVERT_TARGETS, OFFICE_CONVERT_FAMILIES, _SAME;
+// tests/test_robustness.py tutarlılığı denetler). Hedeflerin sırası ekrandaki düğme sırasıdır.
+export const CONVERT_TARGETS: Record<string, { sources: string[]; targets: string[] }> = {
+  image: { sources: [".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".tif", ".tiff", ".heic", ".heif"], targets: [".jpg", ".png", ".webp", ".tiff"] },
+  word: { sources: [".docx", ".doc", ".docm", ".odt", ".rtf", ".wpd"], targets: [".docx", ".odt", ".rtf", ".txt"] },
+  sheet: { sources: [".xlsx", ".xls", ".xlsm", ".ods", ".csv"], targets: [".xlsx", ".ods", ".csv"] },
+  slides: { sources: [".pptx", ".ppt", ".pptm", ".odp"], targets: [".pptx", ".odp"] },
+};
+// Aynı biçimin iki yazılışı: kaynağın kendi biçimi hedeflerden çıkarılırken eş sayılır.
+const CONVERT_SAME: Record<string, string> = { ".jpeg": ".jpg", ".tif": ".tiff", ".heif": ".heic" };
+
+/** Dosya adının küçük harfli uzantısı (".JPEG" → ".jpeg"; yoksa ""). */
+export function lowerExt(name: string): string {
+  const dot = name.lastIndexOf(".");
+  return dot > 0 ? name.slice(dot).toLowerCase() : "";
+}
+
+/** Dosyanın dönüştürme ailesi ("image", "word", "sheet", "slides"); desteklenmiyorsa null. */
+export function convertFamily(name: string): string | null {
+  const ext = lowerExt(name);
+  return Object.keys(CONVERT_TARGETS).find((k) => CONVERT_TARGETS[k].sources.includes(ext)) ?? null;
+}
+
+/** Dosyanın biçimi (".JPEG" → ".jpg", ".tif" → ".tiff"; sunucudaki `same_format`). */
+export function sameFormat(name: string): string {
+  const ext = lowerExt(name);
+  return CONVERT_SAME[ext] ?? ext;
+}
+
+/** Ailenin bütün hedefleri, kendi biçimi dahil (sunucudaki `family_targets`). */
+export function familyTargets(name: string): string[] {
+  const family = convertFamily(name);
+  return family ? CONVERT_TARGETS[family].targets : [];
+}
+
+/** Tek dosyanın çevrilebileceği hedefler (kendi biçimi hariç; sunucudaki `convert_targets`). */
+export function convertTargets(name: string): string[] {
+  return familyTargets(name).filter((t) => t !== sameFormat(name));
+}
+
+/** Seçimin ortak hedefleri: hepsinin ailesinde olan, ama hepsinin zaten o biçimde olmadığı
+ * biçimler (JPG + PNG → JPG da seçilir; zaten JPG olan dosyayı sunucu olduğu gibi alır). */
+export function commonConvertTargets(names: string[]): string[] {
+  if (!names.length) return [];
+  const [first, ...rest] = names.map(familyTargets);
+  return first.filter((t) => rest.every((r) => r.includes(t)) && !names.every((n) => sameFormat(n) === t));
+}
 
 export const ACCEPT = {
   pdf: ".pdf,application/pdf",
   images: ".jpg,.jpeg,.png,.webp,.gif,.bmp,.tif,.tiff,.heic,.heif",
   markdown: ".md,.markdown,.txt",
-  // Tek kaynak: src/pdfatolye/formats.py (tests/test_robustness.py tutarlılığı denetler).
+  // Tek kaynak: src/toolia/formats.py (tests/test_robustness.py tutarlılığı denetler).
   office: ".docx,.doc,.docm,.odt,.rtf,.wpd,.xlsx,.xls,.xlsm,.ods,.csv,.pptx,.ppt,.pptm,.odp,.html,.htm,.txt",
+  // Biçim Dönüştür'ün kaynakları; yukarıdaki tablodan türer.
+  convert: Object.values(CONVERT_TARGETS)
+    .flatMap((f) => f.sources)
+    .join(","),
 };

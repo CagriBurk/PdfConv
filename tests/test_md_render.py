@@ -5,11 +5,11 @@ from pathlib import Path
 import pymupdf
 import pytest
 
-from pdfatolye import engines
-from pdfatolye.convert.markdown import MarkdownPrinter, MdOptions
-from pdfatolye.convert.markdown.render import BrowserNotFoundError
-from pdfatolye.settings import Settings
 from tests.fixtures import make_fixtures as fx
+from toolia import engines
+from toolia.convert.markdown import MarkdownPrinter, MdOptions
+from toolia.convert.markdown.render import BrowserNotFoundError
+from toolia.settings import Settings
 
 BROWSER = engines.detect_browser(Settings()).path
 pytestmark = pytest.mark.skipif(not BROWSER, reason="Edge/Chrome yok")
@@ -46,7 +46,7 @@ def test_basic_note(printer, tmp_path):
     assert "1 / 1" in pages[0]  # sayfa numarası
     with pymupdf.open(r.output) as doc:
         assert doc.metadata["title"] == "Başlık"
-        assert doc.metadata["creator"] == "PDF Atölyesi"
+        assert doc.metadata["creator"] == "Toolia"
         fonts = {f[3] for f in doc[0].get_fonts()}
     assert any("KaTeX" in f for f in fonts)  # formül KaTeX fontuyla çizildi
 

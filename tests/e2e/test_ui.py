@@ -15,10 +15,10 @@ from pathlib import Path
 import pymupdf
 import pytest
 
-from pdfatolye import engines
-from pdfatolye.api.app import WEB_DIST, create_app
-from pdfatolye.settings import Settings
 from tests.fixtures import make_fixtures as fx
+from toolia import engines
+from toolia.api.app import WEB_DIST, create_app
+from toolia.settings import Settings
 
 BROWSER = engines.detect_browser(Settings()).path
 pytestmark = pytest.mark.skipif(
@@ -302,7 +302,7 @@ def test_first_run_welcome_then_home(server, page):
     app.state.settings.welcome_done = False
     try:
         page.goto(base)
-        expect(page.get_by_role("heading", name="PDF Atölyesi'ne hoş geldin")).to_be_focused()
+        expect(page.get_by_role("heading", name="Toolia'ya hoş geldin")).to_be_focused()
         page.get_by_role("heading", name="Hazırlık").wait_for()
         assert page.locator(".dropzone").count() == 0  # önce tanıtım
         page.get_by_role("button", name="Başla").click()
@@ -354,7 +354,7 @@ def test_settings_are_editable_and_developer_info_is_advanced(server, page, tmp_
         page.get_by_text("Klasör bulunamadı").wait_for()
         assert s.vault_path == vault.resolve()
     finally:
-        from pdfatolye.settings import save_settings
+        from toolia.settings import save_settings
 
         save_settings(s, {"retention_hours": None, "vault_path": None, "default_theme": None,
                           "default_paper": None})
@@ -549,7 +549,7 @@ def test_render_error_shows_message_not_white_page(server, page):
     expect(page.get_by_role("link", name="Araçlar", exact=True)).to_be_visible()  # uygulama ayakta
     page.get_by_text("Hata kimliği").wait_for()
     eid = page.locator(".crash strong.mono").inner_text()
-    log = (app.state.settings.logs_dir / "pdfatolye.log").read_text(encoding="utf-8")
+    log = (app.state.settings.logs_dir / "toolia.log").read_text(encoding="utf-8")
     assert f"[{eid}] arayüz hatası" in log
     page.unroute("**/api/jobs?limit=30")
     page.get_by_role("link", name="Araçlar", exact=True).click()
@@ -574,7 +574,7 @@ def test_new_screens_fit_the_window(server, page, tmp_path, width):
     try:
         page.goto(f"{base}/#/araclar")
         page.reload()  # ayarlar açılışta okunur (yalnızca adres karması değişti)
-        page.get_by_role("heading", name="PDF Atölyesi'ne hoş geldin").wait_for()
+        page.get_by_role("heading", name="Toolia'ya hoş geldin").wait_for()
         assert _no_horizontal_overflow(page), "Tanıtım taşıyor"
     finally:
         app.state.settings.welcome_done = True
@@ -607,7 +607,7 @@ def test_restart_button_moves_window_to_new_port(browser, tmp_path, monkeypatch)
     kalıyordu.)"""
     from playwright.sync_api import expect
 
-    from pdfatolye import desktop
+    from toolia import desktop
 
     monkeypatch.setattr(desktop, "kill_children_on_exit", lambda: False)
     port, new_port = _free_port(), _free_port()
@@ -667,8 +667,8 @@ def test_phone_mode_asks_then_restarts_by_itself(browser, tmp_path, monkeypatch)
     başlatır ve Ayarlar'da QR kod görünür. Kapatınca yine yalnızca 127.0.0.1."""
     from playwright.sync_api import expect
 
-    from pdfatolye import cli, lan
-    from pdfatolye.settings import load_settings
+    from toolia import cli, lan
+    from toolia.settings import load_settings
 
     monkeypatch.setattr(lan, "lan_ips", lambda: ["192.168.1.10"])  # Wi-Fi'siz makinede de QR
     port = _free_port()
@@ -913,3 +913,61 @@ def test_markdown_user_snippet_save_then_insert(server, page, tmp_path):
     assert editor.input_value() == f"# Yeni not\n\nİlk paragraf.\n\n{snippet}\n"
     frame = page.frame_locator("iframe[title='Önizleme']")
     frame.locator(".callout", has_text="Önce kolay soruları çöz.").wait_for()
+
+
+# --- Biçim dönüştürme -----------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("width", [390, 1400])
+def test_convert_screen_mixed_images_to_jpg(server, page, tmp_path, width):
+    base, app = server
+    page.set_viewport_size({"width": width, "height": 900})
+    png = app.state.store.add_file(fx.transparent_png(tmp_path / "p.png"), "Logo şeffaf.png",
+                                   source="upload")
+    jpg = app.state.store.add_file(fx.photo_jpeg(tmp_path / "f.jpg"), "Fotoğraf.jpg",
+                                   source="upload")
+    page.goto(f"{base}/#/donustur?dosya={png.id},{jpg.id}")
+    page.get_by_text("Logo şeffaf.png").first.wait_for()
+    assert _no_horizontal_overflow(page), "Biçim Dönüştür taşıyor"
+    # Karışık seçimde ortak hedefler: kendi biçimleri dahil
+    for name in ("JPG", "PNG", "WEBP", "TIFF"):
+        page.get_by_role("button", name=name, exact=True).wait_for()
+    page.get_by_role("button", name="JPG", exact=True).click()
+    page.get_by_text("olduğu gibi alınır").wait_for()
+    page.get_by_role("button", name="2 dosyayı dönüştür").click()
+    page.get_by_text("Zaten JPG; olduğu gibi alındı.").first.wait_for()
+    page.get_by_role("link", name="İndir").nth(1).wait_for()
+    names = {f.name for f in app.state.store.list()}
+    assert {"Logo şeffaf.jpg", "Fotoğraf.jpg"} <= names
+
+
+def test_convert_screen_has_no_target_for_image_plus_sheet(server, page, tmp_path):
+    base, app = server
+    img = app.state.store.add_file(fx.transparent_png(tmp_path / "p.png"), "resim.png",
+                                   source="upload")
+    csv = tmp_path / "t.csv"
+    csv.write_text("a;b\n1;2\n", encoding="utf-8")
+    sheet = app.state.store.add_file(csv, "tablo.csv", source="upload")
+    page.goto(f"{base}/#/donustur?dosya={img.id},{sheet.id}")
+    page.get_by_text("tablo.csv").first.wait_for()
+    assert page.get_by_role("button", name="2 dosyayı dönüştür").is_disabled()
+
+
+def test_home_asks_pdf_or_convert_for_images(server, page, tmp_path):
+    base, app = server
+    photo = fx.photo_jpeg(tmp_path / "Tatil Fotoğrafı.jpg")
+    page.goto(base)
+    page.locator("input[type=file]").first.set_input_files(str(photo))
+    page.get_by_text("Ne yapmak istiyorsun?").wait_for()
+    assert "resimden" not in page.url, "seçim sorulmadan Resim → PDF'e gitti"
+    page.get_by_role("button", name="Başka biçime dönüştür").click()
+    page.wait_for_url("**/#/donustur?**")
+    page.get_by_text("Tatil Fotoğrafı.jpg").first.wait_for()
+    # Tek JPG: kendi biçimi hedeflerde yok
+    page.get_by_role("button", name="PNG", exact=True).wait_for()
+    assert page.get_by_role("button", name="JPG", exact=True).count() == 0
+
+    # Aynı dosya İşler ve dosyalar'dan da dönüştürülebilir; PDF'te düğme yok
+    page.goto(f"{base}/#/isler")
+    page.get_by_role("button", name="Tatil Fotoğrafı.jpg dönüştür").first.click()
+    page.wait_for_url("**/#/donustur?**")

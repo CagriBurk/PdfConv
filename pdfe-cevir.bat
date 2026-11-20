@@ -3,7 +3,7 @@ rem Sag tik > Gonder > "PDF'e cevir" kisayolu bunu cagirir (kurulum\kisayollar.p
 rem Dosyalari turune gore PDF'e cevirir; ciktilar dosyalarin yanina yazilir.
 setlocal
 cd /d "%~dp0"
-uv run python -m pdfatolye gonder %*
+uv run python -m toolia gonder %*
 if errorlevel 1 (
   echo.
   echo Bazi dosyalar cevrilemedi. Ayrinti yukarida.

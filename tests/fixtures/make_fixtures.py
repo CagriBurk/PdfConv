@@ -15,7 +15,7 @@ TURKISH = "Çağrı ığdır şöyle: ĞÜŞİÖÇ ğüşiöç ı İ"
 # Türkçe metin için gerçek bir TTF: Windows'ta Arial, yoksa (Linux) uygulamayla gelen Noto Sans.
 _WIN_FONT = Path("C:/Windows/Fonts/arial.ttf")
 if not _WIN_FONT.is_file():
-    _WIN_FONT = Path(__file__).resolve().parents[2] / "src" / "pdfatolye" / "assets" / "fonts" \
+    _WIN_FONT = Path(__file__).resolve().parents[2] / "src" / "toolia" / "assets" / "fonts" \
         / "NotoSans-Regular.ttf"
 _LABEL = re.compile(r"(?:Sayfa|Ek) \d+")
 
@@ -275,7 +275,7 @@ def broken(path: Path) -> Path:
 def text_full_font(path: Path, pages: int = 40) -> Path:
     """Yazı tipi alt kümeye indirilmeden (tam) gömülü, metin ağırlıklı PDF: bazı programlar böyle
     üretir; boyutun çoğu yazı tipidir."""
-    font = Path(__file__).resolve().parents[2] / "src" / "pdfatolye" / "assets" / "fonts" \
+    font = Path(__file__).resolve().parents[2] / "src" / "toolia" / "assets" / "fonts" \
         / "NotoSans-Regular.ttf"
     doc = pymupdf.open()
     words = ["imar", "planı", "yapı", "adası", "parsel", "ölçek", "kentsel", "dönüşüm",

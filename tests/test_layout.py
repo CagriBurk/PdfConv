@@ -12,14 +12,14 @@ from fastapi.testclient import TestClient
 from PIL import Image
 from pydantic import ValidationError
 
-from pdfatolye import engines, proc
-from pdfatolye.api import app as app_module
-from pdfatolye.core import layout
-from pdfatolye.core.paper import PT_PER_MM, size_pt
-from pdfatolye.errors import EncryptedPdfError, PageRangeError, PdfAtolyeError
-from pdfatolye.jobs.models import LayoutRequest
-from pdfatolye.settings import Settings
 from tests.fixtures import make_fixtures as fx
+from toolia import engines, proc
+from toolia.api import app as app_module
+from toolia.core import layout
+from toolia.core.paper import PT_PER_MM, size_pt
+from toolia.errors import EncryptedPdfError, PageRangeError, TooliaError
+from toolia.jobs.models import LayoutRequest
+from toolia.settings import Settings
 
 
 @pytest.fixture
@@ -208,7 +208,7 @@ def test_crop_manual_rotated_pages(tmp_path, rot):
 
 def test_crop_manual_rejects_excessive_margins(tmp_path):
     src = fx.numbered(tmp_path / "a.pdf", 1, with_toc=False)
-    with pytest.raises(PdfAtolyeError, match="sayfa boyutunu aşıyor"):
+    with pytest.raises(TooliaError, match="sayfa boyutunu aşıyor"):
         layout.crop_margins_pdf(
             src, tmp_path / "out.pdf", crop_mode="manual",
             crop_left_mm=120, crop_right_mm=120,

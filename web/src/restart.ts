@@ -13,7 +13,7 @@ async function reachable(url: string): Promise<boolean> {
   }
 }
 
-/** Uygulamayı (masaüstü ya da `pdfatolye serve`) yeni ayarlarla (port, telefon modu) yeniden
+/** Uygulamayı (masaüstü ya da `toolia serve`) yeni ayarlarla (port, telefon modu) yeniden
  * başlatır; pencere açık kalır. Yeni sunucu açılınca sayfa yeni adreste yeniden yüklenir. Sunucu
  * aynı porttaysa yeni örneğin açıldığı `instance` alanından anlaşılır (eski sunucu kapanmadan
  * önce yanıt verebilir). Port karşılaştırılır, köken değil: sayfa "localhost" ile açıldıysa eski

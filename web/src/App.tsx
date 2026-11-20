@@ -10,6 +10,7 @@ import Markdown from "./pages/Markdown";
 import Merge from "./pages/Merge";
 import Office from "./pages/Office";
 import Compress from "./pages/Compress";
+import Convert from "./pages/Convert";
 import Ocr from "./pages/Ocr";
 import Protect from "./pages/Protect";
 import { ImagesToPdf, PdfToImages } from "./pages/Images";
@@ -40,7 +41,7 @@ function titleFor(section: string): string {
   const nav = NAV.find((n) => n.route === section)?.label;
   const tool = TOOLS.find((t) => t.route === section)?.title;
   const name = nav ?? tool ?? (section === "araclar" ? "Araçlar" : null);
-  return name ? `${name} · PDF Atölyesi` : "PDF Atölyesi";
+  return name ? `${name} · Toolia` : "Toolia";
 }
 
 export default function App() {
@@ -166,6 +167,8 @@ export default function App() {
   else if (section === "resme") content = <PdfToImages route={route} />;
   else if (section === "word") content = <PdfToWord route={route} />;
   else if (section === "excel") content = <PdfToExcel route={route} />;
+  else if (section === "donustur")
+    content = <Convert route={route} engines={engines} onEnginesChanged={() => void loadEngines(true)} />;
   else if (section === "isler") content = <Jobs />;
   else if (section === "ayarlar")
     content = (

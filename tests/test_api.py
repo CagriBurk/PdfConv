@@ -5,10 +5,10 @@ import pymupdf
 import pytest
 from fastapi.testclient import TestClient
 
-from pdfatolye import engines
-from pdfatolye.api import app as app_module
-from pdfatolye.settings import Settings
 from tests.fixtures import make_fixtures as fx
+from toolia import engines
+from toolia.api import app as app_module
+from toolia.settings import Settings
 
 BROWSER = engines.detect_browser(Settings()).path
 
@@ -99,7 +99,7 @@ def test_unknown_api_path_is_404(client):
 
 def test_spa_does_not_serve_files_outside_dist(client):
     r = client.get("/..%2F..%2Fpyproject.toml")
-    assert "pdfatolye" not in r.text
+    assert "toolia" not in r.text
 
 
 # --- dosyalar ---------------------------------------------------------------------------
@@ -424,3 +424,55 @@ def test_ocr_job(client, tmp_path):
     out = job["files"][0]
     assert out["name"] == "tarama_ocr.pdf"
     assert client.get(f"/api/files/{out['id']}/info").json()["has_text"] is True
+
+
+# --- biçim dönüştürme ---------------------------------------------------------------------
+
+
+def test_convert_images_mixed_selection(client, tmp_path):
+    """JPG + PNG → JPG: PNG çevrilir (saydamlık doldurulur), JPG olduğu gibi alınır; uyarılar
+    dosya adıyla."""
+    files = upload(client, fx.photo_jpeg(tmp_path / "Fotoğraf Şubat.jpeg"),
+                   fx.transparent_png(tmp_path / "logo.png"))
+    job = run_job(client, {"type": "convert", "files": [f["id"] for f in files],
+                           "target": ".jpg", "quality": 80})
+    assert job["status"] == "bitti", job
+    assert [f["name"] for f in job["files"]] == ["Fotoğraf Şubat.jpg", "logo.jpg"]
+    assert "Fotoğraf Şubat.jpeg: Zaten JPG; olduğu gibi alındı." in job["warnings"]
+    assert any(w.startswith("logo.png: ") and "saydam" in w for w in job["warnings"])
+    for f in job["files"]:
+        data = client.get(f"/api/files/{f['id']}/download").content
+        assert data[:3] == b"\xff\xd8\xff"  # JPEG
+
+
+def test_convert_incompatible_file_does_not_stop_others(client, tmp_path):
+    img, pdf = upload(client, fx.transparent_png(tmp_path / "p.png"),
+                      fx.numbered(tmp_path / "belge.pdf", 1))
+    job = run_job(client, {"type": "convert", "files": [img["id"], pdf["id"]],
+                           "target": ".webp"})
+    assert job["status"] == "bitti", job
+    assert [f["name"] for f in job["files"]] == ["p.webp"]
+    assert "'belge.pdf' WEBP biçimine çevrilemez." in job["warnings"]
+
+    job = run_job(client, {"type": "convert", "files": [pdf["id"]], "target": ".png"})
+    assert job["status"] == "hata" and "belge.pdf" in job["error"]
+
+
+@pytest.mark.parametrize("target", [".exe", ".pdf", "png", ".JPG"])
+def test_convert_rejects_unknown_target(client, target):
+    r = client.post("/api/jobs", json={"type": "convert", "files": ["a" * 32], "target": target})
+    assert r.status_code == 422
+
+
+@pytest.mark.skipif(engines.detect_libreoffice(Settings()).path is None,
+                    reason="LibreOffice kurulu değil")
+def test_convert_office_job(client, tmp_path):
+    files = upload(client, fx.docx(tmp_path / "Ödev Raporu.docx", ["Çağrı ığdır şüphe"]),
+                   fx.docx(tmp_path / "ikinci.docx", ["İkinci belge"]))
+    job = run_job(client, {"type": "convert", "files": [f["id"] for f in files],
+                           "target": ".odt"})
+    assert job["status"] == "bitti", job
+    assert [f["name"] for f in job["files"]] == ["Ödev Raporu.odt", "ikinci.odt"]
+    data = client.get(f"/api/files/{job['files'][0]['id']}/download").content
+    with zipfile.ZipFile(io.BytesIO(data)) as z:
+        assert "Çağrı ığdır şüphe" in z.read("content.xml").decode("utf-8")

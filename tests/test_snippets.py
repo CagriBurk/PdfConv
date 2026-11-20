@@ -7,9 +7,9 @@ import os
 import pytest
 from fastapi.testclient import TestClient
 
-from pdfatolye import snippets
-from pdfatolye.api import app as app_module
-from pdfatolye.settings import Settings
+from toolia import snippets
+from toolia.api import app as app_module
+from toolia.settings import Settings
 
 URL = "/api/md/snippets"
 

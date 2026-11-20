@@ -1,8 +1,8 @@
-# PDF Atölyesi — Proje Planı
+# Toolia (eski adı PDF Atölyesi) — Proje Planı
 
 > Kendi bilgisayarında çalışan, kayıt / reklam / bekleme / dosya yükleme sınırı olmayan PDF araç seti.
 > Dosyalar hiçbir zaman internete çıkmaz.
-> Tarih: 2026-11-07 · Durum: Faz 0–7 tamamlandı (v1). Ürünleşme: Faz A, B, C ve D yapıldı, sıradaki Faz E (§10.1); kararlar §10.2
+> Tarih: 2026-11-20 · Durum: Faz 0–7 (v1), ürünleşme A–D, F, G–H ve I (biçim dönüştürme) tamamlandı; son sürüm 0.12.0 (§10.1); kararlar §10.2
 
 ---
 
@@ -15,7 +15,8 @@
 4. **İçerik ekleme**: yazı, resim, imza, vurgu, şekil, filigran, sayfa numarası, gerçek karartma (redaction).
 5. **Sıkıştırma ve resim**: PDF küçültme, resim → PDF, PDF → resim.
 6. **OCR ve güvenlik**: taranmış PDF'i aranabilir yapma (Türkçe + İngilizce), şifre koyma/kaldırma, meta veri temizleme, bozuk PDF onarma.
-7. **Tek tıkla açılış**: `baslat.bat` → tarayıcıda `http://127.0.0.1:8790` açılır.
+7. **Biçim dönüştürme** (Faz I, 0.12.0): resim ↔ resim (JPG/PNG/WEBP/TIFF; HEIC kaynak) ve Office ↔ Office (aynı aile: Word / tablo / sunum). Bilinçli olarak dar: ses/video, e-kitap, arşiv, nadir biçimler yok.
+8. **Tek tıkla açılış**: `baslat.bat` → tarayıcıda `http://127.0.0.1:8790` açılır.
 
 ### 1.2 Tasarım ilkeleri
 - **Çevrimdışı**: tüm kütüphaneler, fontlar, KaTeX dahil her şey yerelde. İnternet gerekmez.
@@ -513,6 +514,9 @@ Boyut: **K** küçük · **O** orta · **B** büyük. Her faz sonunda çalışan
 - **Faz E — Yayın**: gizlilik metni, CHANGELOG, sürümleme (1.0.0), GitHub Releases, tanıtım sayfası. (LICENSE Faz D'de eklendi.)
 - **Faz F — PDF'ten Office'e ve büyük kağıt** ✅: PDF → Word (`convert/to_word.py`, pdf2docx; sayfa sayfa ilerleme ve iptal), PDF → Excel (`convert/to_excel.py`, PyMuPDF `find_tables` + openpyxl; çizgisiz tablo, sayfalara bölünmüş tabloyu birleştirme, TR/EN sayı biçimi, "=..." hücresi yazı), kağıt boyutları tek kaynak `core/paper.py` (A0–A5, Letter, Legal; arayüz `tools.ts` PAPERS, test denetler), PDF → Resim sınırı A0 @ 300 DPI.
 
+- **Faz I — Biçim dönüştürme** ✅ (0.12.0): tek iş türü `convert`; hedef tablosu tek kaynak `formats.py` (`family_targets`, `convert_targets`, `same_format`; arayüz kopyası `tools.ts`, test denetler). Resim: `convert/image_format.py` (Pillow; EXIF yönü, saydamlık → arka plan rengi, CMYK/16 bit, çok karelide ilk kare + uyarı, ICC/DPI korunur). Office: `convert/office.py` `convert_office_format` (LibreOffice; CSV `;` + UTF-8 BOM, CSV girdisinde ayraç/kodlama sezme, parolalı belge önceden yakalanır, makro kaybı uyarısı). Karışık seçimde zaten hedef biçimdeki dosya olduğu gibi alınır. Giriş noktaları: "Biçim Dönüştür" ekranı, ana sayfada PDF/dönüştür seçimi, İşler'de "Dönüştür…", CLI `donustur`, Gönder → "JPG'ye çevir". Bilinen sınır: CSV'deki ondalık ayırıcı LibreOffice'in yerel ayarından gelir.
+- **Yeniden adlandırma** (0.12.0): PDF Atölyesi → **Toolia**. Python paketi `toolia` (`python -m toolia`), hata sınıfı `TooliaError`, ortam değişkenleri `TOOLIA_*`, veri klasörü `%LOCALAPPDATA%\Toolia` (açılışta `PdfAtolye` yeniden adlandırılarak taşınır: `settings.migrate_on_startup`, açık ayar dosyasıyla çalışan testler gerçek veriye dokunmaz; taşınamazsa eski klasörle devam), kurulum `Programs\Toolia` (eski `PdfAtolyesi` kurulumu, işaret dosyası varsa, kaldırma kaydıyla birlikte silinir; eski kısayollar da). Bu belgedeki eski yollar (`src/pdfatolye/...`, `PdfAtolye`) geçmiş kaydıdır; bugünkü karşılıkları `src/toolia/...`, `Toolia`.
+
 ### 10.2 Kullanıcı kararı bekleyenler
 
 Bu kararlar verilene kadar yapılan, maddede yazılı; hiçbiri ücretli bir şey satın almayı ya da hesap açmayı gerektirmeden ilerlemeyi durdurmaz.
@@ -524,9 +528,9 @@ Bu kararlar verilene kadar yapılan, maddede yazılı; hiçbiri ücretli bir şe
    - *d) Microsoft Store (MSIX)*: Store imzalar; geliştirici hesabı ve paketleme işi gerekir.
    - **Karar (2026-11-07): a) imzasız devam.** Dağıtım genişlerse yeniden bakılır.
 2. **Lisans** — **Karar (2026-11-07): AGPL-3.0.** `LICENSE` eklendi, `pyproject.toml`'da `AGPL-3.0-only`, pakette `LICENSE.txt`. ("or-later" istenirse yalnızca SPDX ifadesi değişir.)
-3. **Yayın (GitHub Releases)**: son sürüm **0.11.0** (Faz G–H: yeni arayüz, Sayfa Düzeni ve Yazdırma, Markdown şablonları, telefon modunun kendiliğinden yeniden başlaması). Önceki: 0.10.0 (PDF → Word / Excel, A0), 0.9.1 (arkadaş denemesi sonrası). Her sürümde etiket (`vX.Y.Z`) gönderilir, değişiklikler `CHANGELOG.md`'de; Release'i oluşturup `build/PdfAtolyesi-X.Y.Z.zip`'i yüklemek depo sahibinin tarayıcıdan yapacağı iş (kimlik bilgisi gerektirir). Release taslak ya da ön sürüm (pre-release) olmamalı: "Güncellemeleri denetle" `releases/latest`'e sorar, o ikisini görmez. İstenirse CI'a etiketle tetiklenen bir yayın işi eklenebilir (motorsuz paket CI'da üretilebiliyor; OCR'lı tam paket için Tesseract/Ghostscript'in CI'da kurulması gerekir).
+3. **Yayın (GitHub Releases)**: son sürüm **0.12.0** (Faz I: biçim dönüştürme, Gönder → JPG'ye çevir). Önceki: 0.11.0 (Faz G–H: yeni arayüz, Sayfa Düzeni ve Yazdırma, Markdown şablonları), 0.10.0 (PDF → Word / Excel, A0), 0.9.1 (arkadaş denemesi sonrası). Her sürümde etiket (`vX.Y.Z`) gönderilir, değişiklikler `CHANGELOG.md`'de; Release'i oluşturup `build/Toolia-X.Y.Z.zip`'i yüklemek depo sahibinin tarayıcıdan yapacağı iş (kimlik bilgisi gerektirir). Release taslak ya da ön sürüm (pre-release) olmamalı: "Güncellemeleri denetle" `releases/latest`'e sorar, o ikisini görmez. İstenirse CI'a etiketle tetiklenen bir yayın işi eklenebilir (motorsuz paket CI'da üretilebiliyor; OCR'lı tam paket için Tesseract/Ghostscript'in CI'da kurulması gerekir).
 4. **Ghostscript'i pakette tutmak** (+~40 MB, AGPL): şu an pakette (OCR ve güçlü sıkıştırma için). Alternatif: çıkarıp OCR'ı Ghostscript'siz yapılandırmak (OCRmyPDF sürümüne bağlı, denenmedi).
-5. **1.0.0 sürüm numarası**: şimdilik 0.11.0. 1.0.0'ı arkadaş denemesi sorunsuz geçtikten sonra vermeni öneririm.
+5. **1.0.0 sürüm numarası**: şimdilik 0.12.0. 1.0.0'ı arkadaş denemesi sorunsuz geçtikten sonra vermeni öneririm.
 
 ### Sonraki sürüm adayları
 Form doldurma (AcroForm alanları), iki PDF'i karşılaştırma, not gömme (`![[Not]]`), Pandoc/LaTeX alternatif MD motoru, PDF/A doğrulama, İngilizce arayüz.

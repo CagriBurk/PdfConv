@@ -44,7 +44,7 @@ const PDF_ROUTES = new Set([
   "excel",
 ]);
 
-const NON_PDF_ROUTES = new Set(["md", "office", "resimden"]);
+const NON_PDF_ROUTES = new Set(["md", "office", "resimden", "donustur"]);
 
 const QUICK_ACTIONS = [
   { id: "nav-home", title: "Ana Sayfa", subtitle: "Tüm araçlar ve dosya bırakma alanı", route: "araclar", group: "Gezinme", icon: House },

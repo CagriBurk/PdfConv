@@ -3,10 +3,10 @@ from pathlib import Path
 import pymupdf
 import pytest
 
-from pdfatolye.core import pages
-from pdfatolye.core.pages import BlankPage, PageRef, compose
-from pdfatolye.errors import EncryptedPdfError, PageRangeError
 from tests.fixtures import make_fixtures as fx
+from toolia.core import pages
+from toolia.core.pages import BlankPage, PageRef, compose
+from toolia.errors import EncryptedPdfError, PageRangeError
 
 
 @pytest.fixture

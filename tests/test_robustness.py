@@ -19,19 +19,19 @@ import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 
-from pdfatolye import engines, proc
-from pdfatolye.api import app as app_module
-from pdfatolye.api import limits
-from pdfatolye.core import images, pages
-from pdfatolye.core.pdfio import safe_name_with_ext, split_ext
-from pdfatolye.core.textio import decode_text
-from pdfatolye.errors import ImageTooLargeError, PdfAtolyeError
-from pdfatolye.formats import KINDS
-from pdfatolye.jobs import manager as manager_module
-from pdfatolye.jobs import workers
-from pdfatolye.settings import PROJECT_ROOT, Settings
-from pdfatolye.storage import FileStore
 from tests.fixtures import make_fixtures as fx
+from toolia import engines, proc
+from toolia.api import app as app_module
+from toolia.api import limits
+from toolia.core import images, pages
+from toolia.core.pdfio import safe_name_with_ext, split_ext
+from toolia.core.textio import decode_text
+from toolia.errors import ImageTooLargeError, TooliaError
+from toolia.formats import KINDS
+from toolia.jobs import manager as manager_module
+from toolia.jobs import workers
+from toolia.settings import PROJECT_ROOT, Settings
+from toolia.storage import FileStore
 
 BROWSER = engines.detect_browser(Settings()).path
 needs_browser = pytest.mark.skipif(not BROWSER, reason="Edge/Chrome yok")
@@ -125,7 +125,7 @@ def test_corrupt_meta_is_skipped_and_logged(client, tmp_path, garbage):
     assert client.get(f"/api/files/{bad['id']}").status_code == 404
     assert store.cleanup(0) == 1  # iyi dosya silinir, bozuk kayıt patlatmaz ve kalır
     assert (store.root / bad["id"]).is_dir()
-    log = (client.app.state.settings.logs_dir / "pdfatolye.log").read_text(encoding="utf-8")
+    log = (client.app.state.settings.logs_dir / "toolia.log").read_text(encoding="utf-8")
     assert "Bozuk dosya kaydı atlandı" in log and bad["id"] in log
 
 
@@ -280,8 +280,41 @@ def test_ui_accept_lists_match_store_kinds():
     for key, exts in lists.items():
         for ext in exts:
             assert KINDS.get(ext) in expected[key], f"ACCEPT.{key}: {ext} → {KINDS.get(ext)}"
-    from pdfatolye.formats import OFFICE_EXTS
+    from toolia.formats import OFFICE_EXTS
     assert set(lists["office"]) >= OFFICE_EXTS, "arayüz bir Office türünü kabul etmiyor"
+
+
+def test_ui_convert_targets_match_formats():
+    """Biçim Dönüştür: tools.ts CONVERT_TARGETS / CONVERT_SAME, formats.py tablolarının aynısı."""
+    from toolia import formats
+
+    src = (PROJECT_ROOT / "web" / "src" / "tools.ts").read_text(encoding="utf-8")
+    block = src[src.index("export const CONVERT_TARGETS"):]
+    block = block[:block.index("};")]
+    def exts(s: str) -> list[str]:
+        return re.findall(r"\"(\.[a-z0-9]+)\"", s)
+
+    ui = {k: (exts(s), exts(t)) for k, s, t in re.findall(
+        r"(\w+): \{\s*sources: \[([^\]]*)\],\s*targets: \[([^\]]*)\]\s*\}", block)}
+    py = {"image": (formats.RASTER_IMAGE_EXTS, formats.IMAGE_CONVERT_TARGETS),
+          **formats.OFFICE_CONVERT_FAMILIES}
+    assert set(ui) == set(py)
+    for fam, (sources, targets) in py.items():
+        assert len(ui[fam][0]) == len(set(ui[fam][0])) and set(ui[fam][0]) == set(sources), fam
+        assert tuple(ui[fam][1]) == tuple(targets), fam  # sıra da aynı (düğme sırası)
+    same_block = src[src.index("const CONVERT_SAME"):]
+    same = dict(re.findall(r"\"(\.[a-z0-9]+)\": \"(\.[a-z0-9]+)\"",
+                           same_block[:same_block.index("};")]))
+    assert same == formats._SAME
+    # arayüzün hesabı (familyTargets / sameFormat / convertTargets) her kaynak için sunucununkiyle
+    # aynı sonucu verir
+    for sources, targets in ui.values():
+        for ext in sources:
+            assert same.get(ext, ext) == formats.same_format(ext), ext
+            assert tuple(targets) == formats.family_targets(ext), ext
+            mine = tuple(t for t in targets if t != same.get(ext, ext))
+            assert mine == formats.convert_targets(ext), ext
+    assert formats.family_targets(".svg") == () and formats.family_targets(".txt") == ()
 
 
 @pytest.mark.parametrize("name", ["tablo.csv", "makro.docm", "hesap.xlsm", "sunum.pptm"])
@@ -435,7 +468,7 @@ def test_shutdown_kills_child_processes(settings):
 
 
 def test_ocr_exit_wait_timeout_is_friendly(monkeypatch):
-    from pdfatolye.core import ocr
+    from toolia.core import ocr
 
     class Stuck:
         stderr = iter([])  # çıktı bitti ama süreç kapanmıyor
@@ -539,7 +572,7 @@ LOOP_HTML = ("<!doctype html><meta charset=utf-8><p>Döngü</p>"
 
 
 def _marked_browsers() -> list[int]:
-    from pdfatolye.convert.browser import MARKER_FLAG
+    from toolia.convert.browser import MARKER_FLAG
 
     out = []
     for p in psutil.process_iter(["cmdline"]):
@@ -553,13 +586,13 @@ def _marked_browsers() -> list[int]:
 
 @needs_browser
 def test_infinite_loop_html_times_out(tmp_path, monkeypatch):
-    from pdfatolye.convert import html
+    from toolia.convert import html
 
     monkeypatch.setattr(html, "PRINT_TIMEOUT_S", 6)
     src = tmp_path / "dongu.html"
     src.write_text(LOOP_HTML, encoding="utf-8")
     t0 = time.monotonic()
-    with pytest.raises(PdfAtolyeError, match="basılamadı"):
+    with pytest.raises(TooliaError, match="basılamadı"):
         html.print_html(src, tmp_path / "o.pdf", browser_path=BROWSER, confine=True)
     assert time.monotonic() - t0 < 40
     assert wait_until(lambda: not _marked_browsers(), 10), "başsız tarayıcı arkada kaldı"
@@ -567,7 +600,7 @@ def test_infinite_loop_html_times_out(tmp_path, monkeypatch):
 
 @needs_browser
 def test_html_print_job_cancel_kills_browser(client, monkeypatch):
-    from pdfatolye.convert import html
+    from toolia.convert import html
 
     monkeypatch.setattr(html, "PRINT_TIMEOUT_S", 120)
     meta = upload(client, LOOP_HTML.encode("utf-8"), "dongu.html")
@@ -616,7 +649,7 @@ def test_disk_full_during_store_write_is_friendly(client, monkeypatch, tmp_path)
 
     store = client.app.state.store
     monkeypatch.setattr(shutil_module, "copyfile", full)
-    with pytest.raises(PdfAtolyeError, match="Diskte yer kalmadı"):
+    with pytest.raises(TooliaError, match="Diskte yer kalmadı"):
         store.add_file(fx.numbered(tmp_path / "a.pdf", 1, with_toc=False), "a.pdf")
     assert store.list() == []
 

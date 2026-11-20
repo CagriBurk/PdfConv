@@ -1,6 +1,6 @@
 [project]
-name = "pdfatolye"
-version = "0.11.0"
+name = "toolia"
+version = "0.12.0"
 description = "Yerel, çevrimdışı PDF araç seti"
 readme = "README.md"
 license = "AGPL-3.0-only"
@@ -29,7 +29,7 @@ dependencies = [
 ]
 
 [project.scripts]
-pdfatolye = "pdfatolye.cli:app"
+toolia = "toolia.cli:app"
 
 [dependency-groups]
 dev = [
@@ -43,7 +43,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/pdfatolye"]
+packages = ["src/toolia"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -99,7 +99,7 @@ export default function TopBar({ section, lan, onSearch }: Props) {
       <div className="topbar-inner">
         <a className="brand" href="#/araclar">
           <BrandMark />
-          PDF Atölyesi
+          Toolia
         </a>
         <nav aria-label="Ana menü" className="nav-tray">
           <span className={`nav-split${inTools ? " on" : ""}`}>

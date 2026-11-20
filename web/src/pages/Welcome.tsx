@@ -33,7 +33,7 @@ export default function Welcome({ engines, onRefresh, onDone }: Props) {
           <path d="M13 16h6M13 19h4" className="brand-line" strokeWidth="1.6" strokeLinecap="round" />
         </svg>
         <h1 id="hosgeldin" ref={heading} tabIndex={-1}>
-          PDF Atölyesi'ne hoş geldin
+          Toolia'ya hoş geldin
         </h1>
         <p className="lead">
           PDF birleştirme, sayfa düzenleme, imza ve yazı ekleme, sıkıştırma, OCR, Word/Markdown → PDF: hepsi bu bilgisayarda,

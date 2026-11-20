@@ -7,11 +7,11 @@ import psutil
 import pymupdf
 import pytest
 
-from pdfatolye import engines
-from pdfatolye.convert import office
-from pdfatolye.convert.html import print_html, print_text
-from pdfatolye.settings import Settings
 from tests.fixtures import make_fixtures as fx
+from toolia import engines
+from toolia.convert import office
+from toolia.convert.html import print_html, print_text
+from toolia.settings import Settings
 
 SOFFICE = engines.detect_libreoffice(Settings()).path
 BROWSER = engines.detect_browser(Settings()).path

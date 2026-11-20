@@ -383,7 +383,7 @@ function PhoneModeDialog({
         {enable ? (
           <>
             <p>
-              Aynı Wi-Fi'deki telefon ve tabletler, bu bilgisayarda gösterilen QR kodu okutarak PDF Atölyesi'ni
+              Aynı Wi-Fi'deki telefon ve tabletler, bu bilgisayarda gösterilen QR kodu okutarak Toolia'yı
               kullanabilir.
             </p>
             <p>
@@ -492,7 +492,7 @@ function PhoneMode({ settings, onSettings }: { settings: SettingsResponse; onSet
             else setAsking(next);
           }}
         />
-        Aynı Wi-Fi'deki telefon ve tabletler bu bilgisayardaki PDF Atölyesi'ni kullanabilsin
+        Aynı Wi-Fi'deki telefon ve tabletler bu bilgisayardaki Toolia'yı kullanabilsin
       </label>
       <p className="muted small">
         Açıkken uygulama yerel ağdan da erişilebilir; yalnızca burada gösterilen QR kodu okutan cihazlar bağlanır.
@@ -532,7 +532,7 @@ function VersionInfo({ data }: { data: EnginesResponse }) {
         </button>
       </div>
       <p>
-        PDF Atölyesi <strong>{data.version}</strong>
+        Toolia <strong>{data.version}</strong>
         {data.installed ? " (masaüstü kurulumu)" : " (geliştirme)"}
       </p>
       <p className="muted small">

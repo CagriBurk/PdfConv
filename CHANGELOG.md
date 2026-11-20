@@ -1,5 +1,41 @@
 # Değişiklikler
 
+## 0.12.0 — 2026-11-20
+
+PDF'in yanında artık biçim dönüştürme: fotoğraflar ve Office belgeleri. Uygulamanın yeni adı **Toolia** (eski adı PDF Atölyesi).
+
+**Kurulum ve güncelleme**: yeni paketi indirip ayıkla, **Kur**'a çift tıkla. Eski sürümü
+kaldırmaya gerek yok; belgelerin, imzaların ve ayarların korunur. Kurarken uygulama
+penceresi kapalı olmalı. Masaüstündeki "PDF Atölyesi" simgesi "Toolia" olur (eskisi
+kendiliğinden silinir).
+Eski "PDF Atölyesi" kurulumu kendiliğinden kaldırılır; belgelerin, imzaların, şablonların
+ve ayarların ilk açılışta yeni klasöre (`%LOCALAPPDATA%\Toolia`) taşınır.
+
+### Yeni araç: Biçim Dönüştür
+- **Resimler**: JPG, PNG, WEBP, HEIC (iPhone), GIF, TIFF, BMP → JPG, PNG, WEBP ya da TIFF.
+  Telefon fotoğrafları doğru yönde çıkar; saydam resim JPG'e giderken saydam yerler seçtiğin
+  renkle (varsayılan beyaz) dolar; JPG/WEBP'te kalite ayarlanır. Hareketli GIF'in yalnız ilk
+  karesi alınır (söylenir).
+- **Office belgeleri** (LibreOffice ile, aynı tür içinde): Word ↔ DOCX, ODT, RTF, TXT; Excel ↔
+  XLSX, ODS, CSV; PowerPoint ↔ PPTX, ODP. Eski `.doc`, `.xls`, `.ppt` dosyalarını yeni biçime
+  çevirmek de bununla olur.
+- CSV, Türkçe Excel'de çift tıklayınca doğru açılır (`;` ayraç, ğ/ş/ı bozulmaz). Birden çok
+  sayfalı kitaptan CSV'ye yalnız ilk sayfa gider; bu söylenir.
+- Parolalı bir Office belgesi beklemeden "parola korumalı" hatası verir.
+- Birden çok dosya birlikte çevrilir; biri bozuksa diğerleri yine çevrilir.
+
+### Yeni yollar
+- Ana sayfaya resim ya da Office belgesi bırakınca "PDF'e çevir" ya da "Başka biçime
+  dönüştür" diye sorulur.
+- İşler ve dosyalar'da uygun her dosyada **Dönüştür…** düğmesi.
+- Sağ tık → Gönder → **JPG'ye çevir**: HEIC/PNG/WEBP fotoğrafları uygulamayı açmadan JPG
+  yapar, dosyanın yanına yazar.
+
+### Düzeltmeler
+- Sayfa aralığı yazarken: "1 3" artık sessizce 13. sayfa olmuyor, hata veriyor; tek başına
+  "-" hata; "HEPSİ" ve "tümü" her yazılışta tanınıyor; çok büyük sayılar ve "²" gibi
+  karakterler çökme yerine anlaşılır hata veriyor.
+
 ## 0.11.0 — 2026-11-17
 
 Yeni görünüm, yeni araç (Sayfa Düzeni ve Yazdırma), Markdown şablonları ve telefon modunun
