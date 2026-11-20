@@ -1,5 +1,7 @@
 # PDF Atölyesi — Kapsamlı Kod İncelemesi, Hata Analizi ve Geliştirme Planı (v0.10.0)
 
+> **Durum (2026-11-21): tarihî kayıt.** Bu inceleme 0.10.0 içindir. Kritik ve orta öncelikli maddelerin çoğu ile önerilen Faz G1–G3 işleri 0.11.0'da (Faz G0–G5) yapıldı; proje sonra **Toolia** adını aldı (0.12.0) ve kod yolları `src/pdfatolye/...` → `src/toolia/...` oldu. Güncel durum ve kararlar: `PLAN.md` (§10.1, §10.2), değişiklikler: `CHANGELOG.md`.
+
 > **İnceleme Tarihi:** 2026-11-13  
 > **İncelenen Sürüm:** `0.10.0` (`pyproject.toml`, `SONRAKI_OTURUM.md`, `PLAN.md`)  
 > **Kapsam:** `src/pdfatolye/` (core, convert, api, jobs, cli, desktop, kurulum), `web/src/` (React + TS + Konva + pdf.js), `paket/`, `kurulum/`, `tests/` ve `.github/workflows/ci.yml`  
