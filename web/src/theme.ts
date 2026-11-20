@@ -18,10 +18,24 @@ export function storedTheme(): Theme | null {
   }
 }
 
+// Üst çubuğun zemini (`--surface`); index.html'deki theme-color etiketleriyle aynı.
+const BAR_COLOR: Record<Theme, string> = { light: "#ffffff", dark: "#161a22" };
+
+/** Pencerenin başlık çubuğu (Edge uygulama penceresi `theme-color`'ı kullanır) uygulamada seçilen
+ * temayı izlesin: yoksa Windows açık temadayken koyu sayfanın üstünde beyaz bir şerit kalıyordu.
+ * Seçim yoksa iki etiket sistem temasına göre (media sorgusu) kendi rengini alır. */
+export function syncThemeColor(theme: Theme | null): void {
+  document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]').forEach((meta) => {
+    const scheme: Theme = (meta.getAttribute("media") ?? "").includes("dark") ? "dark" : "light";
+    meta.content = BAR_COLOR[theme ?? scheme];
+  });
+}
+
 export function applyTheme(theme: Theme | null): void {
   const root = document.documentElement;
   if (theme) root.dataset.theme = theme;
   else delete root.dataset.theme;
+  syncThemeColor(theme);
 }
 
 export function currentTheme(): Theme {

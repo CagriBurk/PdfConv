@@ -1,5 +1,15 @@
 # Değişiklikler
 
+## 0.12.2 — 2026-11-21
+
+- **Masaüstü simgesi artık değişiyor**: 0.12.1'i kurunca masaüstünde eski turuncu "PDF" simgesi
+  kalıyordu (Windows simgeyi dosya yoluna göre önbelleğe alıyor, yol aynıydı). Simge dosyasının
+  adı artık sürümü taşıyor ve kurulum Windows'un simge önbelleğini yeniliyor.
+- **Görev çubuğu simgesi keskin**: bulanık görünüyordu; artık her boyut için ayrı çizilmiş simge
+  kullanılıyor.
+- **Pencerenin başlık çubuğu temayı izliyor**: uygulamada koyu temayı seçince başlık çubuğu da
+  koyu oluyor (önce Windows açık temadaysa koyu sayfanın üstünde beyaz bir şerit kalıyordu).
+
 ## 0.12.1 — 2026-11-21
 
 - **Yeni simge**: turuncu "PDF" simgesinin yerine Toolia'nın kelebeği (masaüstü, Başlat, Gönder

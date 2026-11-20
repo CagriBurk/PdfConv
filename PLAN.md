@@ -2,7 +2,7 @@
 
 > Kendi bilgisayarında çalışan, kayıt / reklam / bekleme / dosya yükleme sınırı olmayan PDF araç seti.
 > Dosyalar hiçbir zaman internete çıkmaz.
-> Tarih: 2026-11-21 · Durum: Faz 0–7 (v1), ürünleşme A–D, F, G–H ve I (biçim dönüştürme, yeni ad Toolia) tamamlandı; son sürüm 0.12.1 (§10.1); kararlar §10.2
+> Tarih: 2026-11-21 · Durum: Faz 0–7 (v1), ürünleşme A–D, F, G–H ve I (biçim dönüştürme, yeni ad Toolia) tamamlandı; son sürüm 0.12.2 (§10.1); kararlar §10.2
 
 ---
 
@@ -427,6 +427,9 @@ Tarayıcıda açık başka bir web sitesi, `localhost`'taki sunucuna istek atmay
 | 86 | PyMuPDF 2.0 kullanılmayan yapay zekâ düzen modülünü onnxruntime/networkx/protobuf ile getiriyor (~100 MB); OpenCV de video DLL'i (30 MB) | Pakette `derle.PRUNE` ile çıkarılır; `smoke_test` gittiklerini ve Word/Excel/OpenCV/HEIC'in çalıştığını denetler |
 | 87 | `importlib.util.find_spec("google.protobuf")` üst paket (`google`) yoksa `None` değil hata fırlatır | Budama denetimi üst düzey adlara bakar (`google`) |
 | 88 | Kullanıcı taslak Release'i hızlıca yayımlıyor: taslağı güncelleme betiği yayımlanmış 0.12.0'a dokunacaktı (betik `draft` denetimiyle durdu) | Dokunmadan önce `draft` denetlenir; yayımlanmış Release ve gönderilmiş etiket değiştirilmez, düzeltme yeni yama sürümüyle |
+| 89 | 0.12.1'i kurunca masaüstü kısayolu eski "PDF" simgesini gösterdi: dosya yeni ama yolu (`simgeler\toolia.ico`) aynıydı, Windows simgeleri yola göre önbelleğe alır | Simge adı sürümü taşır (`toolia-<sürüm>.ico`, `kurulum.icon_path`); kurulum `ie4uinit.exe -show` ile önbelleği yeniler |
+| 90 | Görev çubuğu simgesi bulanıktı: Edge uygulama penceresi simgeyi sayfanın favicon'undan alıyor, SVG favicon'u 16 px'te çizip büyütüyor | Favicon PNG, 16/32/48/256 px (`web/public/simge-*.png`, `paket/simge.py`, testli) |
+| 91 | Pencerenin başlık çubuğu `theme-color`'ı `prefers-color-scheme`'e (Windows teması) göre alıyordu; uygulamada koyu tema seçilince beyaz şerit kalıyordu. Edge `--app` penceresinde başlık çubuğu kaldırılamaz (yalnız yüklenmiş PWA'da Window Controls Overlay) | `theme.syncThemeColor` + `tema.js`: etiketler seçilen temanın rengine çekilir; jsdom'da `meta.media` yok, `getAttribute("media")` |
 
 **Faz D3 notları (Linux)**: Masaüstü paketi yalnızca Windows; Linux'ta kaynak koddan çalışır ve CI'da `linux` işi (ubuntu-latest; LibreOffice, Tesseract + Türkçe, Ghostscript apt ile; tarayıcı Google Chrome) bütün testleri koşar. Tarayıcı Linux'ta PATH'te aranır (Edge, Chrome, Chromium); kurulum ipuçları platforma göre (apt); Windows'a özgü düğmeler (Klasör seç, Klasörde göster, LibreOffice'i kur) yalnızca Windows'ta. Testler platformdan bağımsız: Arial yoksa fixture'lar Noto kullanır, Windows'a özgü testler atlanır. İlk Linux koşusunda düşen 10+ testin hepsi test varsayımıydı, bir tanesi gerçek uyumsuzluk (tuzak #74).
 
@@ -537,9 +540,9 @@ Bu kararlar verilene kadar yapılan, maddede yazılı; hiçbiri ücretli bir şe
    - **Karar (2026-11-07): a) imzasız devam.** Dağıtım genişlerse yeniden bakılır.
    - **.exe kurucu (2026-11-21): şimdilik yok.** İmzasız .exe SAC'ta engellenir (tuzak #52), durumu kötüleştirir. İmza alınırsa: Inno Setup + CI ~1 gün, tahmini boyut 210–240 MB; önce Azure Trusted Signing'in Türkiye'den bireysel alınabildiği doğrulanmalı.
 2. **Lisans** — **Karar (2026-11-07): AGPL-3.0.** `LICENSE` eklendi, `pyproject.toml`'da `AGPL-3.0-only`, pakette `LICENSE.txt`. ("or-later" istenirse yalnızca SPDX ifadesi değişir.)
-3. **Yayın (GitHub Releases)**: son sürüm **0.12.1** (kelebek simgesi; tek kaynak `paket/simge.py`). Önceki: 0.12.0 (Faz I: biçim dönüştürme, Gönder → JPG'ye çevir, yeni ad Toolia), 0.11.0 (Faz G–H: yeni arayüz, Sayfa Düzeni ve Yazdırma, Markdown şablonları), 0.10.0 (PDF → Word / Excel, A0), 0.9.1 (arkadaş denemesi sonrası). Her sürümde etiket (`vX.Y.Z`) gönderilir, değişiklikler `CHANGELOG.md`'de; Release taslağını (başlık, açıklama, zip) Claude REST API ile oluşturur, depo sahibi sitede "Publish" der (0.12.0'dan beri). Release taslak ya da ön sürüm (pre-release) olmamalı: "Güncellemeleri denetle" `releases/latest`'e sorar, o ikisini görmez. İstenirse CI'a etiketle tetiklenen bir yayın işi eklenebilir (motorsuz paket CI'da üretilebiliyor; OCR'lı tam paket için Tesseract/Ghostscript'in CI'da kurulması gerekir).
+3. **Yayın (GitHub Releases)**: son sürüm **0.12.2** (masaüstü simge önbelleği, keskin görev çubuğu simgesi, başlık çubuğu temayı izler). Önceki: 0.12.1 (kelebek simgesi; tek kaynak `paket/simge.py`, küçülen paket), 0.12.0 (Faz I: biçim dönüştürme, Gönder → JPG'ye çevir, yeni ad Toolia), 0.11.0 (Faz G–H: yeni arayüz, Sayfa Düzeni ve Yazdırma, Markdown şablonları), 0.10.0 (PDF → Word / Excel, A0), 0.9.1 (arkadaş denemesi sonrası). Her sürümde etiket (`vX.Y.Z`) gönderilir, değişiklikler `CHANGELOG.md`'de; Release taslağını (başlık, açıklama, zip) Claude REST API ile oluşturur, depo sahibi sitede "Publish" der (0.12.0'dan beri). Release taslak ya da ön sürüm (pre-release) olmamalı: "Güncellemeleri denetle" `releases/latest`'e sorar, o ikisini görmez. İstenirse CI'a etiketle tetiklenen bir yayın işi eklenebilir (motorsuz paket CI'da üretilebiliyor; OCR'lı tam paket için Tesseract/Ghostscript'in CI'da kurulması gerekir).
 4. **Ghostscript'i pakette tutmak** (+~40 MB, AGPL): şu an pakette (OCR ve güçlü sıkıştırma için). Alternatif: çıkarıp OCR'ı Ghostscript'siz yapılandırmak (OCRmyPDF sürümüne bağlı, denenmedi).
-5. **1.0.0 sürüm numarası**: şimdilik 0.12.1. 1.0.0'ı arkadaş denemesi sorunsuz geçtikten sonra vermeni öneririm.
+5. **1.0.0 sürüm numarası**: şimdilik 0.12.2. 1.0.0'ı arkadaş denemesi sorunsuz geçtikten sonra vermeni öneririm.
 6. **Paket boyutu** — **Karar (2026-11-21): yalnız budama** (`derle.PRUNE`, ~135 MB). Reddedilenler: ağır motorları (OCR ~190 MB, PDF → Word ~160 MB) isteğe bağlı indirmek (2–3 gün; "internetsiz çalışır" vaadine aykırı, yeni hata türleri) ve Playwright'ı söküp Edge'i doğrudan sürmek (90 MB; 3–4 gün, yazdırmadaki ağ yalıtımı ona dayanıyor).
 
 ### Sonraki sürüm adayları

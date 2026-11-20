@@ -17,6 +17,21 @@ describe("tema", () => {
     expect(document.documentElement.hasAttribute("data-theme")).toBe(false);
   });
 
+  it("pencere başlık çubuğu (theme-color) seçilen temayı izler, seçim yoksa sisteme döner", () => {
+    document.head.innerHTML =
+      '<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />' +
+      '<meta name="theme-color" content="#161a22" media="(prefers-color-scheme: dark)" />';
+    const colors = () =>
+      [...document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')].map((m) => m.content);
+    setTheme("dark"); // Windows açık temada bile çubuk koyu olmalı (0.12.1'de beyaz kalıyordu)
+    expect(colors()).toEqual(["#161a22", "#161a22"]);
+    setTheme("light");
+    expect(colors()).toEqual(["#ffffff", "#ffffff"]);
+    applyTheme(null);
+    expect(colors()).toEqual(["#ffffff", "#161a22"]);
+    document.head.innerHTML = "";
+  });
+
   it("bozuk kayıt ve erişilemeyen depolama sistem tercihine düşer", () => {
     window.localStorage.setItem("pa-tema", "mor");
     expect(storedTheme()).toBeNull();

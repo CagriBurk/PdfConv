@@ -110,11 +110,27 @@ SENDTO_LAUNCHERS = {
 }
 
 
+def icon_path(target: Path) -> Path:
+    """Paketteki simge. Adı sürümü taşır (`toolia-0.12.2.ico`): Windows simgeleri dosya yoluna
+    göre önbelleğe alır; yol aynı kalınca güncellemeden sonra masaüstünde eski simge görünürdü
+    (0.12.1). 0.12.2'den eski paketlerde `toolia.ico`."""
+    found = sorted((target / "simgeler").glob("toolia-*.ico"))
+    return found[-1] if found else target / "simgeler" / "toolia.ico"
+
+
+def refresh_icon_cache() -> None:
+    """Windows'un simge önbelleğini yeniler (kısayollar yeni simgeyi hemen göstersin). Olmazsa
+    sorun değil: sürüm adlı simge yolu zaten yeni."""
+    with contextlib.suppress(OSError, subprocess.SubprocessError):
+        subprocess.run(["ie4uinit.exe", "-show"], timeout=30, creationflags=NO_WINDOW,
+                       capture_output=True)
+
+
 def create_shortcuts(target: Path) -> None:
     """Her kurulumda (güncelleme dahil) baştan yazılır: eski sürümün üzerine kurulunca yeni
     eklenen kısayollar da oluşur, eski addaki kısayollar silinir."""
     pyw = target / "python" / "pythonw.exe"
-    icon = target / "simgeler" / "toolia.ico"
+    icon = icon_path(target)
     links = shortcut_paths()
     for key, path in links.items():
         if key.startswith("eski_"):
@@ -137,6 +153,7 @@ def create_shortcuts(target: Path) -> None:
                   f"$l.Description = {_ps_str(description)}",
                   "$l.Save()"]
     _powershell("\n".join(lines))
+    refresh_icon_cache()
 
 
 def remove_shortcuts() -> None:
@@ -156,7 +173,7 @@ def register_uninstall(target: Path, version: str) -> None:
             "DisplayVersion": version,
             "Publisher": "Toolia",
             "InstallLocation": str(target),
-            "DisplayIcon": str(target / "simgeler" / "toolia.ico"),
+            "DisplayIcon": str(icon_path(target)),
             "UninstallString": f'"{target / "Kaldir.cmd"}"',
             "URLInfoAbout": "https://github.com/CagriBurk/Toolia",
         }

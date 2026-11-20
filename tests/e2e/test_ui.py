@@ -971,3 +971,27 @@ def test_home_asks_pdf_or_convert_for_images(server, page, tmp_path):
     page.goto(f"{base}/#/isler")
     page.get_by_role("button", name="Tatil Fotoğrafı.jpg dönüştür").first.click()
     page.wait_for_url("**/#/donustur?**")
+
+
+def test_window_bar_follows_app_theme_and_icons_are_png(server, page):
+    """0.12.1: başlık çubuğu (theme-color) Windows temasına bağlıydı, uygulama koyu temadayken
+    beyaz şerit kalıyordu; görev çubuğu simgesi SVG'den bulanık çiziliyordu."""
+    base, _ = server
+    page.emulate_media(color_scheme="light")  # Windows açık tema
+    page.goto(f"{base}/#/araclar")
+    page.locator(".topbar").wait_for()
+    colors = "() => [...document.querySelectorAll('meta[name=theme-color]')].map(m => m.content)"
+    toggle = page.locator(".topbar button.icon-button.outline").last
+    if page.evaluate("() => document.documentElement.dataset.theme") != "dark":
+        toggle.click()
+    assert page.evaluate(colors) == ["#161a22", "#161a22"]
+    toggle.click()
+    assert page.evaluate(colors) == ["#ffffff", "#ffffff"]
+    page.reload()  # ilk boyamada da (tema.js) seçilen tema
+    assert page.evaluate(colors) == ["#ffffff", "#ffffff"]
+    hrefs = page.evaluate("() => [...document.querySelectorAll('link[rel=icon]')]"
+                          ".map(l => l.getAttribute('href'))")
+    assert hrefs == ["/simge-16.png", "/simge-32.png", "/simge-48.png", "/simge-256.png"]
+    for href in hrefs:
+        r = page.request.get(base + href)
+        assert r.ok and r.headers["content-type"] == "image/png", href
