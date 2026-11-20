@@ -5,6 +5,9 @@
 - **Yeni simge**: turuncu "PDF" simgesinin yerine Toolia'nın kelebeği (masaüstü, Başlat, Gönder
   menüsü, "Uygulamalar" listesi, tarayıcı sekmesi ve uygulamanın üst çubuğu). Kanatlar
   uygulamadaki dört araç grubunun renginde.
+- **Daha küçük paket**: indirilen zip 301 → 230 MB, kurulu hâli 755 → 618 MB. Kullanılmayan
+  parçalar (bir kütüphanenin kapalı tuttuğumuz yapay zekâ modülü, video desteği) artık pakete
+  girmiyor; hiçbir özellik değişmedi.
 
 ## 0.12.0 — 2026-11-20
 
