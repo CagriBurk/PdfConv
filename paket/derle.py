@@ -288,18 +288,10 @@ def copy_ghostscript(dest: Path) -> None:
 
 
 def make_icon(dest: Path) -> None:
-    from PIL import Image, ImageDraw, ImageFont
+    """Kelebek simgesi (tek kaynak `paket/simge.py`)."""
+    from simge import write_ico
 
-    dest.mkdir(parents=True, exist_ok=True)
-    size = 256
-    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    d.rounded_rectangle((8, 8, size - 8, size - 8), radius=48, fill=(194, 65, 12, 255))
-    d.rounded_rectangle((8, 8, size - 8, 120), radius=48, fill=(234, 88, 12, 255))
-    d.rectangle((8, 80, size - 8, 120), fill=(234, 88, 12, 255))
-    font = ImageFont.truetype(str(ROOT / "src/toolia/assets/fonts/NotoSans-Bold.ttf"), 92)
-    d.text((size / 2, size / 2 + 6), "PDF", font=font, fill="white", anchor="mm")
-    img.save(dest / "toolia.ico", sizes=[(s, s) for s in (16, 24, 32, 48, 64, 128, 256)])
+    write_ico(dest / "toolia.ico")
 
 
 def write_launchers(pkg: Path) -> None:

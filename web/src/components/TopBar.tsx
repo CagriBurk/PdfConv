@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useRef } from "react";
 import { clearFinishedJobs, useJobActivity } from "../hooks";
 import { setTheme, useTheme } from "../theme";
 import { toolForRoute } from "../tools";
+import BrandMark from "./BrandMark";
 import Icon from "./Icon";
 import ToolMenu from "./ToolMenu";
 
@@ -49,17 +50,6 @@ function JobBadge({ section }: { section: string }) {
     <span className="job-status" aria-live="polite">
       {badge}
     </span>
-  );
-}
-
-function BrandMark() {
-  return (
-    <svg className="brand-mark" width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
-      <rect width="30" height="30" rx="9" className="brand-bg" />
-      <path d="M10 7.5h7l4.5 4.5v10.5h-11.5z" className="brand-sheet" />
-      <path d="M17 7.5V12h4.5" className="brand-line" strokeWidth="1.6" strokeLinejoin="round" />
-      <path d="M13 16h6M13 19h4" className="brand-line" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
   );
 }
 

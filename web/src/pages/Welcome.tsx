@@ -1,6 +1,7 @@
 import { ArrowRight, CircleCheck, HardDrive, History, Keyboard, Upload, type LucideIcon } from "lucide-react";
 import { useEffect, useRef } from "react";
 import type { EnginesResponse } from "../api";
+import BrandMark from "../components/BrandMark";
 import Icon from "../components/Icon";
 import { EngineList } from "./Settings";
 
@@ -26,12 +27,7 @@ export default function Welcome({ engines, onRefresh, onDone }: Props) {
     <section className="card welcome" aria-labelledby="hosgeldin">
       <div className="welcome-head">
         {/* Üst çubuktaki marka işaretinin büyüğü. */}
-        <svg className="welcome-mark" width="56" height="56" viewBox="0 0 30 30" aria-hidden="true">
-          <rect width="30" height="30" rx="9" className="brand-bg" />
-          <path d="M10 7.5h7l4.5 4.5v10.5h-11.5z" className="brand-sheet" />
-          <path d="M17 7.5V12h4.5" className="brand-line" strokeWidth="1.6" strokeLinejoin="round" />
-          <path d="M13 16h6M13 19h4" className="brand-line" strokeWidth="1.6" strokeLinecap="round" />
-        </svg>
+        <BrandMark size={56} className="welcome-mark" />
         <h1 id="hosgeldin" ref={heading} tabIndex={-1}>
           Toolia'ya hoş geldin
         </h1>
