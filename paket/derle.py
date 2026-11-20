@@ -8,8 +8,8 @@
                  (kilit dosyasındaki çalışma bağımlılıkları + pdfatolye; arayüz paketin içinde)
 - motorlar/      tesseract/ (yalnızca gereken DLL'ler + tur, eng, osd), ghostscript/
 - simgeler/      uygulama simgesi
-- Kur.cmd, Kaldir.cmd, pdfe-cevir.cmd, OKUBENI.txt, LISANSLAR.txt, LICENSE.txt (AGPL-3.0),
-  pdfatolye-kurulum.json
+- Kur.cmd, Kaldir.cmd, pdfe-cevir.cmd, jpge-cevir.cmd, OKUBENI.txt, LISANSLAR.txt,
+  LICENSE.txt (AGPL-3.0), pdfatolye-kurulum.json
 
 Neden PyInstaller / Inno Setup değil: bkz. PLAN.md tuzak #52 (Akıllı Uygulama Denetimi).
 """
@@ -53,6 +53,14 @@ rem Sag tik > Gonder > "PDF'e cevir": dosyalari turune gore PDF'e cevirir.
 "%~dp0python\\python.exe" -I -m pdfatolye gonder %*
 if errorlevel 1 pause
 """
+JPGE_CEVIR_CMD = """@echo off
+chcp 65001 >nul
+rem Sag tik > Gonder > "JPG'ye cevir": resimleri (HEIC, PNG, WEBP...) JPG'ye cevirir.
+"%~dp0python\\python.exe" -I -m pdfatolye donustur --hedef jpg %*
+if errorlevel 1 pause
+"""
+LAUNCHERS = {"Kur.cmd": KUR_CMD, "Kaldir.cmd": KALDIR_CMD, "pdfe-cevir.cmd": PDFE_CEVIR_CMD,
+             "jpge-cevir.cmd": JPGE_CEVIR_CMD}
 OKUBENI = """PDF Atölyesi {version} — kurulum
 =================================
 
@@ -294,6 +302,12 @@ def make_icon(dest: Path) -> None:
     img.save(dest / "pdfatolye.ico", sizes=[(s, s) for s in (16, 24, 32, 48, 64, 128, 256)])
 
 
+def write_launchers(pkg: Path) -> None:
+    """Paket kökündeki .cmd başlatıcıları: CRLF ve ASCII (cmd.exe UTF-8 BOM'u komut sanar)."""
+    for fname, text in LAUNCHERS.items():
+        (pkg / fname).write_bytes(text.replace("\n", "\r\n").encode("ascii"))
+
+
 def smoke_test(pkg: Path) -> None:
     """Paketin kendi Python'uyla: bütün bağımlılıklar yükleniyor mu, motorlar bulunuyor mu?"""
     py = pkg / "python" / "python.exe"
@@ -352,9 +366,7 @@ def main() -> None:
         copy_ghostscript(engines_dir)
     log("4/5 Başlatıcılar ve belgeler")
     make_icon(pkg / "simgeler")
-    for fname, text in (("Kur.cmd", KUR_CMD), ("Kaldir.cmd", KALDIR_CMD),
-                        ("pdfe-cevir.cmd", PDFE_CEVIR_CMD)):
-        (pkg / fname).write_bytes(text.replace("\n", "\r\n").encode("ascii"))
+    write_launchers(pkg)
     (pkg / "OKUBENI.txt").write_text(OKUBENI.format(version=version), encoding="utf-8-sig")
     (pkg / "LISANSLAR.txt").write_text(LISANSLAR.format(py=PY_VERSION), encoding="utf-8-sig")
     (pkg / "LICENSE.txt").write_bytes(

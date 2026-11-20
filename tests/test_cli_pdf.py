@@ -130,10 +130,19 @@ def test_donustur_images(tmp_path):
     jpg = fx.photo_jpeg(tmp_path / "foto.jpeg")
     r = runner.invoke(app, ["donustur", str(png), str(jpg), "--hedef", "JPEG", "-d",
                             str(tmp_path / "cikti")])
-    # foto.jpeg zaten JPG: hata sayılır (komut satırında karışık seçim kolaylığı yok), logo çevrilir
-    assert r.exit_code == 2, r.output
+    # foto.jpeg zaten JPG (.jpeg = .jpg): hata değil, atlanır (Gönder > "JPG'ye çevir" karışık
+    # seçimle çağrılır); logo çevrilir
+    assert r.exit_code == 0, r.output
     assert (tmp_path / "cikti" / "Şeffaf logo.jpg").read_bytes()[:3] == b"\xff\xd8\xff"
-    assert "saydam" in r.output and "foto.jpeg" in r.output
+    assert "saydam" in r.output and "Atlandı (zaten JPG): foto.jpeg" in r.output
+    assert not (tmp_path / "cikti" / "foto.jpg").exists()
+    # JPG'ye çevrilemeyen tür hata kalır; yanındaki resim yine çevrilir
+    doc = tmp_path / "rapor.docx"
+    doc.write_bytes(b"PK")
+    r = runner.invoke(app, ["donustur", str(doc), str(png), "--hedef", "jpg"])
+    assert r.exit_code == 2, r.output
+    assert "'rapor.docx' JPG biçimine çevrilemez" in r.output
+    assert (tmp_path / "Şeffaf logo.jpg").is_file()
     r = runner.invoke(app, ["donustur", str(png), "--hedef", "webp"])
     assert r.exit_code == 0, r.output
     assert (tmp_path / "Şeffaf logo.webp").is_file()

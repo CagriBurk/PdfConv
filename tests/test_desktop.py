@@ -344,6 +344,80 @@ def test_uninstall_refuses_while_app_runs(tmp_path, monkeypatch):
                              data_dir=tmp_path / "veri") == 1
 
 
+@pytest.mark.skipif(os.name != "nt", reason="kısayollar yalnızca Windows")
+def test_shortcut_paths_include_sendto_jpg():
+    links = kurulum.shortcut_paths()  # yalnızca yol hesaplar, hiçbir şey yazmaz
+    assert set(links) == {"masaustu", "baslat", "gonder", "gonder_jpg"}
+    assert links["gonder"].name == "PDF'e çevir.lnk"
+    assert links["gonder_jpg"].name == "JPG'ye çevir.lnk"
+    assert links["gonder_jpg"].parent == links["gonder"].parent  # ikisi de Gönder menüsünde
+    assert set(kurulum.SENDTO_LAUNCHERS) <= set(links)
+
+
+def _fake_links(root: Path) -> dict[str, Path]:
+    """Gerçek masaüstü / Başlat / Gönder klasörleri yerine geçici klasör."""
+    return {key: root / "kisayollar" / f"{key}.lnk"
+            for key in ("masaustu", "baslat", "gonder", "gonder_jpg")}
+
+
+@pytest.mark.skipif(os.name != "nt", reason="WScript.Shell yalnızca Windows")
+def test_create_and_remove_shortcuts(tmp_path, monkeypatch):
+    links = _fake_links(tmp_path)
+    links["masaustu"].parent.mkdir()
+    monkeypatch.setattr(kurulum, "shortcut_paths", lambda: links)
+    target = tmp_path / "Programs" / "PdfAtolyesi"
+    kurulum.create_shortcuts(target)
+    assert all(p.is_file() for p in links.values())
+    # Kısayolu Windows'un okuduğu gibi geri oku: hedef, pencere biçimi, simge
+    script = (f"$l = (New-Object -ComObject WScript.Shell).CreateShortcut("
+              f"{kurulum._ps_str(links['gonder_jpg'])}); "
+              "[Console]::OutputEncoding = [Text.Encoding]::UTF8; "
+              "\"$($l.TargetPath)|$($l.WindowStyle)|$($l.IconLocation)|$($l.Description)\"")
+    env = {k: v for k, v in os.environ.items() if k.upper() != "PSMODULEPATH"}
+    out = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
+                         capture_output=True, encoding="utf-8", check=True, env=env).stdout
+    lnk_target, style, icon, desc = out.strip().split("|")
+    assert lnk_target == str(target / "jpge-cevir.cmd")
+    assert style == "7"
+    assert icon == str(target / "simgeler" / "pdfatolye.ico") + ",0"
+    assert desc == "Seçili resimleri JPG'ye çevirir"
+    kurulum.remove_shortcuts()
+    assert not any(p.exists() for p in links.values())
+
+
+@pytest.mark.skipif(os.name != "nt", reason="kurulum yalnızca Windows")
+def test_update_install_recreates_shortcuts(tmp_path, monkeypatch):
+    """Eski sürümün üzerine kurulum da kısayolları baştan yazar (yeni "JPG'ye çevir" gelir)."""
+    pkg = _fake_package(tmp_path)
+    target = tmp_path / "Programs" / "PdfAtolyesi"
+    target.mkdir(parents=True)
+    (target / "eski.txt").write_text("önceki sürüm", encoding="utf-8")
+    calls = []
+    monkeypatch.setattr(kurulum, "_running_app", lambda t: False)
+    monkeypatch.setattr(kurulum, "create_shortcuts", lambda t: calls.append(("kisayol", t)))
+    monkeypatch.setattr(kurulum, "register_uninstall", lambda t, v: calls.append(("kayit", v)))
+    assert kurulum.install(pkg, target, launch=False) == 0
+    assert calls == [("kisayol", target), ("kayit", "0.9.0")]
+
+
+def test_package_writes_send_to_launchers(tmp_path):
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("derle", ROOT / "paket" / "derle.py")
+    derle = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(derle)
+    derle.write_launchers(tmp_path)
+    # Kurulumun Gönder kısayollarının hedeflediği her başlatıcı pakette var
+    for launcher, _desc in kurulum.SENDTO_LAUNCHERS.values():
+        assert (tmp_path / launcher).is_file(), launcher
+    raw = (tmp_path / "jpge-cevir.cmd").read_bytes()
+    text = raw.decode("ascii")  # cmd.exe için ASCII, BOM'suz
+    assert "\r\n" in text and "\n" not in text.replace("\r\n", "")
+    assert text.startswith("@echo off\r\nchcp 65001 >nul\r\n")
+    assert '"%~dp0python\\python.exe" -I -m pdfatolye donustur --hedef jpg %*' in text
+    assert "if errorlevel 1 pause" in text
+
+
 # --- LibreOffice kurulumu ve güncelleme ----------------------------------------------------------
 
 

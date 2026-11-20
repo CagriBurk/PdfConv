@@ -2,6 +2,7 @@
 PDF Atölyesi kısayolları:
   - Masaüstü: "PDF Atölyesi"  -> baslat.bat
   - Sağ tık > Gönder: "PDF'e çevir" -> pdfe-cevir.bat
+  - Sağ tık > Gönder: "JPG'ye çevir" -> jpge-cevir.bat (HEIC, PNG, WEBP... -> JPG)
 
 Kullanım (proje klasöründe):
   powershell -ExecutionPolicy Bypass -File kurulum\kisayollar.ps1
@@ -18,7 +19,9 @@ $items = @(
   @{ Path = Join-Path $desktop 'PDF Atölyesi.lnk'; Target = Join-Path $root 'baslat.bat';
      Desc = 'PDF Atölyesi: yerel PDF araç seti' },
   @{ Path = Join-Path $sendTo "PDF'e çevir.lnk"; Target = Join-Path $root 'pdfe-cevir.bat';
-     Desc = 'Seçili dosyaları PDF Atölyesi ile PDF''e çevirir' }
+     Desc = 'Seçili dosyaları PDF Atölyesi ile PDF''e çevirir' },
+  @{ Path = Join-Path $sendTo "JPG'ye çevir.lnk"; Target = Join-Path $root 'jpge-cevir.bat';
+     Desc = 'Seçili resimleri JPG''ye çevirir' }
 )
 
 if ($Kaldir) {
@@ -45,4 +48,4 @@ foreach ($i in $items) {
   Write-Host "Oluşturuldu: $($i.Path)"
 }
 Write-Host ''
-Write-Host 'Bir dosyaya sağ tıkla > Gönder (Windows 11: "Daha fazla seçenek göster") > PDF''e çevir.'
+Write-Host 'Bir dosyaya sağ tıkla > Gönder (Windows 11: "Daha fazla seçenek göster") > PDF''e çevir ya da JPG''ye çevir.'

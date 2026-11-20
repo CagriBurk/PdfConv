@@ -1,7 +1,8 @@
 # PDF Atölyesi
 
 Kendi bilgisayarında çalışan, çevrimdışı PDF araç seti: Markdown / Office → PDF, PDF → Word / Excel,
-sayfa düzenleme, içerik ekleme, sıkıştırma, OCR, şifreleme. Dosyalar internete çıkmaz.
+sayfa düzenleme, içerik ekleme, sıkıştırma, OCR, şifreleme. Yanında biçim dönüştürücü: resimler
+(HEIC → JPG, PNG ↔ WEBP…) ve Office belgeleri (DOCX ↔ ODT, XLSX ↔ CSV…). Dosyalar internete çıkmaz.
 Ayrıntılı plan: [PLAN.md](PLAN.md).
 
 ## Arkadaşlar için kurulum (tek dosya, hiçbir şey bilmeden)
@@ -24,7 +25,8 @@ Uygulamayı kullanmak için uv, Node, git ya da Python **gerekmez**.
 - OCR (Tesseract, Türkçe + İngilizce) ve Ghostscript pakette gelir. **Word / Excel / PowerPoint
   → PDF** için LibreOffice gerekir (pakete konmadı, ~350 MB): Ayarlar'da ya da Office ekranında
   **LibreOffice'i kur** düğmesi (winget ile; Windows izin isteyebilir).
-- Sağ tık → Gönder → **PDF'e çevir** de kurulur.
+- Sağ tık → Gönder → **PDF'e çevir** ve **JPG'ye çevir** (HEIC, PNG, WEBP… fotoğrafları JPG yapar,
+  dosyanın yanına yazar) da kurulur.
 - **Ayarlar** ekrandan değişir (dosya düzenlemek gerekmez): dosyaların ne kadar saklanacağı,
   Obsidian kasası (Klasör seç…), Markdown için varsayılan tema ve kağıt, telefon modu. Port ve
   kütüphane sürümleri gibi geliştirici bilgileri **Gelişmiş** altında.
@@ -75,7 +77,7 @@ motorsuz paketi üretip dener ve artifact olarak yükler.
    Komut satırından: `uv run python -m pdfatolye motorlar`
 
 7. **Kısayollar** (isteğe bağlı): masaüstüne "PDF Atölyesi" ve sağ tık → Gönder menüsüne
-   "PDF'e çevir" ekler. Yalnızca kendi kullanıcı klasörüne yazar; `-Kaldir` ile geri alınır.
+   "PDF'e çevir" ile "JPG'ye çevir" ekler. Yalnızca kendi kullanıcı klasörüne yazar; `-Kaldir` ile geri alınır.
 
    ```
    powershell -ExecutionPolicy Bypass -File kurulum\kisayollar.ps1
@@ -146,7 +148,13 @@ yalnızca güvendiğin Wi-Fi'de kullan, işin bitince telefon modunu kapat. `--l
 ## Web arayüzü
 
 - **Ana sayfa**: dosyayı bırak; türüne göre doğru araç açılır (tek PDF → sayfa düzenleyici,
-  birden çok PDF → birleştir, resimler → PDF, Markdown + resimleri → MD → PDF).
+  birden çok PDF → birleştir, Markdown + resimleri → MD → PDF). Resim ya da Office belgesi
+  bırakınca "PDF'e çevir" mi "Başka biçime dönüştür" mü diye sorar.
+- **Biçim Dönüştür**: resimler JPG, PNG, WEBP ya da TIFF'e (HEIC dahil; telefon fotoğrafı doğru
+  yönde, saydam alanlar JPG'de seçilen renkle dolar); Word belgeleri DOCX, ODT, RTF ya da TXT'ye;
+  tablolar XLSX, ODS ya da CSV'ye (CSV Türkçe Excel'de çift tıkla doğru açılır: `;` ayraç, UTF-8);
+  sunumlar PPTX ya da ODP'ye. Office dönüşümü LibreOffice ister. Karışık seçimde zaten hedef
+  biçimde olan dosya olduğu gibi alınır. İşler ve dosyalar'daki her uygun dosyada "Dönüştür…".
 - **Sayfa düzenleyici**: sürükleyerek sırala (seçili sayfalar blok hâlinde taşınır), Ctrl/Shift
   ile çoklu seçim, `R` / `Shift+R` döndür, `Delete` sil, `Ctrl+Z` / `Ctrl+Y` geri/ileri,
   başka PDF'leri alana bırakarak sayfalarını ekle, çift tıkla büyüt. "Kaydet" yeni sürüm oluşturur,
@@ -220,6 +228,8 @@ uv run python -m pdfatolye sifre-kaldir not.pdf --sifre ...
 uv run python -m pdfatolye meta-temizle not.pdf
 uv run python -m pdfatolye onar bozuk.pdf
 uv run python -m pdfatolye gonder rapor.docx not.md foto1.jpg foto2.jpg   # türüne göre PDF
+uv run python -m pdfatolye donustur IMG_1234.heic logo.png --hedef jpg    # biçim dönüştürme
+uv run python -m pdfatolye donustur tablo.xlsx --hedef csv -d ciktilar
 ```
 
 ### Office / HTML / metin → PDF

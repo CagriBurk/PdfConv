@@ -615,7 +615,12 @@ def donustur(
     """Resim ↔ resim ve Office ↔ Office biçim dönüştürme. Bozuk dosya diğerlerini durdurmaz."""
     from pdfatolye.convert.office import OfficeItem, convert_office_format
     from pdfatolye.core.pdfio import unique_path
-    from pdfatolye.formats import ALL_CONVERT_TARGETS, RASTER_IMAGE_EXTS, convert_targets
+    from pdfatolye.formats import (
+        ALL_CONVERT_TARGETS,
+        RASTER_IMAGE_EXTS,
+        convert_targets,
+        same_format,
+    )
 
     target = "." + hedef.lower().lstrip(".")
     target = {".jpeg": ".jpg", ".tif": ".tiff"}.get(target, target)
@@ -628,6 +633,10 @@ def donustur(
     office: list[OfficeItem] = []
     for src in dosyalar:
         ext = src.suffix.lower()
+        # Gönder menüsünde karışık seçim olağan: zaten hedef biçimdeki dosya hata değil.
+        if same_format(ext) == target:
+            typer.echo(f"Atlandı (zaten {target.lstrip('.').upper()}): {src.name}")
+            continue
         if target not in convert_targets(ext):
             failed += 1
             typer.secho(f"Hata: '{src.name}' {target.lstrip('.').upper()} biçimine çevrilemez.",

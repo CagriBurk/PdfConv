@@ -8,7 +8,9 @@ internetten indirilmiş, imzasız .exe dosyalarını engelliyor (PLAN.md tuzak #
 imzalı python.org Python'unu çalıştırır; geri kalan her şey Python kodu.
 
 Kurulum yönetici izni istemez: `%LOCALAPPDATA%\\Programs\\PdfAtolyesi`, masaüstü ve Başlat menüsü
-kısayolu, Gönder menüsünde "PDF'e çevir", "Uygulamalar"da kaldırma kaydı. Kopyalama `shutil` ile
+kısayolu, Gönder menüsünde "PDF'e çevir" ve "JPG'ye çevir", "Uygulamalar"da kaldırma kaydı.
+Kısayollar her kurulumda yeniden yazılır (eski sürümün üzerine kurunca yenileri de gelir); kaldırma
+`shortcut_paths()`'teki hepsini siler. Kopyalama `shutil` ile
 yapılır: indirilen dosyalardaki "internetten geldi" işareti (Zone.Identifier akışı) kopyaya
 taşınmaz. Kullanıcı verisi (`%LOCALAPPDATA%\\PdfAtolye`) kuruluma dokunulmadan kalır; kaldırırken
 silinip silinmeyeceği sorulur.
@@ -90,12 +92,23 @@ def shortcut_paths() -> dict[str, Path]:
         return Path(buf.value)
 
     # 0x10 masaüstü, 0x02 Başlat menüsü\Programlar, 0x09 Gönder (SendTo)
+    sendto = known(0x09)
     return {"masaustu": known(0x10) / f"{APP_NAME}.lnk",
             "baslat": known(0x02) / f"{APP_NAME}.lnk",
-            "gonder": known(0x09) / "PDF'e çevir.lnk"}
+            "gonder": sendto / "PDF'e çevir.lnk",
+            "gonder_jpg": sendto / "JPG'ye çevir.lnk"}
+
+
+# Gönder menüsü kısayolları: anahtar → (paketteki başlatıcı, açıklama)
+SENDTO_LAUNCHERS = {
+    "gonder": ("pdfe-cevir.cmd", "Seçili dosyaları PDF Atölyesi ile PDF'e çevirir"),
+    "gonder_jpg": ("jpge-cevir.cmd", "Seçili resimleri JPG'ye çevirir"),
+}
 
 
 def create_shortcuts(target: Path) -> None:
+    """Her kurulumda (güncelleme dahil) baştan yazılır: eski sürümün üzerine kurulunca yeni
+    eklenen kısayollar da oluşur."""
     pyw = target / "python" / "pythonw.exe"
     icon = target / "simgeler" / "pdfatolye.ico"
     links = shortcut_paths()
@@ -108,13 +121,14 @@ def create_shortcuts(target: Path) -> None:
                   f"$l.IconLocation = {_ps_str(str(icon) + ',0')}",
                   "$l.Description = 'PDF Atölyesi: çevrimdışı PDF araç seti'",
                   "$l.Save()"]
-    lines += [f"$l = $s.CreateShortcut({_ps_str(links['gonder'])})",
-              f"$l.TargetPath = {_ps_str(target / 'pdfe-cevir.cmd')}",
-              f"$l.WorkingDirectory = {_ps_str(target)}",
-              f"$l.IconLocation = {_ps_str(str(icon) + ',0')}",
-              "$l.WindowStyle = 7",
-              "$l.Description = 'Seçili dosyaları PDF Atölyesi ile PDF''e çevirir'",
-              "$l.Save()"]
+    for key, (launcher, description) in SENDTO_LAUNCHERS.items():
+        lines += [f"$l = $s.CreateShortcut({_ps_str(links[key])})",
+                  f"$l.TargetPath = {_ps_str(target / launcher)}",
+                  f"$l.WorkingDirectory = {_ps_str(target)}",
+                  f"$l.IconLocation = {_ps_str(str(icon) + ',0')}",
+                  "$l.WindowStyle = 7",
+                  f"$l.Description = {_ps_str(description)}",
+                  "$l.Save()"]
     _powershell("\n".join(lines))
 
 

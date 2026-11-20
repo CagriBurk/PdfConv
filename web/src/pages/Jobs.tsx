@@ -1,5 +1,6 @@
 import {
   Archive,
+  ArrowLeftRight,
   Ban,
   Check,
   CircleX,
@@ -24,7 +25,7 @@ import { splitName } from "../filename";
 import { jobLabel } from "../labels";
 import { navigate } from "../router";
 import { toast } from "../toast";
-import { toolForRoute } from "../tools";
+import { convertTargets, toolForRoute } from "../tools";
 
 const STATUS: Record<Job["status"], { label: string; tone: string; icon: LucideIcon }> = {
   bekliyor: { label: "Sırada", tone: "", icon: Hourglass },
@@ -323,6 +324,17 @@ export default function Jobs() {
                           onClick={() => navigate(`duzenle/${f.id}`)}
                         >
                           <Icon icon={LayoutGrid} />
+                        </button>
+                      )}
+                      {convertTargets(f.name).length > 0 && (
+                        <button
+                          type="button"
+                          className="icon-button"
+                          aria-label={`${f.name} dönüştür`}
+                          title="Başka biçime dönüştür…"
+                          onClick={() => navigate("donustur", { dosya: f.id })}
+                        >
+                          <Icon icon={ArrowLeftRight} />
                         </button>
                       )}
                       <a className="icon-button" href={api.downloadUrl(f.id)} aria-label={`${f.name} indir`} title="İndir">

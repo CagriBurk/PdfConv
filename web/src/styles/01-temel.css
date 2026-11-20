@@ -837,6 +837,48 @@ kbd,
   margin: 0;
 }
 
+/* Bırakılan resim / Office belgesi için seçim: PDF'e çevir ya da başka biçime dönüştür. */
+.home-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--accent-faint);
+}
+
+.home-choice-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.home-choice h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.home-choice p {
+  margin: 0;
+}
+
+.home-choice-head p {
+  margin-top: 2px;
+}
+
+.home-choice-head .icon-button {
+  margin: -6px -8px 0 0;
+}
+
+.home-choice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .home-sub {
   margin: 0 0 10px;
   font-size: 13.5px;
@@ -1094,6 +1136,10 @@ kbd,
 
   .dropzone.hero {
     padding: 24px 16px;
+  }
+
+  .home-choice-actions button {
+    flex: 1 1 100%;
   }
 
   .recent {

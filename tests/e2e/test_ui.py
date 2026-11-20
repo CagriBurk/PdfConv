@@ -913,3 +913,61 @@ def test_markdown_user_snippet_save_then_insert(server, page, tmp_path):
     assert editor.input_value() == f"# Yeni not\n\nİlk paragraf.\n\n{snippet}\n"
     frame = page.frame_locator("iframe[title='Önizleme']")
     frame.locator(".callout", has_text="Önce kolay soruları çöz.").wait_for()
+
+
+# --- Biçim dönüştürme -----------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("width", [390, 1400])
+def test_convert_screen_mixed_images_to_jpg(server, page, tmp_path, width):
+    base, app = server
+    page.set_viewport_size({"width": width, "height": 900})
+    png = app.state.store.add_file(fx.transparent_png(tmp_path / "p.png"), "Logo şeffaf.png",
+                                   source="upload")
+    jpg = app.state.store.add_file(fx.photo_jpeg(tmp_path / "f.jpg"), "Fotoğraf.jpg",
+                                   source="upload")
+    page.goto(f"{base}/#/donustur?dosya={png.id},{jpg.id}")
+    page.get_by_text("Logo şeffaf.png").first.wait_for()
+    assert _no_horizontal_overflow(page), "Biçim Dönüştür taşıyor"
+    # Karışık seçimde ortak hedefler: kendi biçimleri dahil
+    for name in ("JPG", "PNG", "WEBP", "TIFF"):
+        page.get_by_role("button", name=name, exact=True).wait_for()
+    page.get_by_role("button", name="JPG", exact=True).click()
+    page.get_by_text("olduğu gibi alınır").wait_for()
+    page.get_by_role("button", name="2 dosyayı dönüştür").click()
+    page.get_by_text("Zaten JPG; olduğu gibi alındı.").first.wait_for()
+    page.get_by_role("link", name="İndir").nth(1).wait_for()
+    names = {f.name for f in app.state.store.list()}
+    assert {"Logo şeffaf.jpg", "Fotoğraf.jpg"} <= names
+
+
+def test_convert_screen_has_no_target_for_image_plus_sheet(server, page, tmp_path):
+    base, app = server
+    img = app.state.store.add_file(fx.transparent_png(tmp_path / "p.png"), "resim.png",
+                                   source="upload")
+    csv = tmp_path / "t.csv"
+    csv.write_text("a;b\n1;2\n", encoding="utf-8")
+    sheet = app.state.store.add_file(csv, "tablo.csv", source="upload")
+    page.goto(f"{base}/#/donustur?dosya={img.id},{sheet.id}")
+    page.get_by_text("tablo.csv").first.wait_for()
+    assert page.get_by_role("button", name="2 dosyayı dönüştür").is_disabled()
+
+
+def test_home_asks_pdf_or_convert_for_images(server, page, tmp_path):
+    base, app = server
+    photo = fx.photo_jpeg(tmp_path / "Tatil Fotoğrafı.jpg")
+    page.goto(base)
+    page.locator("input[type=file]").first.set_input_files(str(photo))
+    page.get_by_text("Ne yapmak istiyorsun?").wait_for()
+    assert "resimden" not in page.url, "seçim sorulmadan Resim → PDF'e gitti"
+    page.get_by_role("button", name="Başka biçime dönüştür").click()
+    page.wait_for_url("**/#/donustur?**")
+    page.get_by_text("Tatil Fotoğrafı.jpg").first.wait_for()
+    # Tek JPG: kendi biçimi hedeflerde yok
+    page.get_by_role("button", name="PNG", exact=True).wait_for()
+    assert page.get_by_role("button", name="JPG", exact=True).count() == 0
+
+    # Aynı dosya İşler ve dosyalar'dan da dönüştürülebilir; PDF'te düğme yok
+    page.goto(f"{base}/#/isler")
+    page.get_by_role("button", name="Tatil Fotoğrafı.jpg dönüştür").first.click()
+    page.wait_for_url("**/#/donustur?**")
