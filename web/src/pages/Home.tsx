@@ -241,7 +241,7 @@ export default function Home({ engines, onSearch }: { engines: EnginesResponse |
       </section>
 
       <footer className="home-foot">
-        <span>PDF Atölyesi{engines ? ` ${engines.version}` : ""}</span>
+        <span>Toolia{engines ? ` ${engines.version}` : ""}</span>
         <span>Dosyaların bu bilgisayarda kalır · kayıt yok, reklam yok</span>
       </footer>
     </div>

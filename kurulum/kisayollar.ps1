@@ -1,6 +1,6 @@
 ﻿<#
-PDF Atölyesi kısayolları:
-  - Masaüstü: "PDF Atölyesi"  -> baslat.bat
+Toolia kısayolları:
+  - Masaüstü: "Toolia"  -> baslat.bat
   - Sağ tık > Gönder: "PDF'e çevir" -> pdfe-cevir.bat
   - Sağ tık > Gönder: "JPG'ye çevir" -> jpge-cevir.bat (HEIC, PNG, WEBP... -> JPG)
 
@@ -16,10 +16,10 @@ $root = Split-Path -Parent $PSScriptRoot
 $desktop = [Environment]::GetFolderPath('Desktop')
 $sendTo = [Environment]::GetFolderPath('SendTo')
 $items = @(
-  @{ Path = Join-Path $desktop 'PDF Atölyesi.lnk'; Target = Join-Path $root 'baslat.bat';
-     Desc = 'PDF Atölyesi: yerel PDF araç seti' },
+  @{ Path = Join-Path $desktop 'Toolia.lnk'; Target = Join-Path $root 'baslat.bat';
+     Desc = 'Toolia: çevrimdışı PDF ve dosya araçları' },
   @{ Path = Join-Path $sendTo "PDF'e çevir.lnk"; Target = Join-Path $root 'pdfe-cevir.bat';
-     Desc = 'Seçili dosyaları PDF Atölyesi ile PDF''e çevirir' },
+     Desc = 'Seçili dosyaları Toolia ile PDF''e çevirir' },
   @{ Path = Join-Path $sendTo "JPG'ye çevir.lnk"; Target = Join-Path $root 'jpge-cevir.bat';
      Desc = 'Seçili resimleri JPG''ye çevirir' }
 )

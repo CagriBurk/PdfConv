@@ -1,5 +1,5 @@
 @echo off
-rem PDF Atolyesi baslatici: bagimliliklari kurar, gerekirse arayuzu derler, sunucuyu acar.
+rem Toolia baslatici: bagimliliklari kurar, gerekirse arayuzu derler, sunucuyu acar.
 setlocal
 cd /d "%~dp0"
 

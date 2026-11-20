@@ -156,7 +156,7 @@ def _toml_value(value) -> str:
 
 def dump_toml(raw: dict) -> str:
     """Bu uygulamanın ayar dosyası için yeterli TOML yazıcısı: düz değerler + tek düzey tablolar."""
-    lines = ["# PDF Atölyesi ayarları. Uygulamanın Ayarlar ekranı bu dosyayı günceller;",
+    lines = ["# Toolia ayarları. Uygulamanın Ayarlar ekranı bu dosyayı günceller;",
              "# elle de düzenlenebilir (açıklamalı örnek: config.example.toml).", ""]
     tables = {k: v for k, v in raw.items() if isinstance(v, dict)}
     lines += [f"{k} = {_toml_value(v)}" for k, v in raw.items() if k not in tables]

@@ -1,4 +1,4 @@
-"""PDF Atölyesi: yerel, çevrimdışı PDF araç seti."""
+"""Toolia: yerel, çevrimdışı PDF ve dosya araçları."""
 
 from importlib.metadata import PackageNotFoundError, version
 

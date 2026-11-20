@@ -41,7 +41,7 @@ function titleFor(section: string): string {
   const nav = NAV.find((n) => n.route === section)?.label;
   const tool = TOOLS.find((t) => t.route === section)?.title;
   const name = nav ?? tool ?? (section === "araclar" ? "Araçlar" : null);
-  return name ? `${name} · PDF Atölyesi` : "PDF Atölyesi";
+  return name ? `${name} · Toolia` : "Toolia";
 }
 
 export default function App() {

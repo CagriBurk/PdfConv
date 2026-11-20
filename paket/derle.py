@@ -1,4 +1,4 @@
-"""Masaüstü paketini üretir: `build/PdfAtolyesi-<sürüm>/` ve `build/PdfAtolyesi-<sürüm>.zip`.
+"""Masaüstü paketini üretir: `build/Toolia-<sürüm>/` ve `build/Toolia-<sürüm>.zip`.
 
     uv run python paket/derle.py                # motorlar bu bilgisayardaki kurulumdan
     uv run python paket/derle.py --motorsuz     # Tesseract/Ghostscript'siz (CI)
@@ -40,7 +40,7 @@ OCR_LANGS = ("tur", "eng", "osd")
 
 KUR_CMD = """@echo off
 chcp 65001 >nul
-rem PDF Atolyesi kurulumu: imzali Python ile kurar (yonetici izni gerekmez).
+rem Toolia kurulumu: imzali Python ile kurar (yonetici izni gerekmez).
 "%~dp0python\\python.exe" -I -m pdfatolye.kurulum kur %*
 """
 KALDIR_CMD = """@echo off
@@ -61,17 +61,17 @@ if errorlevel 1 pause
 """
 LAUNCHERS = {"Kur.cmd": KUR_CMD, "Kaldir.cmd": KALDIR_CMD, "pdfe-cevir.cmd": PDFE_CEVIR_CMD,
              "jpge-cevir.cmd": JPGE_CEVIR_CMD}
-OKUBENI = """PDF Atölyesi {version} — kurulum
+OKUBENI = """Toolia {version} — kurulum
 =================================
 
 1. Bu klasördeki "Kur" (Kur.cmd) dosyasına çift tıkla.
    Windows "Bilinmeyen yayımcı" ya da "Windows bilgisayarınızı korudu" derse:
    "Daha fazla bilgi" → "Yine de çalıştır" (dosya imzalı değil, ama içinde çalışan Python
    python.org imzalıdır). Yönetici izni istemez.
-2. Kurulum bitince uygulama açılır; sonra masaüstündeki "PDF Atölyesi" simgesini kullan.
+2. Kurulum bitince uygulama açılır; sonra masaüstündeki "Toolia" simgesini kullan.
 3. Bu klasörü (ve indirdiğin zip'i) silebilirsin.
 
-Kaldırmak: Ayarlar → Uygulamalar → "PDF Atölyesi" → Kaldır (belgelerin silinsin mi diye sorar).
+Kaldırmak: Ayarlar → Uygulamalar → "Toolia" → Kaldır (belgelerin silinsin mi diye sorar).
 Güncellemek: yeni sürümün paketinde yine "Kur"a çift tıkla; belgelerin ve ayarların korunur.
 
 Word / Excel / PowerPoint → PDF için LibreOffice gerekir; uygulamanın Ayarlar sayfasındaki
@@ -79,10 +79,10 @@ Word / Excel / PowerPoint → PDF için LibreOffice gerekir; uygulamanın Ayarla
 Dosyaların bilgisayarından çıkmaz; uygulama internete bağlanmaz (yalnızca sen "Güncellemeleri
 denetle" dersen GitHub'a sorar).
 """
-LISANSLAR = """PDF Atölyesi paketindeki bileşenler ve lisansları
+LISANSLAR = """Toolia paketindeki bileşenler ve lisansları
 =================================================
 
-- PDF Atölyesi: GNU AGPL v3 (LICENSE.txt), kaynak kod: https://github.com/CagriBurk/PdfConv
+- Toolia: GNU AGPL v3 (LICENSE.txt), kaynak kod: https://github.com/CagriBurk/PdfConv
 - Python {py} (python.org, imzalı gömülü dağıtım): PSF License
 - PyMuPDF / MuPDF: GNU AGPL v3 (ticari lisans ayrıca Artifex'ten)
 - pikepdf / qpdf: MPL 2.0 / Apache 2.0
@@ -95,7 +95,7 @@ LISANSLAR = """PDF Atölyesi paketindeki bileşenler ve lisansları
 - Diğer Python kütüphaneleri: python/Lib/site-packages altında her birinin *.dist-info/
   klasöründeki LICENSE dosyaları
 
-PDF Atölyesi ve AGPL bileşenleri (PyMuPDF, Ghostscript) nedeniyle bu paketi başkasına
+Toolia ve AGPL bileşenleri (PyMuPDF, Ghostscript) nedeniyle bu paketi başkasına
 verirken kaynak kod erişilebilir olmalıdır: https://github.com/CagriBurk/PdfConv
 """
 
@@ -345,14 +345,14 @@ def main() -> None:
 
     version = project_version()
     build = ROOT / "build"
-    name = f"PdfAtolyesi-{version}"
+    name = f"Toolia-{version}"
     out = build / name
     pkg = out  # Kur.cmd paketin kökünde: python\ ve motorlar\ yanında
     shutil.rmtree(out, ignore_errors=True)
     work = build / "is"
     shutil.rmtree(work, ignore_errors=True)
     work.mkdir(parents=True)
-    log(f"PDF Atölyesi {version} paketi → {out}")
+    log(f"Toolia {version} paketi → {out}")
 
     log("1/5 Python (python.org, imzalı)")
     site = build_python(pkg, build / "onbellek")

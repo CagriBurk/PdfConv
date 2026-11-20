@@ -1,4 +1,4 @@
-# PDF Atölyesi — Proje Planı
+# Toolia (eski adı PDF Atölyesi) — Proje Planı
 
 > Kendi bilgisayarında çalışan, kayıt / reklam / bekleme / dosya yükleme sınırı olmayan PDF araç seti.
 > Dosyalar hiçbir zaman internete çıkmaz.
@@ -527,7 +527,7 @@ Bu kararlar verilene kadar yapılan, maddede yazılı; hiçbiri ücretli bir şe
    - *d) Microsoft Store (MSIX)*: Store imzalar; geliştirici hesabı ve paketleme işi gerekir.
    - **Karar (2026-11-07): a) imzasız devam.** Dağıtım genişlerse yeniden bakılır.
 2. **Lisans** — **Karar (2026-11-07): AGPL-3.0.** `LICENSE` eklendi, `pyproject.toml`'da `AGPL-3.0-only`, pakette `LICENSE.txt`. ("or-later" istenirse yalnızca SPDX ifadesi değişir.)
-3. **Yayın (GitHub Releases)**: son sürüm **0.12.0** (Faz I: biçim dönüştürme, Gönder → JPG'ye çevir). Önceki: 0.11.0 (Faz G–H: yeni arayüz, Sayfa Düzeni ve Yazdırma, Markdown şablonları), 0.10.0 (PDF → Word / Excel, A0), 0.9.1 (arkadaş denemesi sonrası). Her sürümde etiket (`vX.Y.Z`) gönderilir, değişiklikler `CHANGELOG.md`'de; Release'i oluşturup `build/PdfAtolyesi-X.Y.Z.zip`'i yüklemek depo sahibinin tarayıcıdan yapacağı iş (kimlik bilgisi gerektirir). Release taslak ya da ön sürüm (pre-release) olmamalı: "Güncellemeleri denetle" `releases/latest`'e sorar, o ikisini görmez. İstenirse CI'a etiketle tetiklenen bir yayın işi eklenebilir (motorsuz paket CI'da üretilebiliyor; OCR'lı tam paket için Tesseract/Ghostscript'in CI'da kurulması gerekir).
+3. **Yayın (GitHub Releases)**: son sürüm **0.12.0** (Faz I: biçim dönüştürme, Gönder → JPG'ye çevir). Önceki: 0.11.0 (Faz G–H: yeni arayüz, Sayfa Düzeni ve Yazdırma, Markdown şablonları), 0.10.0 (PDF → Word / Excel, A0), 0.9.1 (arkadaş denemesi sonrası). Her sürümde etiket (`vX.Y.Z`) gönderilir, değişiklikler `CHANGELOG.md`'de; Release'i oluşturup `build/Toolia-X.Y.Z.zip`'i yüklemek depo sahibinin tarayıcıdan yapacağı iş (kimlik bilgisi gerektirir). Release taslak ya da ön sürüm (pre-release) olmamalı: "Güncellemeleri denetle" `releases/latest`'e sorar, o ikisini görmez. İstenirse CI'a etiketle tetiklenen bir yayın işi eklenebilir (motorsuz paket CI'da üretilebiliyor; OCR'lı tam paket için Tesseract/Ghostscript'in CI'da kurulması gerekir).
 4. **Ghostscript'i pakette tutmak** (+~40 MB, AGPL): şu an pakette (OCR ve güçlü sıkıştırma için). Alternatif: çıkarıp OCR'ı Ghostscript'siz yapılandırmak (OCRmyPDF sürümüne bağlı, denenmedi).
 5. **1.0.0 sürüm numarası**: şimdilik 0.12.0. 1.0.0'ı arkadaş denemesi sorunsuz geçtikten sonra vermeni öneririm.
 

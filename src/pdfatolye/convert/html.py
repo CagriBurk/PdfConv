@@ -99,7 +99,7 @@ def print_html(
     warnings.extend(blocked_warnings(blocked, f"'{name}': "))
     with pymupdf.open(stream=pdf_bytes, filetype="pdf") as doc:
         pages = doc.page_count
-        doc.set_metadata({"title": Path(name).stem, "creator": "PDF Atölyesi"})
+        doc.set_metadata({"title": Path(name).stem, "creator": "Toolia"})
         with atomic_output(Path(output)) as tmp:
             doc.save(tmp, garbage=3, deflate=True)
     return HtmlResult(Path(output), pages, warnings)

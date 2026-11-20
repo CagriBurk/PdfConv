@@ -1,4 +1,6 @@
-# PDF Atölyesi
+# Toolia
+
+(Eski adı: PDF Atölyesi.)
 
 Kendi bilgisayarında çalışan, çevrimdışı PDF araç seti: Markdown / Office → PDF, PDF → Word / Excel,
 sayfa düzenleme, içerik ekleme, sıkıştırma, OCR, şifreleme. Yanında biçim dönüştürücü: resimler
@@ -9,7 +11,7 @@ Ayrıntılı plan: [PLAN.md](PLAN.md).
 
 Uygulamayı kullanmak için uv, Node, git ya da Python **gerekmez**.
 
-1. `PdfAtolyesi-<sürüm>.zip` dosyasını indir, sağ tıkla → **Tümünü ayıkla**.
+1. `Toolia-<sürüm>.zip` dosyasını indir, sağ tıkla → **Tümünü ayıkla**.
 2. Açılan klasördeki **Kur** (`Kur.cmd`) dosyasına çift tıkla. Windows "Windows bilgisayarınızı
    korudu" ya da "yayımcı doğrulanamadı" derse **Daha fazla bilgi → Yine de çalıştır** (kurulum
    dosyası imzalı değil; içinde çalışan Python python.org imzalıdır). Yönetici izni istemez.
@@ -32,10 +34,10 @@ Uygulamayı kullanmak için uv, Node, git ya da Python **gerekmez**.
   kütüphane sürümleri gibi geliştirici bilgileri **Gelişmiş** altında.
 - **Güncelleme**: Ayarlar → **Güncellemeleri denetle** (yalnızca basınca GitHub'a sorar). Yeni
   paketi indirip yine **Kur**'a çift tıkla; eskisinin üzerine kurar, belgelerin korunur.
-- **Kaldırma**: Ayarlar → Uygulamalar → PDF Atölyesi → Kaldır (ya da kurulum klasöründeki
+- **Kaldırma**: Ayarlar → Uygulamalar → Toolia → Kaldır (ya da kurulum klasöründeki
   `Kaldir.cmd`). Belgelerin, imzaların ve ayarların da silinsin mi diye sorar.
 
-Paketi üretmek (geliştirici): `uv run python paket/derle.py` → `build/PdfAtolyesi-<sürüm>.zip`
+Paketi üretmek (geliştirici): `uv run python paket/derle.py` → `build/Toolia-<sürüm>.zip`
 (Tesseract ve Ghostscript bu bilgisayardaki kurulumdan alınır; `--motorsuz` ile alınmaz; ağ
 yavaşsa `--yerel-ortam` bağımlılıkları kilitle eşit `.venv`'den kopyalar). Her gönderimde CI
 motorsuz paketi üretip dener ve artifact olarak yükler.
@@ -76,7 +78,7 @@ motorsuz paketi üretip dener ve artifact olarak yükler.
    Ghostscript) hepsi "Hazır" görünmeli. Eksik olanın yanında kurulum komutu yazar.
    Komut satırından: `uv run python -m pdfatolye motorlar`
 
-7. **Kısayollar** (isteğe bağlı): masaüstüne "PDF Atölyesi" ve sağ tık → Gönder menüsüne
+7. **Kısayollar** (isteğe bağlı): masaüstüne "Toolia" ve sağ tık → Gönder menüsüne
    "PDF'e çevir" ile "JPG'ye çevir" ekler. Yalnızca kendi kullanıcı klasörüne yazar; `-Kaldir` ile geri alınır.
 
    ```
@@ -306,6 +308,6 @@ dosyasına yazılır (geliştirmede proje kökünde bir `config.toml` varsa o). 
 
 ## Lisans
 
-PDF Atölyesi [GNU AGPL v3](LICENSE) ile lisanslıdır (PyMuPDF ve Ghostscript de AGPL). Paketi
+Toolia [GNU AGPL v3](LICENSE) ile lisanslıdır (PyMuPDF ve Ghostscript de AGPL). Paketi
 başkasına verirken ya da ağ üzerinden hizmet olarak sunarken kaynak kodu (değişikliklerinle
 birlikte) aynı lisansla erişilebilir olmalıdır. Paketteki bileşenlerin lisansları: `LISANSLAR.txt`.

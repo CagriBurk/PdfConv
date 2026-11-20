@@ -302,7 +302,7 @@ def test_first_run_welcome_then_home(server, page):
     app.state.settings.welcome_done = False
     try:
         page.goto(base)
-        expect(page.get_by_role("heading", name="PDF Atölyesi'ne hoş geldin")).to_be_focused()
+        expect(page.get_by_role("heading", name="Toolia'ya hoş geldin")).to_be_focused()
         page.get_by_role("heading", name="Hazırlık").wait_for()
         assert page.locator(".dropzone").count() == 0  # önce tanıtım
         page.get_by_role("button", name="Başla").click()
@@ -574,7 +574,7 @@ def test_new_screens_fit_the_window(server, page, tmp_path, width):
     try:
         page.goto(f"{base}/#/araclar")
         page.reload()  # ayarlar açılışta okunur (yalnızca adres karması değişti)
-        page.get_by_role("heading", name="PDF Atölyesi'ne hoş geldin").wait_for()
+        page.get_by_role("heading", name="Toolia'ya hoş geldin").wait_for()
         assert _no_horizontal_overflow(page), "Tanıtım taşıyor"
     finally:
         app.state.settings.welcome_done = True

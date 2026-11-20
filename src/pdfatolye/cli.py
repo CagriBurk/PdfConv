@@ -22,7 +22,7 @@ from pdfatolye import engines
 from pdfatolye.errors import PdfAtolyeError
 from pdfatolye.settings import load_settings
 
-app = typer.Typer(help="PDF Atölyesi — yerel PDF araç seti", no_args_is_help=True)
+app = typer.Typer(help="Toolia — çevrimdışı PDF ve dosya araçları", no_args_is_help=True)
 
 ConfigOpt = Annotated[Path | None, typer.Option("--config", help="config.toml yolu")]
 OutOpt = Annotated[
@@ -107,7 +107,7 @@ def serve(
 
     if _port_in_use(local_host, settings.port):
         if _is_our_server(url):
-            typer.echo(f"PDF Atölyesi zaten çalışıyor: {url}")
+            typer.echo(f"Toolia zaten çalışıyor: {url}")
             if browser:
                 webbrowser.open(url)
             return
@@ -138,11 +138,11 @@ def _serve_until_closed(config: Path | None, settings, *, open_browser: bool = F
             # bekleniyor, yeni sunucu açılıyor) yığın izi yerine düzgün kapanış.
             server = _start_server(settings, previous_port, host=settings.host, lock=False)
             if server is None:
-                typer.secho("PDF Atölyesi başlatılamadı. Ayrıntı günlük dosyasında: "
+                typer.secho("Toolia başlatılamadı. Ayrıntı günlük dosyasında: "
                             f"{settings.logs_dir / 'pdfatolye.log'}", fg="red", err=True)
                 return 1
             if previous_port is None:
-                typer.echo(f"PDF Atölyesi çalışıyor: {server.url}  (kapatmak için Ctrl+C)")
+                typer.echo(f"Toolia çalışıyor: {server.url}  (kapatmak için Ctrl+C)")
             else:
                 typer.echo(f"Yeniden başlatıldı: {server.url}"
                            + ("" if settings.lan else "  (telefon modu kapalı)"))
@@ -179,7 +179,7 @@ def uygulama(config: ConfigOpt = None) -> None:
         import logging
 
         logging.getLogger("pdfatolye").exception("Masaüstü uygulaması açılamadı")
-        desktop.message_box(f"PDF Atölyesi açılamadı:\n{e}")
+        desktop.message_box(f"Toolia açılamadı:\n{e}")
         code = 1
     raise typer.Exit(code)
 

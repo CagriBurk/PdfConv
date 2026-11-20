@@ -37,7 +37,7 @@ WINDOW_PROFILE = "pencere-profili"
 
 # --- yardımcılar ------------------------------------------------------------------------------
 
-def message_box(text: str, title: str = "PDF Atölyesi", error: bool = True) -> None:
+def message_box(text: str, title: str = "Toolia", error: bool = True) -> None:
     """Konsolsuz çalışırken kullanıcıya görünür ileti."""
     if os.name != "nt":
         print(text, file=sys.stderr)
@@ -205,7 +205,7 @@ def run(config: Path | None = None, *, wait_window: bool = True) -> int:
             settings.ensure_dirs()
         server = _start_server(settings, previous_port)
         if server is None:
-            message_box("PDF Atölyesi başlatılamadı. Ayrıntı günlük dosyasında:\n"
+            message_box("Toolia başlatılamadı. Ayrıntı günlük dosyasında:\n"
                         f"{settings.logs_dir / 'pdfatolye.log'}")
             return 1
         log.info("Masaüstü uygulaması açıldı: %s%s", server.url,

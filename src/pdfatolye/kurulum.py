@@ -29,7 +29,8 @@ import tempfile
 import time
 from pathlib import Path
 
-APP_NAME = "PDF Atölyesi"
+APP_NAME = "Toolia"
+OLD_APP_NAME = "PDF Atölyesi"  # 0.12.0'dan önceki görünen ad (eski kısayolları silmek için)
 DIR_NAME = "PdfAtolyesi"
 UNINSTALL_KEY = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\PdfAtolyesi"
 MARKER = "pdfatolye-kurulum.json"
@@ -92,26 +93,32 @@ def shortcut_paths() -> dict[str, Path]:
         return Path(buf.value)
 
     # 0x10 masaüstü, 0x02 Başlat menüsü\Programlar, 0x09 Gönder (SendTo)
-    sendto = known(0x09)
-    return {"masaustu": known(0x10) / f"{APP_NAME}.lnk",
-            "baslat": known(0x02) / f"{APP_NAME}.lnk",
+    desktop, start, sendto = known(0x10), known(0x02), known(0x09)
+    return {"masaustu": desktop / f"{APP_NAME}.lnk",
+            "baslat": start / f"{APP_NAME}.lnk",
             "gonder": sendto / "PDF'e çevir.lnk",
-            "gonder_jpg": sendto / "JPG'ye çevir.lnk"}
+            "gonder_jpg": sendto / "JPG'ye çevir.lnk",
+            # 0.12.0'a kadarki ad: güncellemede ve kaldırmada silinir (iki simge kalmasın).
+            "eski_masaustu": desktop / f"{OLD_APP_NAME}.lnk",
+            "eski_baslat": start / f"{OLD_APP_NAME}.lnk"}
 
 
 # Gönder menüsü kısayolları: anahtar → (paketteki başlatıcı, açıklama)
 SENDTO_LAUNCHERS = {
-    "gonder": ("pdfe-cevir.cmd", "Seçili dosyaları PDF Atölyesi ile PDF'e çevirir"),
+    "gonder": ("pdfe-cevir.cmd", "Seçili dosyaları Toolia ile PDF'e çevirir"),
     "gonder_jpg": ("jpge-cevir.cmd", "Seçili resimleri JPG'ye çevirir"),
 }
 
 
 def create_shortcuts(target: Path) -> None:
     """Her kurulumda (güncelleme dahil) baştan yazılır: eski sürümün üzerine kurulunca yeni
-    eklenen kısayollar da oluşur."""
+    eklenen kısayollar da oluşur, eski addaki kısayollar silinir."""
     pyw = target / "python" / "pythonw.exe"
     icon = target / "simgeler" / "pdfatolye.ico"
     links = shortcut_paths()
+    for key, path in links.items():
+        if key.startswith("eski_"):
+            path.unlink(missing_ok=True)
     lines = ["$s = New-Object -ComObject WScript.Shell"]
     for key in ("masaustu", "baslat"):
         lines += [f"$l = $s.CreateShortcut({_ps_str(links[key])})",
@@ -119,7 +126,7 @@ def create_shortcuts(target: Path) -> None:
                   "$l.Arguments = '-I -m pdfatolye uygulama'",
                   f"$l.WorkingDirectory = {_ps_str(target)}",
                   f"$l.IconLocation = {_ps_str(str(icon) + ',0')}",
-                  "$l.Description = 'PDF Atölyesi: çevrimdışı PDF araç seti'",
+                  "$l.Description = 'Toolia: çevrimdışı PDF ve dosya araçları'",
                   "$l.Save()"]
     for key, (launcher, description) in SENDTO_LAUNCHERS.items():
         lines += [f"$l = $s.CreateShortcut({_ps_str(links[key])})",
@@ -147,7 +154,7 @@ def register_uninstall(target: Path, version: str) -> None:
         values = {
             "DisplayName": APP_NAME,
             "DisplayVersion": version,
-            "Publisher": "PDF Atölyesi",
+            "Publisher": "Toolia",
             "InstallLocation": str(target),
             "DisplayIcon": str(target / "simgeler" / "pdfatolye.ico"),
             "UninstallString": f'"{target / "Kaldir.cmd"}"',
@@ -207,7 +214,7 @@ def install(source: Path, target: Path, *, launch: bool = True, shortcuts: bool 
         _say("Kısayollar oluşturuluyor...")
         create_shortcuts(target)
         register_uninstall(target, version)
-    _say("Kurulum tamam. Masaüstündeki \"PDF Atölyesi\" simgesiyle açabilirsin.")
+    _say("Kurulum tamam. Masaüstündeki \"Toolia\" simgesiyle açabilirsin.")
     if launch:
         spawn_detached([str(target / "python" / "pythonw.exe"), "-I", "-m", "pdfatolye",
                         "uygulama"], cwd=target)

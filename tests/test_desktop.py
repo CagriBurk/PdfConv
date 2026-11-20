@@ -347,7 +347,11 @@ def test_uninstall_refuses_while_app_runs(tmp_path, monkeypatch):
 @pytest.mark.skipif(os.name != "nt", reason="kısayollar yalnızca Windows")
 def test_shortcut_paths_include_sendto_jpg():
     links = kurulum.shortcut_paths()  # yalnızca yol hesaplar, hiçbir şey yazmaz
-    assert set(links) == {"masaustu", "baslat", "gonder", "gonder_jpg"}
+    assert set(links) == {"masaustu", "baslat", "gonder", "gonder_jpg", "eski_masaustu",
+                          "eski_baslat"}
+    assert links["masaustu"].name == "Toolia.lnk"
+    assert links["eski_masaustu"].name == "PDF Atölyesi.lnk"
+    assert links["eski_masaustu"].parent == links["masaustu"].parent
     assert links["gonder"].name == "PDF'e çevir.lnk"
     assert links["gonder_jpg"].name == "JPG'ye çevir.lnk"
     assert links["gonder_jpg"].parent == links["gonder"].parent  # ikisi de Gönder menüsünde
@@ -364,10 +368,14 @@ def _fake_links(root: Path) -> dict[str, Path]:
 def test_create_and_remove_shortcuts(tmp_path, monkeypatch):
     links = _fake_links(tmp_path)
     links["masaustu"].parent.mkdir()
+    # 0.12.0 öncesi addaki kısayol (güncelleme senaryosu): yenisi yazılınca silinmeli
+    links["eski_masaustu"] = tmp_path / "kisayollar" / "PDF Atölyesi.lnk"
+    links["eski_masaustu"].write_bytes(b"eski")
     monkeypatch.setattr(kurulum, "shortcut_paths", lambda: links)
     target = tmp_path / "Programs" / "PdfAtolyesi"
     kurulum.create_shortcuts(target)
-    assert all(p.is_file() for p in links.values())
+    assert not links["eski_masaustu"].exists()
+    assert all(p.is_file() for k, p in links.items() if not k.startswith("eski_"))
     # Kısayolu Windows'un okuduğu gibi geri oku: hedef, pencere biçimi, simge
     script = (f"$l = (New-Object -ComObject WScript.Shell).CreateShortcut("
               f"{kurulum._ps_str(links['gonder_jpg'])}); "

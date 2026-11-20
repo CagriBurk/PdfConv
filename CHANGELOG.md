@@ -2,11 +2,12 @@
 
 ## 0.12.0 — 2026-11-20
 
-PDF'in yanında artık biçim dönüştürme: fotoğraflar ve Office belgeleri.
+PDF'in yanında artık biçim dönüştürme: fotoğraflar ve Office belgeleri. Uygulamanın yeni adı **Toolia** (eski adı PDF Atölyesi).
 
 **Kurulum ve güncelleme**: yeni paketi indirip ayıkla, **Kur**'a çift tıkla. Eski sürümü
-kaldırmaya gerek yok; belgelerin, imzaların ve ayarların korunur. Kurarken PDF Atölyesi
-penceresi kapalı olmalı.
+kaldırmaya gerek yok; belgelerin, imzaların ve ayarların korunur. Kurarken uygulama
+penceresi kapalı olmalı. Masaüstündeki "PDF Atölyesi" simgesi "Toolia" olur (eskisi
+kendiliğinden silinir).
 
 ### Yeni araç: Biçim Dönüştür
 - **Resimler**: JPG, PNG, WEBP, HEIC (iPhone), GIF, TIFF, BMP → JPG, PNG, WEBP ya da TIFF.

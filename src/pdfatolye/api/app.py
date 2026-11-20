@@ -40,9 +40,9 @@ CLEANUP_INTERVAL_S = 3600
 log = logging.getLogger("pdfatolye")
 
 NO_UI_PAGE = """<!doctype html><html lang="tr"><meta charset="utf-8">
-<title>PDF Atölyesi</title>
+<title>Toolia</title>
 <body style="font-family:system-ui;max-width:40rem;margin:4rem auto;padding:0 1rem">
-<h1>PDF Atölyesi</h1>
+<h1>Toolia</h1>
 <p>Sunucu çalışıyor ama arayüz henüz derlenmemiş.</p>
 <pre>npm --prefix web install
 npm --prefix web run build</pre>
@@ -50,9 +50,9 @@ npm --prefix web run build</pre>
 </body></html>"""
 
 LAN_LOCKED_PAGE = """<!doctype html><html lang="tr"><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1"><title>PDF Atölyesi</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Toolia</title>
 <body style="font-family:system-ui;max-width:30rem;margin:3rem auto;padding:0 1rem">
-<h1>PDF Atölyesi</h1>
+<h1>Toolia</h1>
 <p>Bu bilgisayar telefon modunda. Bağlanmak için bilgisayardaki <b>Ayarlar</b> sayfasındaki QR
 kodu telefonun kamerasıyla okut. QR kod tek kullanımlıktır; önceden okutulmuşsa Ayarlar'daki yeni
 kodu kullan.</p>
@@ -147,7 +147,7 @@ def create_app(settings: Settings, *, start_background: bool = True) -> FastAPI:
         jobs.shutdown()
 
     # API belgeleri kapalı: CDN'den yüklenir (çevrimdışı açılmaz) ve kullanıcıya gerekmez.
-    app = FastAPI(title="PDF Atölyesi", version=__version__, docs_url=None, redoc_url=None,
+    app = FastAPI(title="Toolia", version=__version__, docs_url=None, redoc_url=None,
                   openapi_url=None, lifespan=lifespan)
     # Sıra önemli: dıştaki (son eklenen) önce çalışır. Başlıklar her yanıtta, önce Host, sonra
     # oturum.

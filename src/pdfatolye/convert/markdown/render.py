@@ -268,8 +268,8 @@ class MarkdownPrinter:
             doc.set_metadata({
                 "title": parsed.title or "",
                 "author": str(author),
-                "creator": "PDF Atölyesi",
-                "producer": "PDF Atölyesi (Chromium + PyMuPDF)",
+                "creator": "Toolia",
+                "producer": "Toolia (Chromium + PyMuPDF)",
             })
             if heading_pages and all(p is not None for p in heading_pages):
                 toc, prev = [], 0

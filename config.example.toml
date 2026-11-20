@@ -1,4 +1,4 @@
-# PDF Atölyesi ayarları. Bu dosyayı config.toml olarak kopyala.
+# Toolia ayarları. Bu dosyayı config.toml olarak kopyala.
 # Yazmadığın her ayar varsayılan değeriyle kalır. Uygulamanın Ayarlar ekranı da bu dosyaya yazar
 # (saklama süresi, kasa, varsayılan tema/kağıt, port, telefon modu); elle yazılan açıklamalar o
 # zaman kaybolur.
