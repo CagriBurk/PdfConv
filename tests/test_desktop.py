@@ -372,8 +372,14 @@ def test_create_and_remove_shortcuts(tmp_path, monkeypatch):
     links["eski_masaustu"] = tmp_path / "kisayollar" / "PDF Atölyesi.lnk"
     links["eski_masaustu"].write_bytes(b"eski")
     monkeypatch.setattr(kurulum, "shortcut_paths", lambda: links)
+    refreshed = []
+    monkeypatch.setattr(kurulum, "refresh_icon_cache", lambda: refreshed.append(1))
     target = tmp_path / "Programs" / "Toolia"
+    versioned = target / "simgeler" / "toolia-0.12.2.ico"  # sürüm adlı simge (önbellek)
+    versioned.parent.mkdir(parents=True)
+    versioned.write_bytes(b"ico")
     kurulum.create_shortcuts(target)
+    assert refreshed == [1]  # Windows simge önbelleği yenilendi
     assert not links["eski_masaustu"].exists()
     assert all(p.is_file() for k, p in links.items() if not k.startswith("eski_"))
     # Kısayolu Windows'un okuduğu gibi geri oku: hedef, pencere biçimi, simge
@@ -387,7 +393,7 @@ def test_create_and_remove_shortcuts(tmp_path, monkeypatch):
     lnk_target, style, icon, desc = out.strip().split("|")
     assert lnk_target == str(target / "jpge-cevir.cmd")
     assert style == "7"
-    assert icon == str(target / "simgeler" / "toolia.ico") + ",0"
+    assert icon == str(versioned) + ",0"
     assert desc == "Seçili resimleri JPG'ye çevirir"
     kurulum.remove_shortcuts()
     assert not any(p.exists() for p in links.values())
@@ -596,3 +602,24 @@ def test_prune_removes_only_unused_parts(tmp_path):
     assert all((site / rel).exists() for rel in kept)
     assert not (site / "google").exists()  # boş kalan ad alanı klasörü de gider
     assert derle.prune_unused(site) == 0  # ikinci kez: yapacak iş yok
+
+
+def test_icon_path_prefers_versioned_icon(tmp_path):
+    """0.12.1'de simge yolu sabitti; Windows önbelleği güncellemeden sonra eski simgeyi
+    gösterdi. Sürüm adlı simge varsa o kullanılır, yoksa (eski paket) toolia.ico."""
+    target = tmp_path / "Toolia"
+    (target / "simgeler").mkdir(parents=True)
+    assert kurulum.icon_path(target) == target / "simgeler" / "toolia.ico"
+    (target / "simgeler" / "toolia-0.12.2.ico").write_bytes(b"x")
+    assert kurulum.icon_path(target) == target / "simgeler" / "toolia-0.12.2.ico"
+
+
+def test_make_icon_names_icon_with_version(tmp_path):
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("derle", ROOT / "paket" / "derle.py")
+    derle = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(derle)
+    derle.make_icon(tmp_path / "simgeler", "9.9.9")
+    assert [p.name for p in (tmp_path / "simgeler").iterdir()] == ["toolia-9.9.9.ico"]
+    assert kurulum.icon_path(tmp_path) == tmp_path / "simgeler" / "toolia-9.9.9.ico"

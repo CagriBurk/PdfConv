@@ -3,11 +3,12 @@
 Beyaz karo üzerinde dört geometrik kanat, uygulamanın dört araç grubu renginde. Geometri
 referans tasarımdan ölçüldü; yalnız sol kanatlar tanımlıdır, sağdakiler tam aynasıdır (simetri
 milimetrik). Buradan üretilenler:
-- masaüstü / kısayol simgesi `toolia.ico` (16–256 px; `derle.make_icon`)
-- arayüzün sekme simgesi (`web/index.html`) ve üst çubuk logosu (`TopBar.tsx` BrandMark)
-  için SVG; `tests/test_simge.py` ikisinin buradakiyle aynı olduğunu denetler.
+- masaüstü / kısayol simgesi `toolia-<sürüm>.ico` (16–256 px; `derle.make_icon`)
+- arayüzün sekme ve pencere (görev çubuğu) simgeleri `web/public/simge-*.png` (`web/index.html`)
+- üst çubuk ve karşılama logosu için SVG (`web/src/components/BrandMark.tsx`)
+`tests/test_simge.py` arayüzdeki kopyaların buradakiyle aynı olduğunu denetler.
 
-    uv run python paket/simge.py   → SVG'yi ve 1024 px PNG önizlemeyi yazdırır
+    uv run python paket/simge.py   → web PNG'lerini yeniden yazar, SVG'yi ve önizlemeyi verir
 """
 
 from __future__ import annotations
@@ -80,7 +81,18 @@ def write_ico(path: Path) -> None:
                     append_images=images[:-1])
 
 
+# Arayüzün sekme / pencere simgeleri (web/public). SVG değil PNG: Edge uygulama penceresi görev
+# çubuğu simgesini sayfa simgesinden alır ve SVG'yi 16 px'te çizip büyütüyordu (bulanık, 0.12.1).
+WEB_ICON_SIZES = (16, 32, 48, 256)
+
+
+def write_web_icons(public: Path) -> None:
+    for s in WEB_ICON_SIZES:
+        render(s).save(public / f"simge-{s}.png", optimize=True)
+
+
 if __name__ == "__main__":
+    write_web_icons(Path(__file__).resolve().parents[1] / "web" / "public")
     print(svg())
     out = Path("build") / "toolia-simge-1024.png"
     out.parent.mkdir(exist_ok=True)

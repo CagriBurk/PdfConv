@@ -287,11 +287,13 @@ def copy_ghostscript(dest: Path) -> None:
         shutil.copyfile(lic, out / "COPYING")
 
 
-def make_icon(dest: Path) -> None:
-    """Kelebek simgesi (tek kaynak `paket/simge.py`)."""
+def make_icon(dest: Path, version: str) -> None:
+    """Kelebek simgesi (tek kaynak `paket/simge.py`). Adı sürümü taşır: Windows simgeleri yola
+    göre önbelleğe alır; aynı yol güncellemeden sonra eski simgeyi gösterirdi
+    (`kurulum.icon_path`)."""
     from simge import write_ico
 
-    write_ico(dest / "toolia.ico")
+    write_ico(dest / f"toolia-{version}.ico")
 
 
 # Pakette kullanılmayan, yalnızca yer kaplayan parçalar (site-packages'a göre, glob). Kurulu
@@ -402,7 +404,7 @@ def main() -> None:
         copy_tesseract(engines_dir)
         copy_ghostscript(engines_dir)
     log("4/5 Başlatıcılar ve belgeler")
-    make_icon(pkg / "simgeler")
+    make_icon(pkg / "simgeler", version)
     write_launchers(pkg)
     (pkg / "OKUBENI.txt").write_text(OKUBENI.format(version=version), encoding="utf-8-sig")
     (pkg / "LISANSLAR.txt").write_text(LISANSLAR.format(py=PY_VERSION), encoding="utf-8-sig")
