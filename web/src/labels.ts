@@ -18,6 +18,7 @@ export const JOB_TYPE_LABEL: Record<string, string> = {
   decrypt: "Şifre kaldırma",
   clean_metadata: "Meta veri temizliği",
   repair: "Onarım",
+  convert: "Biçim dönüştürme",
   install_engine: "Motor kurulumu",
 };
 

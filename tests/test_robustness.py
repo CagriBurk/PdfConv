@@ -284,6 +284,39 @@ def test_ui_accept_lists_match_store_kinds():
     assert set(lists["office"]) >= OFFICE_EXTS, "arayüz bir Office türünü kabul etmiyor"
 
 
+def test_ui_convert_targets_match_formats():
+    """Biçim Dönüştür: tools.ts CONVERT_TARGETS / CONVERT_SAME, formats.py tablolarının aynısı."""
+    from pdfatolye import formats
+
+    src = (PROJECT_ROOT / "web" / "src" / "tools.ts").read_text(encoding="utf-8")
+    block = src[src.index("export const CONVERT_TARGETS"):]
+    block = block[:block.index("};")]
+    def exts(s: str) -> list[str]:
+        return re.findall(r"\"(\.[a-z0-9]+)\"", s)
+
+    ui = {k: (exts(s), exts(t)) for k, s, t in re.findall(
+        r"(\w+): \{\s*sources: \[([^\]]*)\],\s*targets: \[([^\]]*)\]\s*\}", block)}
+    py = {"image": (formats.RASTER_IMAGE_EXTS, formats.IMAGE_CONVERT_TARGETS),
+          **formats.OFFICE_CONVERT_FAMILIES}
+    assert set(ui) == set(py)
+    for fam, (sources, targets) in py.items():
+        assert len(ui[fam][0]) == len(set(ui[fam][0])) and set(ui[fam][0]) == set(sources), fam
+        assert tuple(ui[fam][1]) == tuple(targets), fam  # sıra da aynı (düğme sırası)
+    same_block = src[src.index("const CONVERT_SAME"):]
+    same = dict(re.findall(r"\"(\.[a-z0-9]+)\": \"(\.[a-z0-9]+)\"",
+                           same_block[:same_block.index("};")]))
+    assert same == formats._SAME
+    # arayüzün hesabı (familyTargets / sameFormat / convertTargets) her kaynak için sunucununkiyle
+    # aynı sonucu verir
+    for sources, targets in ui.values():
+        for ext in sources:
+            assert same.get(ext, ext) == formats.same_format(ext), ext
+            assert tuple(targets) == formats.family_targets(ext), ext
+            mine = tuple(t for t in targets if t != same.get(ext, ext))
+            assert mine == formats.convert_targets(ext), ext
+    assert formats.family_targets(".svg") == () and formats.family_targets(".txt") == ()
+
+
 @pytest.mark.parametrize("name", ["tablo.csv", "makro.docm", "hesap.xlsm", "sunum.pptm"])
 def test_csv_and_macro_office_files_are_office(client, monkeypatch, name):
     monkeypatch.setattr(engines, "detect_libreoffice", lambda _s: engines.EngineStatus(

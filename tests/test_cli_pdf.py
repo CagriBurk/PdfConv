@@ -123,3 +123,19 @@ def test_word_and_excel_commands(tmp_path):
     assert (tmp_path / "liste.docx").is_file()
     r = runner.invoke(app, ["excel", str(fx.numbered(tmp_path / "yazi.pdf", 1, with_toc=False))])
     assert r.exit_code == 2 and "tablo bulunamadı" in r.output
+
+
+def test_donustur_images(tmp_path):
+    png = fx.transparent_png(tmp_path / "Şeffaf logo.png")
+    jpg = fx.photo_jpeg(tmp_path / "foto.jpeg")
+    r = runner.invoke(app, ["donustur", str(png), str(jpg), "--hedef", "JPEG", "-d",
+                            str(tmp_path / "cikti")])
+    # foto.jpeg zaten JPG: hata sayılır (komut satırında karışık seçim kolaylığı yok), logo çevrilir
+    assert r.exit_code == 2, r.output
+    assert (tmp_path / "cikti" / "Şeffaf logo.jpg").read_bytes()[:3] == b"\xff\xd8\xff"
+    assert "saydam" in r.output and "foto.jpeg" in r.output
+    r = runner.invoke(app, ["donustur", str(png), "--hedef", "webp"])
+    assert r.exit_code == 0, r.output
+    assert (tmp_path / "Şeffaf logo.webp").is_file()
+    r = runner.invoke(app, ["donustur", str(png), "--hedef", "exe"])
+    assert r.exit_code == 2 and "Desteklenmeyen hedef" in r.output

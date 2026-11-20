@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from pdfatolye.core.content import MAX_OPS, Op
 from pdfatolye.core.paper import PAPERS
+from pdfatolye.formats import ALL_CONVERT_TARGETS
 
 FileId = Annotated[str, Field(pattern=r"^[0-9a-f]{32}$")]
 Passwords = dict[FileId, str]
@@ -222,6 +223,24 @@ class LayoutRequest(_Base):
     overlap_mm: float = Field(default=5, ge=0, le=40)
 
 
+class ConvertRequest(_Base):
+    """PDF dışı biçim dönüştürme: resim ↔ resim (Pillow), Office ↔ Office (LibreOffice, aynı
+    aile içinde: Word / tablo / sunum). Hedefe uymayan ya da bozuk dosya diğerlerini durdurmaz;
+    hata olarak bildirilir. Hedefler: `formats.ALL_CONVERT_TARGETS`."""
+
+    type: Literal["convert"]
+    files: list[FileId] = Field(min_length=1, max_length=2000)
+    target: str = Field(pattern=r"^\.[a-z]{3,4}$")
+    quality: int = Field(default=90, ge=1, le=100)  # JPG / WEBP
+    background: str = Field(default="#ffffff", pattern=r"^#[0-9a-fA-F]{6}$")  # saydam → JPG
+
+    @model_validator(mode="after")
+    def _check(self) -> ConvertRequest:
+        if self.target not in ALL_CONVERT_TARGETS:
+            raise ValueError(f"Desteklenmeyen hedef biçim: {self.target}")
+        return self
+
+
 class InstallEngineRequest(_Base):
     """Eksik motoru kullanıcının onayıyla kurar (winget). Yalnızca bu bilgisayardan istenebilir."""
 
@@ -234,6 +253,6 @@ JobRequest = Annotated[
     | PdfToWordRequest | PdfToExcelRequest | MdToPdfRequest | OfficeToPdfRequest | ApplyRequest
     | CompressRequest | OcrRequest | LayoutRequest
     | EncryptRequest | DecryptRequest | CleanMetadataRequest | RepairRequest
-    | InstallEngineRequest,
+    | ConvertRequest | InstallEngineRequest,
     Field(discriminator="type"),
 ]

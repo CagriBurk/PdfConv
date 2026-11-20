@@ -53,6 +53,7 @@ const JOB_TOOL: Record<string, string> = {
   decrypt: "guvenlik",
   clean_metadata: "guvenlik",
   repair: "guvenlik",
+  convert: "donustur",
 };
 
 function JobTile({ type }: { type: string }) {

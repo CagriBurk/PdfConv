@@ -30,7 +30,7 @@ from pdfatolye.storage import file_ids_in
 log = logging.getLogger("pdfatolye.jobs")
 
 # Aynı anda en fazla kaç tane: tarayıcı/LibreOffice/OCR bellek ve işlemci yer.
-LIMITS = {"md_to_pdf": 1, "office_to_pdf": 1, "ocr": 1, "compress": 2}
+LIMITS = {"md_to_pdf": 1, "office_to_pdf": 1, "convert": 1, "ocr": 1, "compress": 2}
 GENERAL_WORKERS = 4
 KEEP_JOBS = 200  # bellekte ve diskte tutulan en fazla kayıt
 # Yanıtlarda `request`in yalnızca küçük alanları gider (arayüz `file` vb. kullanır); sayfa

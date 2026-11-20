@@ -94,6 +94,7 @@ def run(manager, req, report: Report, job_id: str) -> WorkResult:
         "decrypt": decrypt,
         "clean_metadata": clean_metadata,
         "repair": repair,
+        "convert": convert,
         "install_engine": install_engine,
     }[req.type]
     with tempfile.TemporaryDirectory(prefix="pa-is-") as tmp:
@@ -328,6 +329,76 @@ def office_to_pdf(store, settings, req, report, tmp: Path, job_id) -> WorkResult
     else:
         outputs = [store.add_file(p, _stem(m) + ".pdf", job_id=job_id) for m, p in converted]
     return WorkResult(outputs, errors + warnings)
+
+def convert(store, settings, req, report, tmp: Path, job_id) -> WorkResult:
+    """Biçim dönüştürme. Resimler tek tek Pillow ile, Office belgeleri tek LibreOffice
+    çağrısında çevrilir. Bir dosyanın hatası işi durdurmaz; LibreOffice eksikse durdurur."""
+    from pdfatolye.formats import family_targets, same_format
+
+    metas = [store.get(fid) for fid in req.files]
+    total = len(metas)
+    results: dict[int, list[str] | PdfAtolyeError] = {}
+    outs: dict[int, Path] = {}
+    image_idx: list[int] = []
+    office_idx: list[int] = []
+    fmt = req.target.lstrip(".").upper()
+    for i, m in enumerate(metas):
+        ext = split_ext(m.name)[1].lower()
+        if req.target not in family_targets(ext):
+            results[i] = PdfAtolyeError(f"'{m.name}' {fmt} biçimine çevrilemez.")
+            continue
+        outs[i] = tmp / f"{i:04d}{req.target}"
+        if same_format(ext) == req.target:  # karışık seçimde zaten hedef biçimde olan
+            shutil.copyfile(store.path(m.id), outs[i])
+            results[i] = [f"Zaten {fmt}; olduğu gibi alındı."]
+            continue
+        (image_idx if m.kind == "image" else office_idx).append(i)
+
+    if image_idx:
+        from pdfatolye.convert.image_format import convert_image
+
+        for i in image_idx:
+            report(0.9 * len(results) / total, f"{len(results) + 1}/{total}: {metas[i].name}")
+            try:
+                results[i] = convert_image(store.path(metas[i].id), outs[i], target=req.target,
+                                           quality=req.quality, background=req.background)
+            except PdfAtolyeError as e:
+                results[i] = e
+
+    if office_idx:
+        from pdfatolye.convert.office import (
+            LibreOfficeNotFoundError,
+            OfficeItem,
+            convert_office_format,
+        )
+
+        start = len(results)
+        report(0.9 * start / total, f"LibreOffice: {len(office_idx)} belge")
+        items = [OfficeItem(store.path(metas[i].id), outs[i], metas[i].name) for i in office_idx]
+        try:
+            done = convert_office_format(
+                items, soffice=engines.detect_libreoffice(settings).path, target=req.target,
+                on_progress=lambda n, t: report(0.9 * (start + n) / total, f"{start + n}/{total}"),
+            )
+        except LibreOfficeNotFoundError as e:
+            # Çevrilmiş resimler kaybolmasın; yalnız Office dosyası yoksa iş bu hatayla durur.
+            if not any(isinstance(r, list) for r in results.values()):
+                raise
+            done = [e] * len(items)
+        for i, r in zip(office_idx, done, strict=True):
+            results[i] = r
+
+    ok = [i for i in range(total) if isinstance(results[i], list)]
+    errors = [str(with_display_name(results[i], store)) for i in range(total)
+              if isinstance(results[i], PdfAtolyeError)]
+    # Çok dosyalı işte uyarının hangi dosyaya ait olduğu görünsün.
+    warnings = [w if total == 1 else f"{metas[i].name}: {w}" for i in ok for w in results[i]]
+    if not ok:
+        raise PdfAtolyeError(errors[0] if len(errors) == 1 else
+                             "Hiçbir dosya dönüştürülemedi:\n" + "\n".join(errors))
+    outputs = [store.add_file(outs[i], _stem(metas[i]) + req.target, job_id=job_id) for i in ok]
+    return WorkResult(outputs, errors + warnings)
+
 
 _APPLY_NOTES = {"watermark": "Filigran", "page_numbers": "Sayfa numarası"}
 

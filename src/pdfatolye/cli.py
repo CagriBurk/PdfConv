@@ -598,6 +598,75 @@ def cevir(
         raise typer.Exit(2)
 
 
+@app.command()
+@friendly_errors
+def donustur(
+    dosyalar: Annotated[list[Path], typer.Argument(
+        help="Resim (JPG, PNG, HEIC…) ya da Office (Word, Excel, PowerPoint) dosyaları",
+        exists=True, dir_okay=False)],
+    hedef: Annotated[str, typer.Option(
+        "--hedef", help="jpg png webp tiff | docx odt rtf txt | xlsx ods csv | pptx odp")],
+    klasor: DirOpt = None,
+    kalite: Annotated[int, typer.Option(min=1, max=100, help="JPG / WEBP kalitesi")] = 90,
+    arka_plan: Annotated[str, typer.Option(
+        "--arka-plan", help="Saydam resim JPG'e çevrilirken arka plan (#rrggbb)")] = "#ffffff",
+    config: ConfigOpt = None,
+) -> None:
+    """Resim ↔ resim ve Office ↔ Office biçim dönüştürme. Bozuk dosya diğerlerini durdurmaz."""
+    from pdfatolye.convert.office import OfficeItem, convert_office_format
+    from pdfatolye.core.pdfio import unique_path
+    from pdfatolye.formats import ALL_CONVERT_TARGETS, RASTER_IMAGE_EXTS, convert_targets
+
+    target = "." + hedef.lower().lstrip(".")
+    target = {".jpeg": ".jpg", ".tif": ".tiff"}.get(target, target)
+    if target not in ALL_CONVERT_TARGETS:
+        raise ValueError(f"Desteklenmeyen hedef: {hedef}")
+    if klasor:
+        klasor.mkdir(parents=True, exist_ok=True)
+
+    failed = 0
+    office: list[OfficeItem] = []
+    for src in dosyalar:
+        ext = src.suffix.lower()
+        if target not in convert_targets(ext):
+            failed += 1
+            typer.secho(f"Hata: '{src.name}' {target.lstrip('.').upper()} biçimine çevrilemez.",
+                        fg="red", err=True)
+            continue
+        out = unique_path((klasor or src.parent) / f"{src.stem}{target}")
+        if ext in RASTER_IMAGE_EXTS:
+            from pdfatolye.convert.image_format import convert_image
+
+            try:
+                notes = convert_image(src, out, target=target, quality=kalite,
+                                      background=arka_plan)
+            except PdfAtolyeError as e:
+                failed += 1
+                typer.secho(f"Hata: {e}", fg="red", err=True)
+                continue
+            _done(out)
+            for w in notes:
+                typer.secho(f"  uyarı: {w}", fg="yellow")
+        else:
+            office.append(OfficeItem(src, out, src.name))
+
+    if office:
+        settings = load_settings(config)
+        settings.ensure_dirs()
+        soffice = engines.detect_libreoffice(settings).path
+        for item, r in zip(office, convert_office_format(office, soffice=soffice, target=target),
+                           strict=True):
+            if isinstance(r, PdfAtolyeError):
+                failed += 1
+                typer.secho(f"Hata: {r}", fg="red", err=True)
+                continue
+            _done(item.output)
+            for w in r:
+                typer.secho(f"  uyarı: {w}", fg="yellow")
+    if failed:
+        raise typer.Exit(2)
+
+
 @app.command("resimleri-cikar")
 @friendly_errors
 def resimleri_cikar(pdf: InPdf, klasor: DirOpt = None, sifre: PwOpt = None) -> None:
