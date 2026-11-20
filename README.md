@@ -67,8 +67,8 @@ motorsuz paketi üretip dener ve artifact olarak yükler.
 4. **Proje**:
 
    ```
-   git clone https://github.com/CagriBurk/PdfConv.git
-   cd PdfConv
+   git clone https://github.com/CagriBurk/Toolia.git
+   cd Toolia
    ```
 
 5. **Çalıştır**: `baslat.bat` dosyasına çift tıkla. İlk açılışta Python bağımlılıklarını kurar ve
@@ -108,7 +108,7 @@ tarayıcıda açılır; her gönderimde CI Ubuntu'da da bütün testleri çalı�
 ```
 sudo apt install tesseract-ocr tesseract-ocr-tur ghostscript libreoffice-writer libreoffice-calc libreoffice-impress chromium
 curl -LsSf https://astral.sh/uv/install.sh | sh     # uv; Node.js da gerekir (arayüzü derlemek için)
-git clone https://github.com/CagriBurk/PdfConv.git && cd PdfConv
+git clone https://github.com/CagriBurk/Toolia.git && cd Toolia
 uv sync && npm --prefix web install && npm --prefix web run build
 uv run python -m toolia serve                    # http://127.0.0.1:8790
 ```
@@ -145,7 +145,7 @@ yalnızca güvendiğin Wi-Fi'de kullan, işin bitince telefon modunu kapat. `--l
 - "8790 portu başka bir program tarafından kullanılıyor": masaüstü uygulaması kendiliğinden boş bir
   port seçer. Geliştirme sunucusunda Ayarlar → Gelişmiş → Port (ya da `baslat.bat --port 8800`).
 - Proje klasörünün yolu çok uzunsa (260+ karakter) LibreOffice ve Ghostscript bozulabilir; projeyi
-  kısa bir yola (ör. `C:\PdfConv`) koy.
+  kısa bir yola (ör. `C:\Toolia`) koy.
 
 ## Web arayüzü
 

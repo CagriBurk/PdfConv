@@ -12,7 +12,7 @@ import re
 import urllib.error
 import urllib.request
 
-REPO = "CagriBurk/PdfConv"
+REPO = "CagriBurk/Toolia"
 LATEST_URL = f"https://api.github.com/repos/{REPO}/releases/latest"
 RELEASES_PAGE = f"https://github.com/{REPO}/releases"
 TIMEOUT_S = 8

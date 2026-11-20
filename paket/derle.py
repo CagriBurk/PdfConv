@@ -82,7 +82,7 @@ denetle" dersen GitHub'a sorar).
 LISANSLAR = """Toolia paketindeki bileşenler ve lisansları
 =================================================
 
-- Toolia: GNU AGPL v3 (LICENSE.txt), kaynak kod: https://github.com/CagriBurk/PdfConv
+- Toolia: GNU AGPL v3 (LICENSE.txt), kaynak kod: https://github.com/CagriBurk/Toolia
 - Python {py} (python.org, imzalı gömülü dağıtım): PSF License
 - PyMuPDF / MuPDF: GNU AGPL v3 (ticari lisans ayrıca Artifex'ten)
 - pikepdf / qpdf: MPL 2.0 / Apache 2.0
@@ -96,7 +96,7 @@ LISANSLAR = """Toolia paketindeki bileşenler ve lisansları
   klasöründeki LICENSE dosyaları
 
 Toolia ve AGPL bileşenleri (PyMuPDF, Ghostscript) nedeniyle bu paketi başkasına
-verirken kaynak kod erişilebilir olmalıdır: https://github.com/CagriBurk/PdfConv
+verirken kaynak kod erişilebilir olmalıdır: https://github.com/CagriBurk/Toolia
 """
 
 

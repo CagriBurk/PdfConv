@@ -158,7 +158,7 @@ def register_uninstall(target: Path, version: str) -> None:
             "InstallLocation": str(target),
             "DisplayIcon": str(target / "simgeler" / "toolia.ico"),
             "UninstallString": f'"{target / "Kaldir.cmd"}"',
-            "URLInfoAbout": "https://github.com/CagriBurk/PdfConv",
+            "URLInfoAbout": "https://github.com/CagriBurk/Toolia",
         }
         for name, value in values.items():
             winreg.SetValueEx(key, name, 0, winreg.REG_SZ, value)
