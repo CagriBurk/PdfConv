@@ -573,3 +573,26 @@ def test_install_waits_while_legacy_app_runs(tmp_path, monkeypatch):
     assert kurulum.install(pkg, tmp_path / "Programs" / "Toolia", launch=False,
                            shortcuts=False) == 1
     assert old.exists() and not (tmp_path / "Programs" / "Toolia").exists()
+
+
+def test_prune_removes_only_unused_parts(tmp_path):
+    """Paketten çıkarılan parçalar: yalnız PRUNE'dakiler; aynı kütüphanenin geri kalanı kalır."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("derle", ROOT / "paket" / "derle.py")
+    derle = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(derle)
+    site = tmp_path / "site-packages"
+    gone = ["pymupdf/layout/model.onnx", "pymupdf/mupdf-devel/include/x.h",
+            "onnxruntime/capi/x.dll", "onnxruntime-1.31.1.dist-info/METADATA",
+            "networkx/__init__.py", "google/protobuf/__init__.py", "google/_upb/x.pyd",
+            "protobuf-7.36.2.dist-info/METADATA", "cv2/opencv_videoio_ffmpeg500_64.dll"]
+    kept = ["pymupdf/__init__.py", "pymupdf/_mupdf.pyd", "cv2/cv2.pyd", "numpy/__init__.py"]
+    for rel in gone + kept:
+        (site / rel).parent.mkdir(parents=True, exist_ok=True)
+        (site / rel).write_bytes(b"x" * 10)
+    assert derle.prune_unused(site) == 10 * len(gone)
+    assert not any((site / rel).exists() for rel in gone)
+    assert all((site / rel).exists() for rel in kept)
+    assert not (site / "google").exists()  # boş kalan ad alanı klasörü de gider
+    assert derle.prune_unused(site) == 0  # ikinci kez: yapacak iş yok

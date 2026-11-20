@@ -1,5 +1,11 @@
 # Değişiklikler
 
+## 0.12.1 — 2026-11-21
+
+- **Yeni simge**: turuncu "PDF" simgesinin yerine Toolia'nın kelebeği (masaüstü, Başlat, Gönder
+  menüsü, "Uygulamalar" listesi, tarayıcı sekmesi ve uygulamanın üst çubuğu). Kanatlar
+  uygulamadaki dört araç grubunun renginde.
+
 ## 0.12.0 — 2026-11-20
 
 PDF'in yanında artık biçim dönüştürme: fotoğraflar ve Office belgeleri. Uygulamanın yeni adı **Toolia** (eski adı PDF Atölyesi).

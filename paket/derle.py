@@ -288,18 +288,45 @@ def copy_ghostscript(dest: Path) -> None:
 
 
 def make_icon(dest: Path) -> None:
-    from PIL import Image, ImageDraw, ImageFont
+    """Kelebek simgesi (tek kaynak `paket/simge.py`)."""
+    from simge import write_ico
 
-    dest.mkdir(parents=True, exist_ok=True)
-    size = 256
-    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    d.rounded_rectangle((8, 8, size - 8, size - 8), radius=48, fill=(194, 65, 12, 255))
-    d.rounded_rectangle((8, 8, size - 8, 120), radius=48, fill=(234, 88, 12, 255))
-    d.rectangle((8, 80, size - 8, 120), fill=(234, 88, 12, 255))
-    font = ImageFont.truetype(str(ROOT / "src/toolia/assets/fonts/NotoSans-Bold.ttf"), 92)
-    d.text((size / 2, size / 2 + 6), "PDF", font=font, fill="white", anchor="mm")
-    img.save(dest / "toolia.ico", sizes=[(s, s) for s in (16, 24, 32, 48, 64, 128, 256)])
+    write_ico(dest / "toolia.ico")
+
+
+# Pakette kullanılmayan, yalnızca yer kaplayan parçalar (site-packages'a göre, glob). Kurulu
+# kütüphanelerin kendi bağımlılıklarıdır; uygulama bunlara hiç dokunmaz (~140 MB):
+# - PyMuPDF 2.0'ın yapay zekâ sayfa düzeni modülü ve onun getirdikleri: tablo bulma
+#   `use_layout=False` ile çalışır (to_excel.py; PLAN tuzak #78), modül yoksa PyMuPDF onu atlar.
+# - PyMuPDF'in C başlık dosyaları (yalnızca derleme için).
+# - OpenCV'nin video okuma DLL'i (ffmpeg): pdf2docx yalnız resim işler.
+# smoke_test bunların gerçekten gittiğini ve Word / Excel dönüşümünün yine çalıştığını denetler.
+PRUNE = (
+    "pymupdf/layout", "pymupdf/mupdf-devel",
+    "onnxruntime", "onnxruntime-*.dist-info",
+    "networkx", "networkx-*.dist-info",
+    "flatbuffers", "flatbuffers-*.dist-info",
+    "google/protobuf", "google/_upb", "protobuf-*.dist-info",
+    "cv2/opencv_videoio_ffmpeg*.dll",
+)
+
+
+def prune_unused(site: Path) -> int:
+    """PRUNE'dakileri siler; kazanılan baytı döndürür. Eşleşmeyen kalıp hata değildir (kütüphane
+    sürümü değişince parça kalkmış olabilir)."""
+    freed = 0
+    for pattern in PRUNE:
+        for path in site.glob(pattern):
+            if path.is_dir():
+                freed += sum(f.stat().st_size for f in path.rglob("*") if f.is_file())
+                shutil.rmtree(path)
+            else:
+                freed += path.stat().st_size
+                path.unlink()
+    google = site / "google"
+    if google.is_dir() and not any(google.iterdir()):
+        google.rmdir()
+    return freed
 
 
 def write_launchers(pkg: Path) -> None:
@@ -318,6 +345,15 @@ def smoke_test(pkg: Path) -> None:
             "assert (paths.fonts_dir() / 'NotoSans-Regular.ttf').is_file();"
             "print('sürüm', toolia.__version__, 'arayüz', paths.web_dist());"
             "[print(' ', e.name, e.ok, e.path) for e in engines.detect_all(settings.Settings())]")
+    run([py, "-I", "-c", code])
+    # Budanan parçalar gerçekten yok; budama yükleyici ve resim/HEIC yolunu bozmamış.
+    code = ("import importlib.util as u;"
+            "gone = [m for m in ('onnxruntime', 'networkx', 'flatbuffers', 'pymupdf.layout',"
+            " 'google') if u.find_spec(m) is not None];"
+            "assert not gone, f'budanmadı: {gone}';"
+            "import cv2, pillow_heif;"
+            "from toolia.convert.image_format import convert_image;"
+            "print('budama tamam; cv2', cv2.__version__)")
     run([py, "-I", "-c", code])
     # PDF → Word / Excel: pdf2docx opencv'nin DLL'lerini yükler; pakette gerçekten çalışsın.
     code = ("import pathlib, tempfile, pymupdf;"
@@ -358,6 +394,7 @@ def main() -> None:
     site = build_python(pkg, build / "onbellek")
     log("2/5 Python paketleri ve arayüz")
     install_packages(site, work, from_venv=args.yerel_ortam)
+    log(f"  kullanılmayan parçalar çıkarıldı: {prune_unused(site) / 1024 / 1024:.0f} MB")
     log("3/5 Motorlar")
     engines_dir = pkg / "motorlar"
     engines_dir.mkdir()

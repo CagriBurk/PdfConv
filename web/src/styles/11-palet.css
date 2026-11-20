@@ -56,19 +56,6 @@
   flex: none;
 }
 
-.brand-bg {
-  fill: var(--accent);
-}
-
-.brand-sheet {
-  fill: #fff;
-}
-
-.brand-line {
-  fill: none;
-  stroke: var(--accent);
-}
-
 .nav-tray {
   display: flex;
   gap: 2px;
