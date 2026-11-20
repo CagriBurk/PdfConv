@@ -3,8 +3,8 @@ from pathlib import Path
 
 import pytest
 
-from pdfatolye import engines
-from pdfatolye.settings import EnginePaths, Settings
+from toolia import engines
+from toolia.settings import EnginePaths, Settings
 
 
 def test_detect_all_reports_every_engine(settings: Settings):
@@ -66,7 +66,7 @@ def test_python_libraries_are_installed():
 
 def test_install_hints_match_the_platform(monkeypatch):
     """Linux'ta winget yok: ipucu dağıtımın paket adlarıyla."""
-    from pdfatolye.settings import Settings
+    from toolia.settings import Settings
 
     monkeypatch.setattr(engines, "on_windows", lambda: False)
     monkeypatch.setattr(engines, "_find_executable", lambda *a, **k: None)

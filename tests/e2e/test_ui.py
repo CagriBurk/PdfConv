@@ -15,10 +15,10 @@ from pathlib import Path
 import pymupdf
 import pytest
 
-from pdfatolye import engines
-from pdfatolye.api.app import WEB_DIST, create_app
-from pdfatolye.settings import Settings
 from tests.fixtures import make_fixtures as fx
+from toolia import engines
+from toolia.api.app import WEB_DIST, create_app
+from toolia.settings import Settings
 
 BROWSER = engines.detect_browser(Settings()).path
 pytestmark = pytest.mark.skipif(
@@ -354,7 +354,7 @@ def test_settings_are_editable_and_developer_info_is_advanced(server, page, tmp_
         page.get_by_text("Klasör bulunamadı").wait_for()
         assert s.vault_path == vault.resolve()
     finally:
-        from pdfatolye.settings import save_settings
+        from toolia.settings import save_settings
 
         save_settings(s, {"retention_hours": None, "vault_path": None, "default_theme": None,
                           "default_paper": None})
@@ -549,7 +549,7 @@ def test_render_error_shows_message_not_white_page(server, page):
     expect(page.get_by_role("link", name="Araçlar", exact=True)).to_be_visible()  # uygulama ayakta
     page.get_by_text("Hata kimliği").wait_for()
     eid = page.locator(".crash strong.mono").inner_text()
-    log = (app.state.settings.logs_dir / "pdfatolye.log").read_text(encoding="utf-8")
+    log = (app.state.settings.logs_dir / "toolia.log").read_text(encoding="utf-8")
     assert f"[{eid}] arayüz hatası" in log
     page.unroute("**/api/jobs?limit=30")
     page.get_by_role("link", name="Araçlar", exact=True).click()
@@ -607,7 +607,7 @@ def test_restart_button_moves_window_to_new_port(browser, tmp_path, monkeypatch)
     kalıyordu.)"""
     from playwright.sync_api import expect
 
-    from pdfatolye import desktop
+    from toolia import desktop
 
     monkeypatch.setattr(desktop, "kill_children_on_exit", lambda: False)
     port, new_port = _free_port(), _free_port()
@@ -667,8 +667,8 @@ def test_phone_mode_asks_then_restarts_by_itself(browser, tmp_path, monkeypatch)
     başlatır ve Ayarlar'da QR kod görünür. Kapatınca yine yalnızca 127.0.0.1."""
     from playwright.sync_api import expect
 
-    from pdfatolye import cli, lan
-    from pdfatolye.settings import load_settings
+    from toolia import cli, lan
+    from toolia.settings import load_settings
 
     monkeypatch.setattr(lan, "lan_ips", lambda: ["192.168.1.10"])  # Wi-Fi'siz makinede de QR
     port = _free_port()

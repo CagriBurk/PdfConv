@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from pdfatolye.settings import Settings, load_settings
+from toolia.settings import Settings, load_settings
 
 
 def write(path: Path, text: str) -> Path:
@@ -63,9 +63,50 @@ def test_ensure_dirs(settings: Settings):
 def test_config_with_bom_is_read(tmp_path):
     """Not Defteri / PowerShell BOM'lu UTF-8 yazar; uygulama yine açılmalı (kurulum denemesinde
     BOM'lu config.toml uygulamayı açtırmadı)."""
-    from pdfatolye.settings import load_settings
+    from toolia.settings import load_settings
 
     cfg = tmp_path / "config.toml"
     cfg.write_bytes("\ufeffport = 8800\nvault_path = 'C:/Kasa/Ödev'\n".encode())
     s = load_settings(cfg)
     assert s.port == 8800 and str(s.vault_path).endswith("Ödev")
+
+
+# --- 0.12.0: veri klasörü PdfAtolye → Toolia ------------------------------------------------
+
+
+def test_legacy_data_dir_is_used_until_moved_then_migrated(tmp_path, monkeypatch):
+    from toolia import settings as s
+
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    monkeypatch.delenv("TOOLIA_CONFIG", raising=False)
+    old = tmp_path / "PdfAtolye"
+    (old / "imzalar").mkdir(parents=True)
+    (old / "imzalar" / "imza.png").write_bytes(b"x")
+    assert s.default_data_dir() == old  # taşınmadan önce eski klasör: belgeler görünür
+    assert s.migrate_on_startup(tmp_path / "config.toml") is False  # açık ayar: dokunma
+    assert old.exists()
+    assert s.migrate_on_startup(None) is True
+    assert not old.exists()
+    assert (tmp_path / "Toolia" / "imzalar" / "imza.png").read_bytes() == b"x"
+    assert s.default_data_dir() == tmp_path / "Toolia"
+    assert s.migrate_on_startup(None) is False  # ikinci kez: yapacak iş yok
+
+
+def test_legacy_data_dir_kept_when_move_fails_or_new_exists(tmp_path, monkeypatch):
+    from toolia import settings as s
+
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    old = tmp_path / "PdfAtolye"
+    old.mkdir()
+
+    def locked(self, target):
+        raise PermissionError("kilitli")
+
+    monkeypatch.setattr(Path, "rename", locked)
+    assert s.migrate_legacy_data_dir() is False
+    assert s.default_data_dir() == old  # eski sürüm açıkken: eski klasörle devam
+    monkeypatch.undo()
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    (tmp_path / "Toolia").mkdir()
+    assert s.migrate_legacy_data_dir() is False  # iki klasör de varsa hiçbirine dokunma
+    assert old.exists() and s.default_data_dir() == tmp_path / "Toolia"

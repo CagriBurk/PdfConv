@@ -5,11 +5,11 @@ from pathlib import Path
 import pymupdf
 import pytest
 
-from pdfatolye import engines
-from pdfatolye.convert.markdown import MarkdownPrinter, MdOptions
-from pdfatolye.convert.markdown.render import BrowserNotFoundError
-from pdfatolye.settings import Settings
 from tests.fixtures import make_fixtures as fx
+from toolia import engines
+from toolia.convert.markdown import MarkdownPrinter, MdOptions
+from toolia.convert.markdown.render import BrowserNotFoundError
+from toolia.settings import Settings
 
 BROWSER = engines.detect_browser(Settings()).path
 pytestmark = pytest.mark.skipif(not BROWSER, reason="Edge/Chrome yok")

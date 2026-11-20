@@ -6,11 +6,11 @@ import pikepdf
 import pymupdf
 import pytest
 
-from pdfatolye import engines
-from pdfatolye.core import compress, ocr, security
-from pdfatolye.errors import EncryptedPdfError, PdfAtolyeError
-from pdfatolye.settings import Settings
 from tests.fixtures import make_fixtures as fx
+from toolia import engines
+from toolia.core import compress, ocr, security
+from toolia.errors import EncryptedPdfError, TooliaError
+from toolia.settings import Settings
 
 TESSERACT = engines.detect_tesseract(Settings())
 GHOSTSCRIPT = engines.detect_ghostscript(Settings())
@@ -70,7 +70,7 @@ def test_encrypt_is_aes256_with_permissions(tmp_path: Path):
 
 
 def test_encrypt_short_password(tmp_path: Path):
-    with pytest.raises(PdfAtolyeError, match="en az 4"):
+    with pytest.raises(TooliaError, match="en az 4"):
         security.encrypt(fx.numbered(tmp_path / "n.pdf", 1), tmp_path / "o.pdf", "abc")
 
 
@@ -84,7 +84,7 @@ def test_decrypt_needs_correct_password(tmp_path: Path):
 
 
 def test_decrypt_plain_file_is_reported(tmp_path: Path):
-    with pytest.raises(PdfAtolyeError, match="zaten şifresiz"):
+    with pytest.raises(TooliaError, match="zaten şifresiz"):
         security.decrypt(fx.numbered(tmp_path / "n.pdf", 1), tmp_path / "o.pdf")
 
 
@@ -129,7 +129,7 @@ def test_repair_broken_xref(tmp_path: Path):
 def test_repair_garbage_fails_clearly(tmp_path: Path):
     junk = tmp_path / "cop.pdf"
     junk.write_bytes(b"%PDF-1.7\nbu bir pdf degil")
-    with pytest.raises(PdfAtolyeError, match="cop.pdf"):
+    with pytest.raises(TooliaError, match="cop.pdf"):
         security.repair(junk, tmp_path / "o.pdf")
 
 

@@ -75,7 +75,7 @@ jobs:
           npm --prefix web run build
 
       - name: Motor durumu
-        run: uv run python -m pdfatolye motorlar
+        run: uv run python -m toolia motorlar
 
       - name: Testler
         run: uv run python -m pytest --tb=short -rs

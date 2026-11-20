@@ -1,7 +1,7 @@
 import pytest
 
-from pdfatolye.core.ranges import format_pages, parse_range_groups, parse_ranges
-from pdfatolye.errors import PageRangeError
+from toolia.core.ranges import format_pages, parse_range_groups, parse_ranges
+from toolia.errors import PageRangeError
 
 
 @pytest.mark.parametrize(

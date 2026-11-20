@@ -5,11 +5,11 @@ import re
 import pytest
 from fastapi.testclient import TestClient
 
-from pdfatolye import engines, lan
-from pdfatolye.api import app as app_module
-from pdfatolye.jobs import workers
-from pdfatolye.settings import Settings
 from tests.fixtures import make_fixtures as fx
+from toolia import engines, lan
+from toolia.api import app as app_module
+from toolia.jobs import workers
+from toolia.settings import Settings
 
 
 @pytest.fixture
@@ -128,5 +128,5 @@ def test_unexpected_job_error_has_id(settings, monkeypatch, tmp_path):
         m = re.search(r"Hata kimliği: ([0-9a-f]{8})", job.error or "")
         assert m, job.error
         assert "iç ayrıntı" not in job.error  # ayrıntı kullanıcıya değil, günlüğe
-        log = (settings.logs_dir / "pdfatolye.log").read_text(encoding="utf-8")
+        log = (settings.logs_dir / "toolia.log").read_text(encoding="utf-8")
         assert m.group(1) in log and "iç ayrıntı" in log

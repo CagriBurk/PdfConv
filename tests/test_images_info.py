@@ -4,10 +4,10 @@ import pymupdf
 import pytest
 from PIL import Image
 
-from pdfatolye.core import images, info
-from pdfatolye.core.pdfio import safe_filename, unique_path
-from pdfatolye.errors import BrokenPdfError, EncryptedPdfError, UnsupportedFileError
 from tests.fixtures import make_fixtures as fx
+from toolia.core import images, info
+from toolia.core.pdfio import safe_filename, unique_path
+from toolia.errors import BrokenPdfError, EncryptedPdfError, UnsupportedFileError
 
 
 def page_sizes(path: Path) -> list[tuple[int, int]]:

@@ -1,7 +1,7 @@
 from typer.testing import CliRunner
 
-from pdfatolye.cli import app
 from tests.fixtures import make_fixtures as fx
+from toolia.cli import app
 
 runner = CliRunner()
 

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from pdfatolye.settings import Settings
+from toolia.settings import Settings
 
 
 @pytest.fixture

@@ -36,5 +36,5 @@ if errorlevel 1 (
   )
 )
 
-uv run python -m pdfatolye serve %*
+uv run python -m toolia serve %*
 if errorlevel 1 pause

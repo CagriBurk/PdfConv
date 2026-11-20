@@ -9,11 +9,11 @@ from pathlib import Path
 import openpyxl
 import pytest
 
-from pdfatolye import engines
-from pdfatolye.convert import office
-from pdfatolye.convert.office import OfficeItem, convert_office_format
-from pdfatolye.settings import Settings
 from tests.fixtures import make_fixtures as fx
+from toolia import engines
+from toolia.convert import office
+from toolia.convert.office import OfficeItem, convert_office_format
+from toolia.settings import Settings
 
 SOFFICE = engines.detect_libreoffice(Settings()).path
 needs_lo = pytest.mark.skipif(not SOFFICE, reason="LibreOffice yok")

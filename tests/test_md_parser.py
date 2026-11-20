@@ -3,16 +3,16 @@ from pathlib import Path
 
 import pytest
 
-from pdfatolye.convert.markdown.document import (
+from tests.fixtures import make_fixtures as fx
+from toolia.convert.markdown.document import (
     MdOptions,
     build_html,
     resolve_options,
     toc_html,
 )
-from pdfatolye.convert.markdown.obsidian import preprocess
-from pdfatolye.convert.markdown.parser import Heading, parse_markdown, slugify
-from pdfatolye.convert.markdown.render import match_heading_pages
-from tests.fixtures import make_fixtures as fx
+from toolia.convert.markdown.obsidian import preprocess
+from toolia.convert.markdown.parser import Heading, parse_markdown, slugify
+from toolia.convert.markdown.render import match_heading_pages
 
 
 def body(text: str, base: Path = Path("."), **kw) -> str:

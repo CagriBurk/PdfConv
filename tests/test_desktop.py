@@ -19,11 +19,11 @@ import psutil
 import pytest
 from fastapi.testclient import TestClient
 
-import pdfatolye
-from pdfatolye import desktop, engines, kurulum, paths, settings, update
-from pdfatolye.api import app as app_module
-from pdfatolye.core import fonts
-from pdfatolye.jobs import workers
+import toolia
+from toolia import desktop, engines, kurulum, paths, settings, update
+from toolia.api import app as app_module
+from toolia.core import fonts
+from toolia.jobs import workers
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -51,14 +51,14 @@ def test_version_has_single_source():
     version = pyproject["project"]["version"]
     package = json.loads((ROOT / "web" / "package.json").read_text(encoding="utf-8"))
     lock = json.loads((ROOT / "web" / "package-lock.json").read_text(encoding="utf-8"))
-    assert pdfatolye.__version__ == version
+    assert toolia.__version__ == version
     assert package["version"] == version
     assert lock["version"] == lock["packages"][""]["version"] == version
 
 
 def test_install_root_and_engine_dirs(tmp_path, monkeypatch):
     paths.install_root.cache_clear()
-    monkeypatch.setenv("PDFATOLYE_HOME", str(tmp_path))
+    monkeypatch.setenv("TOOLIA_HOME", str(tmp_path))
     try:
         assert paths.install_root() == tmp_path
         assert paths.engines_dir() == tmp_path / "motorlar"
@@ -75,7 +75,7 @@ def test_install_root_and_engine_dirs(tmp_path, monkeypatch):
 def test_install_root_from_marker_next_to_python(tmp_path, monkeypatch):
     (tmp_path / "python").mkdir()
     (tmp_path / paths.INSTALL_MARKER).write_text('{"version": "9.9.9"}', encoding="utf-8")
-    monkeypatch.delenv("PDFATOLYE_HOME", raising=False)
+    monkeypatch.delenv("TOOLIA_HOME", raising=False)
     monkeypatch.setattr(sys, "executable", str(tmp_path / "python" / "pythonw.exe"))
     paths.install_root.cache_clear()
     try:
@@ -87,11 +87,11 @@ def test_install_root_from_marker_next_to_python(tmp_path, monkeypatch):
 
 def test_installed_package_ignores_project_config(monkeypatch, tmp_path):
     """Kurulu pakette (proje klasörü yok) depo kökündeki config.toml aranmaz."""
-    monkeypatch.delenv("PDFATOLYE_CONFIG", raising=False)
+    monkeypatch.delenv("TOOLIA_CONFIG", raising=False)
     monkeypatch.setattr(paths, "is_dev_checkout", lambda: False)
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
     candidates = settings._candidate_config_files()
-    assert candidates == [tmp_path / "PdfAtolye" / "config.toml"]
+    assert candidates == [tmp_path / "Toolia" / "config.toml"]
 
 
 def test_packaged_web_dist_wins(tmp_path, monkeypatch):
@@ -191,7 +191,7 @@ def test_restart_moves_to_new_port_and_keeps_window(tmp_path, monkeypatch):
     portta açılır, pencere açık kalır (yeni pencere açılmaz), ayar dosyaya yazılmıştır."""
     import httpx
 
-    from pdfatolye.settings import load_settings
+    from toolia.settings import load_settings
 
     monkeypatch.setattr(desktop, "kill_children_on_exit", lambda: False)
     port, new_port = _free_port(), _free_port()
@@ -230,7 +230,7 @@ def test_restart_moves_to_new_port_and_keeps_window(tmp_path, monkeypatch):
 
 
 def test_phone_mode_listens_on_local_network(tmp_path):
-    from pdfatolye.settings import Settings
+    from toolia.settings import Settings
 
     server = desktop._Server(Settings(data_dir=tmp_path / "veri", lan=True, port=_free_port()))
     assert server.server.config.host == "0.0.0.0"
@@ -263,7 +263,7 @@ def test_children_die_when_app_is_killed(tmp_path):
     öksüz kalmaz: iş nesnesi onları da kapatır."""
     code = (
         "import subprocess, sys, time\n"
-        "from pdfatolye import desktop\n"
+        "from toolia import desktop\n"
         "assert desktop.kill_children_on_exit()\n"
         "p = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(120)'])\n"
         "print(p.pid, flush=True)\n"
@@ -297,7 +297,7 @@ def test_install_copies_without_mark_of_the_web(tmp_path):
     with open(f"{exe}:Zone.Identifier", "w", encoding="ascii") as f:  # indirilmiş dosya
         f.write("[ZoneTransfer]\nZoneId=3\n")
     assert Path(f"{exe}:Zone.Identifier").exists()
-    target = tmp_path / "Programs" / "PdfAtolyesi"
+    target = tmp_path / "Programs" / "Toolia"
     old = target / "eski.txt"
     old.parent.mkdir(parents=True)
     old.write_text("önceki sürüm", encoding="utf-8")
@@ -312,7 +312,7 @@ def test_install_copies_without_mark_of_the_web(tmp_path):
 
 @pytest.mark.skipif(os.name != "nt", reason="kurulum yalnızca Windows")
 def test_uninstall_keeps_or_removes_data(tmp_path, monkeypatch):
-    target = tmp_path / "Programs" / "PdfAtolyesi"
+    target = tmp_path / "Programs" / "Toolia"
     target.mkdir(parents=True)
     data = tmp_path / "veri"
     data.mkdir()
@@ -323,7 +323,7 @@ def test_uninstall_keeps_or_removes_data(tmp_path, monkeypatch):
     monkeypatch.setattr(kurulum, "_running_app", lambda t: False)
     # Güvenlik: gerçek veri klasörüne asla ulaşılmasın (varsayılan da geçici klasöre düşer).
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "localappdata"))
-    monkeypatch.delenv("PDFATOLYE_CONFIG", raising=False)
+    monkeypatch.delenv("TOOLIA_CONFIG", raising=False)
     spawned = []
     monkeypatch.setattr(kurulum, "spawn_detached", lambda args, **kw: spawned.append(args))
     monkeypatch.setattr(kurulum.tempfile, "gettempdir", lambda: str(tmp_path))
@@ -372,7 +372,7 @@ def test_create_and_remove_shortcuts(tmp_path, monkeypatch):
     links["eski_masaustu"] = tmp_path / "kisayollar" / "PDF Atölyesi.lnk"
     links["eski_masaustu"].write_bytes(b"eski")
     monkeypatch.setattr(kurulum, "shortcut_paths", lambda: links)
-    target = tmp_path / "Programs" / "PdfAtolyesi"
+    target = tmp_path / "Programs" / "Toolia"
     kurulum.create_shortcuts(target)
     assert not links["eski_masaustu"].exists()
     assert all(p.is_file() for k, p in links.items() if not k.startswith("eski_"))
@@ -387,7 +387,7 @@ def test_create_and_remove_shortcuts(tmp_path, monkeypatch):
     lnk_target, style, icon, desc = out.strip().split("|")
     assert lnk_target == str(target / "jpge-cevir.cmd")
     assert style == "7"
-    assert icon == str(target / "simgeler" / "pdfatolye.ico") + ",0"
+    assert icon == str(target / "simgeler" / "toolia.ico") + ",0"
     assert desc == "Seçili resimleri JPG'ye çevirir"
     kurulum.remove_shortcuts()
     assert not any(p.exists() for p in links.values())
@@ -397,7 +397,7 @@ def test_create_and_remove_shortcuts(tmp_path, monkeypatch):
 def test_update_install_recreates_shortcuts(tmp_path, monkeypatch):
     """Eski sürümün üzerine kurulum da kısayolları baştan yazar (yeni "JPG'ye çevir" gelir)."""
     pkg = _fake_package(tmp_path)
-    target = tmp_path / "Programs" / "PdfAtolyesi"
+    target = tmp_path / "Programs" / "Toolia"
     target.mkdir(parents=True)
     (target / "eski.txt").write_text("önceki sürüm", encoding="utf-8")
     calls = []
@@ -422,7 +422,7 @@ def test_package_writes_send_to_launchers(tmp_path):
     text = raw.decode("ascii")  # cmd.exe için ASCII, BOM'suz
     assert "\r\n" in text and "\n" not in text.replace("\r\n", "")
     assert text.startswith("@echo off\r\nchcp 65001 >nul\r\n")
-    assert '"%~dp0python\\python.exe" -I -m pdfatolye donustur --hedef jpg %*' in text
+    assert '"%~dp0python\\python.exe" -I -m toolia donustur --hedef jpg %*' in text
     assert "if errorlevel 1 pause" in text
 
 
@@ -435,7 +435,7 @@ def app(settings_fixture=None):  # noqa: PT004
 
 
 def _client(tmp_path, monkeypatch, host="127.0.0.1"):
-    from pdfatolye.settings import Settings
+    from toolia.settings import Settings
 
     monkeypatch.setattr(engines, "detect_all", lambda _s: [])
     s = Settings(data_dir=tmp_path / "veri", allowed_hosts=["127.0.0.1", "localhost",
@@ -451,7 +451,7 @@ def test_libreoffice_install_job(tmp_path, monkeypatch):
         return subprocess.CompletedProcess(args, 0, b"Successfully installed", b"")
 
     monkeypatch.setattr(workers.shutil, "which", lambda name: r"C:\winget.exe")
-    from pdfatolye import proc
+    from toolia import proc
     monkeypatch.setattr(proc, "run", fake_run)
     with _client(tmp_path, monkeypatch) as c:
         c.get("/api/session")
@@ -464,7 +464,7 @@ def test_libreoffice_install_job(tmp_path, monkeypatch):
 
 
 def test_libreoffice_install_failure_is_reported(tmp_path, monkeypatch):
-    from pdfatolye import proc
+    from toolia import proc
     monkeypatch.setattr(workers.shutil, "which", lambda name: r"C:\winget.exe")
     monkeypatch.setattr(proc, "run", lambda args, **kw: subprocess.CompletedProcess(
         args, 5, b"", b"Installer failed with exit code: 1603"))
@@ -528,8 +528,48 @@ def test_update_check_offline(monkeypatch):
 
 def test_installer_output_survives_cp1252_pipe():
     """Kurulum çıktısı boruya giderse (cp1252) "→", "ı" yazdırmak çöktürmemeli (denemede oldu)."""
-    env = dict(os.environ, PYTHONIOENCODING="cp1252", PDFATOLYE_KURULUM_BEKLEME="0")
-    r = subprocess.run([sys.executable, "-m", "pdfatolye.kurulum"], capture_output=True,
+    env = dict(os.environ, PYTHONIOENCODING="cp1252", TOOLIA_KURULUM_BEKLEME="0")
+    r = subprocess.run([sys.executable, "-m", "toolia.kurulum"], capture_output=True,
                        env=env, timeout=60)
     assert r.returncode == 2, r.stderr.decode("utf-8", "replace")
     assert "Kullanım" in r.stdout.decode("utf-8")
+
+
+@pytest.mark.skipif(os.name != "nt", reason="kurulum yalnızca Windows")
+def test_install_removes_legacy_pdf_atolyesi(tmp_path, monkeypatch):
+    """0.12.0: "PDF Atölyesi" kurulumu (Programs\PdfAtolyesi) yenisi kurulunca kaldırılır;
+    yalnız eski işaret dosyasını taşıyan klasör silinir."""
+    pkg = _fake_package(tmp_path)
+    programs = tmp_path / "Programs"
+    old = programs / kurulum.LEGACY_DIR_NAME
+    old.mkdir(parents=True)
+    (old / kurulum.LEGACY_MARKER).write_text("{}", encoding="utf-8")
+    (old / "eski.txt").write_text("x", encoding="utf-8")
+    calls = []
+    monkeypatch.setattr(kurulum, "create_shortcuts", lambda t: calls.append("kisayol"))
+    monkeypatch.setattr(kurulum, "register_uninstall", lambda t, v: calls.append("kayit"))
+    monkeypatch.setattr(kurulum, "unregister_uninstall",
+                        lambda key=kurulum.UNINSTALL_KEY: calls.append(key))
+    monkeypatch.setattr(kurulum, "_running_app", lambda t: False)
+    assert kurulum.install(pkg, programs / "Toolia", launch=False) == 0
+    assert not old.exists()
+    assert calls == ["kisayol", "kayit", kurulum.LEGACY_UNINSTALL_KEY]
+
+    # İşaret dosyası olmayan aynı adlı klasör (başka bir şey) silinmez
+    stranger = programs / kurulum.LEGACY_DIR_NAME
+    stranger.mkdir()
+    (stranger / "baska.txt").write_text("x", encoding="utf-8")
+    assert kurulum.install(pkg, programs / "Toolia", launch=False) == 0
+    assert (stranger / "baska.txt").exists()
+
+
+@pytest.mark.skipif(os.name != "nt", reason="kurulum yalnızca Windows")
+def test_install_waits_while_legacy_app_runs(tmp_path, monkeypatch):
+    pkg = _fake_package(tmp_path)
+    old = tmp_path / "Programs" / kurulum.LEGACY_DIR_NAME
+    old.mkdir(parents=True)
+    (old / kurulum.LEGACY_MARKER).write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(kurulum, "_running_app", lambda t: t == old)
+    assert kurulum.install(pkg, tmp_path / "Programs" / "Toolia", launch=False,
+                           shortcuts=False) == 1
+    assert old.exists() and not (tmp_path / "Programs" / "Toolia").exists()

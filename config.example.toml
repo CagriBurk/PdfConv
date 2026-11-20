@@ -6,7 +6,7 @@
 # host = "127.0.0.1"        # başka bir değer reddedilir; telefon modu için lan = true ya da --lan
 # lan = false               # telefon modu: aynı Wi-Fi'den QR kodla eşleşen cihazlar bağlanır
 # port = 8790
-# data_dir = "%LOCALAPPDATA%\\PdfAtolye"
+# data_dir = "%LOCALAPPDATA%\\Toolia"
 # retention_hours = 24      # bu süreden eski, sabitlenmemiş dosyalar silinir
 # max_upload_mb = 8192      # dosya başına üst sınır (8 GB)
 # max_request_mb = 16384    # tek seferde yüklenen dosyaların toplamı (16 GB)

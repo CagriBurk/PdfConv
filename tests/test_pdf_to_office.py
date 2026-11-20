@@ -10,14 +10,14 @@ import pytest
 from fastapi.testclient import TestClient
 from openpyxl import load_workbook
 
-from pdfatolye import engines
-from pdfatolye.api import app as app_module
-from pdfatolye.convert.to_excel import parse_number, pdf_to_excel
-from pdfatolye.core import images, info
-from pdfatolye.core.paper import PAPERS, size_pt
-from pdfatolye.errors import EncryptedPdfError, PageRangeError, PdfAtolyeError
-from pdfatolye.settings import PROJECT_ROOT
 from tests.fixtures import make_fixtures as fx
+from toolia import engines
+from toolia.api import app as app_module
+from toolia.convert.to_excel import parse_number, pdf_to_excel
+from toolia.core import images, info
+from toolia.core.paper import PAPERS, size_pt
+from toolia.errors import EncryptedPdfError, PageRangeError, TooliaError
+from toolia.settings import PROJECT_ROOT
 
 HEADER = ["Tarih", "Açıklama", "Tutar"]
 PAGE1 = [HEADER, ["01.11.2026", "Market alışverişi", "1.250,50"],
@@ -142,13 +142,13 @@ def no_text_pdf(path: Path) -> Path:
 
 
 def test_no_text_suggests_ocr(tmp_path):
-    with pytest.raises(PdfAtolyeError, match="OCR"):
+    with pytest.raises(TooliaError, match="OCR"):
         pdf_to_excel(no_text_pdf(tmp_path / "tarama.pdf"), tmp_path / "o.xlsx")
 
 
 def test_prose_without_tables_is_explained(tmp_path):
     pdf = fx.numbered(tmp_path / "yazi.pdf", 2, with_toc=False)
-    with pytest.raises(PdfAtolyeError, match="tablo bulunamadı"):
+    with pytest.raises(TooliaError, match="tablo bulunamadı"):
         pdf_to_excel(pdf, tmp_path / "o.xlsx")
 
 
@@ -187,7 +187,7 @@ def docx_text(path: Path) -> str:
 
 
 def test_word_keeps_turkish_text_and_tables(tmp_path):
-    from pdfatolye.convert.to_word import pdf_to_word
+    from toolia.convert.to_word import pdf_to_word
 
     pdf = fx.table_pdf(tmp_path / "t.pdf", [PAGE1], prose="Sayın Çağrı, ödeme bilgileri ektedir.")
     r = pdf_to_word(pdf, tmp_path / "o.docx")
@@ -197,7 +197,7 @@ def test_word_keeps_turkish_text_and_tables(tmp_path):
 
 
 def test_word_page_selection_and_progress(tmp_path):
-    from pdfatolye.convert.to_word import pdf_to_word
+    from toolia.convert.to_word import pdf_to_word
 
     pdf = fx.numbered(tmp_path / "n.pdf", 5, with_toc=False)
     seen: list[float] = []
@@ -209,7 +209,7 @@ def test_word_page_selection_and_progress(tmp_path):
 
 
 def test_word_cancel_stops_between_pages(tmp_path):
-    from pdfatolye.convert.to_word import pdf_to_word
+    from toolia.convert.to_word import pdf_to_word
 
     class Stop(Exception):
         pass
@@ -228,7 +228,7 @@ def test_word_cancel_stops_between_pages(tmp_path):
 
 
 def test_word_scanned_pdf_warns(tmp_path):
-    from pdfatolye.convert.to_word import pdf_to_word
+    from toolia.convert.to_word import pdf_to_word
 
     r = pdf_to_word(no_text_pdf(tmp_path / "tarama.pdf"), tmp_path / "o.docx")
     assert any("OCR" in w for w in r.warnings)
@@ -239,7 +239,7 @@ def test_word_import_leaves_root_logger_alone(monkeypatch):
     import logging
     import sys
 
-    from pdfatolye.convert.to_word import _import_pdf2docx
+    from toolia.convert.to_word import _import_pdf2docx
 
     root = logging.getLogger()
     monkeypatch.setattr(root, "handlers", [])  # pytest'in işleyicisi varken basicConfig etkisiz

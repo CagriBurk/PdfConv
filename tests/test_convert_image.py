@@ -5,8 +5,8 @@ from pathlib import Path
 import pytest
 from PIL import Image, ImageCms
 
-from pdfatolye.convert.image_format import convert_image
-from pdfatolye.errors import ImageTooLargeError, PdfAtolyeError, UnsupportedFileError
+from toolia.convert.image_format import convert_image
+from toolia.errors import ImageTooLargeError, TooliaError, UnsupportedFileError
 
 FORMATS = {".jpg": "JPEG", ".png": "PNG", ".webp": "WEBP", ".tiff": "TIFF"}
 
@@ -262,7 +262,7 @@ def test_truncated_file_is_clear_error_and_leaves_nothing(tmp_path):
     src = tmp_path / "yarim.png"
     Image.effect_noise((200, 200), 64).convert("RGB").save(src)
     src.write_bytes(src.read_bytes()[:2000])
-    with pytest.raises(PdfAtolyeError, match="bozuk ya da yarım"):
+    with pytest.raises(TooliaError, match="bozuk ya da yarım"):
         run(src, ".jpg")
     assert no_leftovers(tmp_path, "yarim.png")
 
@@ -270,7 +270,7 @@ def test_truncated_file_is_clear_error_and_leaves_nothing(tmp_path):
 def test_too_wide_for_webp(tmp_path):
     src = tmp_path / "panorama.png"
     Image.new("L", (16_384, 2)).save(src)
-    with pytest.raises(PdfAtolyeError, match="en fazla 16383"):
+    with pytest.raises(TooliaError, match="en fazla 16383"):
         run(src, ".webp")
     assert no_leftovers(tmp_path, "panorama.png")
 
@@ -290,5 +290,5 @@ def test_bad_arguments(tmp_path, kwargs):
     src = tmp_path / "a.png"
     two_tone().save(src)
     args = {"target": ".jpg", "quality": 90, "background": "#ffffff", **kwargs}
-    with pytest.raises(PdfAtolyeError):
+    with pytest.raises(TooliaError):
         convert_image(src, tmp_path / "o.jpg", **args)

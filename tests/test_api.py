@@ -5,10 +5,10 @@ import pymupdf
 import pytest
 from fastapi.testclient import TestClient
 
-from pdfatolye import engines
-from pdfatolye.api import app as app_module
-from pdfatolye.settings import Settings
 from tests.fixtures import make_fixtures as fx
+from toolia import engines
+from toolia.api import app as app_module
+from toolia.settings import Settings
 
 BROWSER = engines.detect_browser(Settings()).path
 
@@ -99,7 +99,7 @@ def test_unknown_api_path_is_404(client):
 
 def test_spa_does_not_serve_files_outside_dist(client):
     r = client.get("/..%2F..%2Fpyproject.toml")
-    assert "pdfatolye" not in r.text
+    assert "toolia" not in r.text
 
 
 # --- dosyalar ---------------------------------------------------------------------------

@@ -8,6 +8,8 @@ PDF'in yanında artık biçim dönüştürme: fotoğraflar ve Office belgeleri. 
 kaldırmaya gerek yok; belgelerin, imzaların ve ayarların korunur. Kurarken uygulama
 penceresi kapalı olmalı. Masaüstündeki "PDF Atölyesi" simgesi "Toolia" olur (eskisi
 kendiliğinden silinir).
+Eski "PDF Atölyesi" kurulumu kendiliğinden kaldırılır; belgelerin, imzaların, şablonların
+ve ayarların ilk açılışta yeni klasöre (`%LOCALAPPDATA%\Toolia`) taşınır.
 
 ### Yeni araç: Biçim Dönüştür
 - **Resimler**: JPG, PNG, WEBP, HEIC (iPhone), GIF, TIFF, BMP → JPG, PNG, WEBP ya da TIFF.

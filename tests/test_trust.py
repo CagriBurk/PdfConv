@@ -16,15 +16,15 @@ import pymupdf
 import pytest
 from fastapi.testclient import TestClient
 
-from pdfatolye import engines
-from pdfatolye.api import app as app_module
-from pdfatolye.convert.html import print_html
-from pdfatolye.convert.markdown import MarkdownPrinter
-from pdfatolye.convert.markdown.parser import AssetResolver, parse_markdown
-from pdfatolye.convert.office import convert_office
-from pdfatolye.core import content, security
-from pdfatolye.settings import Settings
 from tests.fixtures import make_fixtures as fx
+from toolia import engines
+from toolia.api import app as app_module
+from toolia.convert.html import print_html
+from toolia.convert.markdown import MarkdownPrinter
+from toolia.convert.markdown.parser import AssetResolver, parse_markdown
+from toolia.convert.office import convert_office
+from toolia.core import content, security
+from toolia.settings import Settings
 
 BROWSER = engines.detect_browser(Settings()).path
 SOFFICE = engines.detect_libreoffice(Settings()).path
@@ -279,7 +279,7 @@ def test_keep_encryption_ignores_plain_source(tmp_path):
 def test_cli_keeps_password_even_when_overwriting_input(tmp_path):
     from typer.testing import CliRunner
 
-    from pdfatolye.cli import app as cli
+    from toolia.cli import app as cli
 
     src = fx.numbered(tmp_path / "k.pdf", 3, with_toc=False, password="parola")
     r = CliRunner().invoke(cli, ["sil", str(src), "1", "--sifre", "parola", "-o", str(src)])
@@ -306,7 +306,7 @@ def test_restrictions_without_owner_password_are_effective(tmp_path):
 
 def test_same_owner_password_with_restrictions_is_refused(tmp_path):
     src = fx.numbered(tmp_path / "n.pdf", 1, with_toc=False)
-    with pytest.raises(security.PdfAtolyeError, match="farklı olmalı"):
+    with pytest.raises(security.TooliaError, match="farklı olmalı"):
         security.encrypt(src, tmp_path / "o.pdf", "ayni1", owner_password="ayni1", allow_copy=False)
 
 

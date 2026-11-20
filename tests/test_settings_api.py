@@ -11,11 +11,11 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from pdfatolye import native
-from pdfatolye.api import app as app_module
-from pdfatolye.jobs import models
-from pdfatolye.settings import Settings, load_settings, save_settings, settings_file
 from tests.fixtures import make_fixtures as fx
+from toolia import native
+from toolia.api import app as app_module
+from toolia.jobs import models
+from toolia.settings import Settings, load_settings, save_settings, settings_file
 
 REPO = Path(__file__).resolve().parents[1]
 
@@ -196,7 +196,7 @@ def test_client_error_goes_to_log_with_id(tmp_path):
         r = c.post("/api/client-error", json={"message": "TypeError: x is undefined",
                                               "stack": "at Jobs (index.js:1)", "where": "isler/"})
         eid = r.json()["id"]
-    log = (s.logs_dir / "pdfatolye.log").read_text(encoding="utf-8")
+    log = (s.logs_dir / "toolia.log").read_text(encoding="utf-8")
     assert re.fullmatch(r"[0-9a-f]{8}", eid)
     assert f"[{eid}] arayüz hatası (isler/): TypeError: x is undefined" in log
     assert "at Jobs (index.js:1)" in log
@@ -208,7 +208,7 @@ def test_health_has_instance_and_is_probeable_cross_port(tmp_path):
         r = c.get("/api/health")
         other = TestClient(app_module.create_app(_settings(tmp_path / "2"),
                                                  start_background=False)).get("/api/health")
-    assert r.json()["app"] == "pdfatolye" and r.json()["instance"] != other.json()["instance"]
+    assert r.json()["app"] == "toolia" and r.json()["instance"] != other.json()["instance"]
     assert r.headers["cross-origin-resource-policy"] == "cross-origin"
     assert r.headers["cache-control"] == "no-store"
 
@@ -272,7 +272,7 @@ def test_every_job_type_has_a_turkish_label():
 
 def test_app_may_probe_only_local_ports():
     """Yeniden başlatmada yeni portu yoklamak için `connect-src` yalnızca 127.0.0.1'e genişler."""
-    from pdfatolye.api.security import app_csp
+    from toolia.api.security import app_csp
 
     connect = next(d for d in app_csp("sha256-x").split("; ") if d.startswith("connect-src"))
     assert connect.split() == ["connect-src", "'self'", "http://127.0.0.1:*"]

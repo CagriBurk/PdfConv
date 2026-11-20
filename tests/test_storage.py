@@ -4,9 +4,9 @@ import time
 
 import pytest
 
-from pdfatolye.errors import PdfAtolyeError
-from pdfatolye.storage import FileNotInStoreError, FileStore, UploadTooLargeError
 from tests.fixtures import make_fixtures as fx
+from toolia.errors import TooliaError
+from toolia.storage import FileNotInStoreError, FileStore, UploadTooLargeError
 
 
 @pytest.fixture
@@ -39,7 +39,7 @@ def test_versions_and_undo(store, tmp_path):
     assert store.path(meta.id, 1).read_bytes() == a.read_bytes()
     meta = store.undo(meta.id)
     assert meta.current.n == 1 and meta.current.page_count == 3
-    with pytest.raises(PdfAtolyeError, match="Geri alınacak"):
+    with pytest.raises(TooliaError, match="Geri alınacak"):
         store.undo(meta.id)
 
 

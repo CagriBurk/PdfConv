@@ -13,12 +13,12 @@ import pymupdf
 import pytest
 from fastapi.testclient import TestClient
 
-from pdfatolye import engines, proc
-from pdfatolye.api import app as app_module
-from pdfatolye.core import compress
-from pdfatolye.settings import Settings
-from pdfatolye.storage import FileStore, UploadTooLargeError
 from tests.fixtures import make_fixtures as fx
+from toolia import engines, proc
+from toolia.api import app as app_module
+from toolia.core import compress
+from toolia.settings import Settings
+from toolia.storage import FileStore, UploadTooLargeError
 
 GHOSTSCRIPT = engines.detect_ghostscript(Settings())
 

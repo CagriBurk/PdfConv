@@ -5,11 +5,11 @@
 
 İçerik (kullanıcıda uv, Node, git gerekmez):
 - python/        python.org'un İMZALI gömülü (embeddable) Python'u + Lib/site-packages
-                 (kilit dosyasındaki çalışma bağımlılıkları + pdfatolye; arayüz paketin içinde)
+                 (kilit dosyasındaki çalışma bağımlılıkları + toolia; arayüz paketin içinde)
 - motorlar/      tesseract/ (yalnızca gereken DLL'ler + tur, eng, osd), ghostscript/
 - simgeler/      uygulama simgesi
 - Kur.cmd, Kaldir.cmd, pdfe-cevir.cmd, jpge-cevir.cmd, OKUBENI.txt, LISANSLAR.txt,
-  LICENSE.txt (AGPL-3.0), pdfatolye-kurulum.json
+  LICENSE.txt (AGPL-3.0), toolia-kurulum.json
 
 Neden PyInstaller / Inno Setup değil: bkz. PLAN.md tuzak #52 (Akıllı Uygulama Denetimi).
 """
@@ -41,22 +41,22 @@ OCR_LANGS = ("tur", "eng", "osd")
 KUR_CMD = """@echo off
 chcp 65001 >nul
 rem Toolia kurulumu: imzali Python ile kurar (yonetici izni gerekmez).
-"%~dp0python\\python.exe" -I -m pdfatolye.kurulum kur %*
+"%~dp0python\\python.exe" -I -m toolia.kurulum kur %*
 """
 KALDIR_CMD = """@echo off
 chcp 65001 >nul
-"%~dp0python\\python.exe" -I -m pdfatolye.kurulum kaldir
+"%~dp0python\\python.exe" -I -m toolia.kurulum kaldir
 """
 PDFE_CEVIR_CMD = """@echo off
 chcp 65001 >nul
 rem Sag tik > Gonder > "PDF'e cevir": dosyalari turune gore PDF'e cevirir.
-"%~dp0python\\python.exe" -I -m pdfatolye gonder %*
+"%~dp0python\\python.exe" -I -m toolia gonder %*
 if errorlevel 1 pause
 """
 JPGE_CEVIR_CMD = """@echo off
 chcp 65001 >nul
 rem Sag tik > Gonder > "JPG'ye cevir": resimleri (HEIC, PNG, WEBP...) JPG'ye cevirir.
-"%~dp0python\\python.exe" -I -m pdfatolye donustur --hedef jpg %*
+"%~dp0python\\python.exe" -I -m toolia donustur --hedef jpg %*
 if errorlevel 1 pause
 """
 LAUNCHERS = {"Kur.cmd": KUR_CMD, "Kaldir.cmd": KALDIR_CMD, "pdfe-cevir.cmd": PDFE_CEVIR_CMD,
@@ -198,7 +198,7 @@ def _requirement_names(req: Path) -> set[str]:
 def copy_from_venv(site: Path, req: Path) -> None:
     """Ağ yavaşken: kilit dosyasıyla eşitlenmiş yerel .venv'den yalnızca çalışma paketlerini
     (kilitteki sürümler) RECORD dosyalarına göre kopyalar. Geliştirme araçları ve düzenlenebilir
-    pdfatolye kurulumu alınmaz."""
+    toolia kurulumu alınmaz."""
     import re
     from importlib.metadata import distributions
 
@@ -236,13 +236,13 @@ def install_packages(site: Path, work: Path, *, from_venv: bool = False) -> None
         run(["uv", "pip", "install", "--quiet", *target, "-r", req], cwd=ROOT)
     wheel_dir = work / "teker"
     run(["uv", "build", "--wheel", "--out-dir", wheel_dir], cwd=ROOT)
-    wheel = next(wheel_dir.glob("pdfatolye-*.whl"))
+    wheel = next(wheel_dir.glob("toolia-*.whl"))
     run(["uv", "pip", "install", "--quiet", "--no-deps", *target, wheel], cwd=ROOT)
     # Derlenmiş arayüz paketin içine: kullanıcıda Node gerekmez (paths.web_dist).
     dist = ROOT / "web" / "dist"
     if not (dist / "index.html").is_file():
         raise SystemExit("Arayüz derlenmemiş: npm --prefix web run build")
-    shutil.copytree(dist, site / "pdfatolye" / "web")
+    shutil.copytree(dist, site / "toolia" / "web")
     # Paket içinde çalıştırılabilir başlatıcılar gereksiz (SAC engeller, kullanılmaz).
     shutil.rmtree(site / "bin", ignore_errors=True)
     for cache_dir in site.rglob("__pycache__"):
@@ -297,9 +297,9 @@ def make_icon(dest: Path) -> None:
     d.rounded_rectangle((8, 8, size - 8, size - 8), radius=48, fill=(194, 65, 12, 255))
     d.rounded_rectangle((8, 8, size - 8, 120), radius=48, fill=(234, 88, 12, 255))
     d.rectangle((8, 80, size - 8, 120), fill=(234, 88, 12, 255))
-    font = ImageFont.truetype(str(ROOT / "src/pdfatolye/assets/fonts/NotoSans-Bold.ttf"), 92)
+    font = ImageFont.truetype(str(ROOT / "src/toolia/assets/fonts/NotoSans-Bold.ttf"), 92)
     d.text((size / 2, size / 2 + 6), "PDF", font=font, fill="white", anchor="mm")
-    img.save(dest / "pdfatolye.ico", sizes=[(s, s) for s in (16, 24, 32, 48, 64, 128, 256)])
+    img.save(dest / "toolia.ico", sizes=[(s, s) for s in (16, 24, 32, 48, 64, 128, 256)])
 
 
 def write_launchers(pkg: Path) -> None:
@@ -311,18 +311,18 @@ def write_launchers(pkg: Path) -> None:
 def smoke_test(pkg: Path) -> None:
     """Paketin kendi Python'uyla: bütün bağımlılıklar yükleniyor mu, motorlar bulunuyor mu?"""
     py = pkg / "python" / "python.exe"
-    code = ("import pymupdf, pikepdf, PIL, ocrmypdf, playwright, fastapi, uvicorn, pdfatolye;"
-            "from pdfatolye import paths, engines, settings;"
+    code = ("import pymupdf, pikepdf, PIL, ocrmypdf, playwright, fastapi, uvicorn, toolia;"
+            "from toolia import paths, engines, settings;"
             "assert paths.install_root() is not None, 'kurulum kökü bulunamadı';"
             "assert (paths.web_dist() / 'index.html').is_file(), 'arayüz yok';"
             "assert (paths.fonts_dir() / 'NotoSans-Regular.ttf').is_file();"
-            "print('sürüm', pdfatolye.__version__, 'arayüz', paths.web_dist());"
+            "print('sürüm', toolia.__version__, 'arayüz', paths.web_dist());"
             "[print(' ', e.name, e.ok, e.path) for e in engines.detect_all(settings.Settings())]")
     run([py, "-I", "-c", code])
     # PDF → Word / Excel: pdf2docx opencv'nin DLL'lerini yükler; pakette gerçekten çalışsın.
     code = ("import pathlib, tempfile, pymupdf;"
-            "from pdfatolye.convert.to_word import pdf_to_word;"
-            "from pdfatolye.convert.to_excel import pdf_to_excel;"
+            "from toolia.convert.to_word import pdf_to_word;"
+            "from toolia.convert.to_excel import pdf_to_excel;"
             "d = pathlib.Path(tempfile.mkdtemp());"
             "doc = pymupdf.open(); p = doc.new_page();"
             "[p.insert_text((72 + 120 * c, 100 + 20 * r), f'h{r}{c}') for r in range(3)"
@@ -371,7 +371,7 @@ def main() -> None:
     (pkg / "LISANSLAR.txt").write_text(LISANSLAR.format(py=PY_VERSION), encoding="utf-8-sig")
     (pkg / "LICENSE.txt").write_bytes(
         (ROOT / "LICENSE").read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n"))
-    (pkg / "pdfatolye-kurulum.json").write_text(json.dumps(
+    (pkg / "toolia-kurulum.json").write_text(json.dumps(
         {"version": version, "python": PY_VERSION, "engines": not args.motorsuz}), "utf-8")
     log("5/5 Deneme")
     smoke_test(pkg)

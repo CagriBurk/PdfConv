@@ -73,10 +73,10 @@ export function toolForRoute(section: string | undefined): Tool | undefined {
   return TOOLS.find((t) => t.route === section);
 }
 
-// Kağıt boyutları. Tek kaynak: src/pdfatolye/core/paper.py (tests/test_robustness.py denetler).
+// Kağıt boyutları. Tek kaynak: src/toolia/core/paper.py (tests/test_robustness.py denetler).
 export const PAPERS = ["A4", "A5", "A3", "A2", "A1", "A0", "Letter", "Legal"];
 
-// Biçim Dönüştür: aile başına kaynak ve hedef uzantılar. Tek kaynak: src/pdfatolye/formats.py
+// Biçim Dönüştür: aile başına kaynak ve hedef uzantılar. Tek kaynak: src/toolia/formats.py
 // (RASTER_IMAGE_EXTS + IMAGE_CONVERT_TARGETS, OFFICE_CONVERT_FAMILIES, _SAME;
 // tests/test_robustness.py tutarlılığı denetler). Hedeflerin sırası ekrandaki düğme sırasıdır.
 export const CONVERT_TARGETS: Record<string, { sources: string[]; targets: string[] }> = {
@@ -129,7 +129,7 @@ export const ACCEPT = {
   pdf: ".pdf,application/pdf",
   images: ".jpg,.jpeg,.png,.webp,.gif,.bmp,.tif,.tiff,.heic,.heif",
   markdown: ".md,.markdown,.txt",
-  // Tek kaynak: src/pdfatolye/formats.py (tests/test_robustness.py tutarlılığı denetler).
+  // Tek kaynak: src/toolia/formats.py (tests/test_robustness.py tutarlılığı denetler).
   office: ".docx,.doc,.docm,.odt,.rtf,.wpd,.xlsx,.xls,.xlsm,.ods,.csv,.pptx,.ppt,.pptm,.odp,.html,.htm,.txt",
   // Biçim Dönüştür'ün kaynakları; yukarıdaki tablodan türer.
   convert: Object.values(CONVERT_TARGETS)
