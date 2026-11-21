@@ -143,7 +143,7 @@ Dal: `guvenlik-sertlestirme` (worktree: `C:\Users\cbura\Desktop\Conv-guvenlik`).
 | 5 Telefon modu | ✅ (testler eski kodda kalıyor) | ✅ A | ✅ `test_guvenlik_lan.py` | bu commit |
 | 6 Bağımlılıklar | ✅ çalışma klasöründen motor (yeni bulgu) | ✅ | ✅ `test_guvenlik_motorlar.py` | bu commit |
 | 7 DoS | ✅ Office zip bombası (+401 MB / 398 KB) | ✅ | ✅ `test_guvenlik_dos.py` | bu commit |
-| 8 Yerel sunucu | – | – | – | – |
+| 8 Yerel sunucu | ✅ Origin portu, başka Windows kullanıcısı | ✅ | ✅ `test_guvenlik_yerel.py` | bu commit |
 | 9 Dağıtım | – | – | – | – |
 
 ## Notlar
@@ -238,3 +238,10 @@ Dal: `guvenlik-sertlestirme` (worktree: `C:\Users\cbura\Desktop\Conv-guvenlik`).
   işler) ama küçük resim / inceleme başına ~15 sn işlemci harcatıyor (399 KB dosya). Yalnızca o
   dosyanın önizlemesi yavaşlar; MuPDF çağrısı Python'dan kesilemez. Tam çözüm PDF'leri ayrı
   süreçte açmak (büyük mimari değişiklik); şimdilik kabul.
+- **Adım 8, yapılan:** (1) Değiştiren isteklerde Origin artık Host başlığıyla birebir (şema +
+  sunucu + port) aynı olmalı; önce yalnızca sunucu adı karşılaştırılıyordu (`127.0.0.1:3000`
+  geçiyordu). Origin göndermeyen istemciler çerezle çalışmaya devam eder. (2) Paylaşılan Windows
+  bilgisayarı: oturum çerezi (`/api/session`, ana sayfa) verilmeden önce loopback bağlantısının
+  istemci ucundaki sürecin sahibi denetlenir (`native.loopback_peer_is_same_user`, ~2,5 ms);
+  başka kullanıcının süreci (sahibi okunamaz) reddedilir. Gerçek soketle ve e2e'de (Edge) denendi.
+  (3) Dosya kimliği, sürüm (`v=`) ve ZIP adı oynama denemeleri testlendi; açık bulunmadı.

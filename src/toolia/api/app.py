@@ -17,7 +17,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
-from toolia import __version__, engines, lan, paths
+from toolia import __version__, engines, lan, native, paths
 from toolia.api import (
     routes_content,
     routes_files,
@@ -204,6 +204,8 @@ def create_app(settings: Settings, *, start_background: bool = True) -> FastAPI:
 
     @app.get("/api/session")
     def session(request: Request) -> JSONResponse:
+        if not _same_windows_user(request):
+            return JSONResponse({"detail": OTHER_USER_MESSAGE}, status_code=403)
         if settings.lan and not _trusted(request, sessions):
             return JSONResponse({"detail": "Telefon modunda bağlanmak için bilgisayardaki QR "
                                            "kodu okut."}, status_code=403)
@@ -277,6 +279,19 @@ def _is_local(request: Request) -> bool:
     return host in lan.LOOPBACK_HOSTS
 
 
+OTHER_USER_MESSAGE = ("Toolia bu bilgisayardaki başka bir Windows kullanıcısı için çalışıyor; "
+                      "onun dosyalarına erişilemez.")
+
+
+def _same_windows_user(request: Request) -> bool:
+    """Loopback'ten gelen istek bu Windows kullanıcısının bir sürecinden mi? Paylaşılan
+    bilgisayarda başka bir kullanıcı oturum çerezini alamaz (GUVENLIK_PLANI.md, adım 8)."""
+    client = request.client
+    if not client or client.host not in lan.LOOPBACK_HOSTS:
+        return True  # yerel ağdan gelen istek: telefon modu kuralları geçerli
+    return native.loopback_peer_is_same_user(client.host, client.port)
+
+
 def _trusted(request: Request, sessions: Sessions) -> bool:
     """Bu bilgisayardan mı, yoksa daha önce eşleşmiş (geçerli çerezli) bir cihazdan mı?"""
     ip = request.client.host if request.client else ""
@@ -310,6 +325,9 @@ def _mount_ui(app: FastAPI, dist: Path, sessions: Sessions, *, lan_mode: bool) -
             resp = RedirectResponse("/", status_code=303)
             _set_cookie(resp, device_token)
             return resp
+        if not _same_windows_user(request):
+            return HTMLResponse(f"<!doctype html><meta charset=utf-8><p>{OTHER_USER_MESSAGE}",
+                                status_code=403)
         resp = FileResponse(index) if index.is_file() else HTMLResponse(NO_UI_PAGE)
         if not lan_mode or _is_local(request):
             _set_cookie(resp, sessions.local)

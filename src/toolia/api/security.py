@@ -3,7 +3,10 @@
 1. Host başlığı (app.py, TrustedHostMiddleware): DNS rebinding'i keser.
 2. Oturum çerezi (SameSite=Strict): başka bir sitenin sayfası API'ye istek atsa bile tarayıcı
    çerezi göndermez → 403.
-3. Origin kontrolü: değiştiren isteklerde (POST/DELETE...) Origin başka bir siteyse → 403.
+3. Origin kontrolü: değiştiren isteklerde (POST/DELETE...) Origin, isteğin kendi kökeni (şema +
+   sunucu + PORT, Host başlığıyla aynı) değilse → 403. Yalnızca sunucu adına bakılsaydı aynı
+   bilgisayardaki başka bir yerel sitenin (`127.0.0.1:3000`) sayfası istek atabilirdi: çerez
+   SameSite açısından "aynı site"dir, port farkı sayılmaz (GUVENLIK_PLANI.md, adım 8).
 4. Güvenlik başlıkları: uygulama yalnızca kendi betiklerini çalıştırır (CSP), türü tahmin edilmez.
 5. Telefon modu: her cihazın kendi oturumu var; QR kod tek kullanımlıktır ve 10 dakika geçerlidir,
    oturumlar kesilebilir. Cihaz oturumu eşleştiği IP adresine bağlıdır ve 8 saat sonra düşer; bu
@@ -192,7 +195,7 @@ class SessionGuard:
         ):
             if scope["method"] not in SAFE_METHODS:
                 origin = _header(scope, b"origin")
-                if origin and urlparse(origin).hostname not in self.allowed_hosts:
+                if origin and not self._same_origin(origin, _header(scope, b"host")):
                     await _deny("Başka bir siteden gelen istek reddedildi.")(scope, receive, send)
                     return
             client = scope.get("client")
@@ -206,6 +209,16 @@ class SessionGuard:
                 await self.app(scope, receive, send)
             return
         await self.app(scope, receive, send)
+
+
+    def _same_origin(self, origin: str, host: str | None) -> bool:
+        try:
+            parsed = urlparse(origin)
+        except ValueError:
+            return False
+        return (parsed.scheme == "http" and bool(host)
+                and parsed.netloc.lower() == (host or "").lower()
+                and parsed.hostname in self.allowed_hosts)
 
 
 class SecurityHeaders:
