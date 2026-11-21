@@ -20,6 +20,7 @@ from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 from typing import BinaryIO
 
+from toolia import access
 from toolia.core.pdfio import base_name, safe_filename, safe_name_with_ext, split_ext, strip_ext
 from toolia.errors import TooliaError, disk_full_error, is_disk_full
 from toolia.formats import KINDS
@@ -68,6 +69,9 @@ class FileMeta:
     encrypted: bool = False
     job_id: str | None = None
     tag: str | None = None  # "signature": İmzalarım listesinde
+    # None: bu bilgisayar. Metin: telefon modunda eşleşmiş cihazın kimliği; o cihaz yalnızca
+    # kendi dosyalarını görür (`toolia.access`).
+    owner: str | None = None
     schema: int = SCHEMA
 
     @property
@@ -80,6 +84,7 @@ class FileMeta:
 
     def to_dict(self) -> dict:
         d = asdict(self)
+        d.pop("owner", None)
         d["version"] = self.current.n
         d["size"] = self.current.size
         d["page_count"] = self.current.page_count
@@ -166,7 +171,8 @@ class FileStore:
         # Uzantı ayrı korunur: uzun adda kök kısalır, ".pdf" asla kesilmez (tür ondan anlaşılır).
         name = safe_name_with_ext(base_name(name), fallback="dosya")
         meta = FileMeta(id=uuid.uuid4().hex, name=name, kind=kind_of(name),
-                        created=time.time(), source=source, job_id=job_id)
+                        created=time.time(), source=source, job_id=job_id,
+                        owner=access.current())
         d = self._dir(meta.id)
         d.mkdir(parents=True)
         return meta, self._version_path(meta, 1)
@@ -279,6 +285,9 @@ class FileStore:
                 raise ValueError("sürüm listesi boş ya da kimlik klasörle tutmuyor")
         except (KeyError, TypeError, ValueError, AttributeError) as e:
             raise self._corrupt(file_id, e) from e
+        if not access.can_see(meta.owner):
+            # Başka cihazın / bu bilgisayarın dosyası: varlığı bile söylenmez.
+            raise FileNotInStoreError(file_id)
         return meta
 
     def _corrupt(self, file_id: str, exc: Exception) -> CorruptMetaError:
@@ -367,6 +376,10 @@ class FileStore:
         Yaş son sürümden ya da arayüzdeki son erişimden (hangisi yeniyse) sayılır; bir işin
         kullandığı dosya silinmez. Bozuk kayıtlı klasörler silinmez (içindeki dosya elle
         kurtarılabilir), günlüğe yazılır."""
+        with access.acting_as(None):  # her zaman tam erişim: görünmeyen ≠ kayıtsız klasör
+            return self._cleanup(retention_hours)
+
+    def _cleanup(self, retention_hours: float) -> int:
         now = time.time()
         limit = now - retention_hours * 3600
         removed = 0

@@ -140,7 +140,7 @@ Dal: `guvenlik-sertlestirme` (worktree: `C:\Users\cbura\Desktop\Conv-guvenlik`).
 | 2 LibreOffice | ❌ doğrulanmadı (26.8 sızdırmadı) | derinlemesine savunma | ✅ `test_guvenlik_office.py` | bu commit |
 | 3 HTML file://host | ✅ doğrulandı (SMB SYN → 192.0.2.1:445) | ✅ | ✅ `test_guvenlik_html.py` | bu commit |
 | 4 Ağ çıkışı | ⚠️ belge içeriği çıkmıyor; Edge'in kendi Microsoft trafiği var | karar bekliyor | `tests/guvenlik/ag_cikisi.py` | bu commit |
-| 5 Telefon modu | – | karar: A (2026-11-21) | – | – |
+| 5 Telefon modu | ✅ (testler eski kodda kalıyor) | ✅ A | ✅ `test_guvenlik_lan.py` | bu commit |
 | 6 Bağımlılıklar | – | – | – | – |
 | 7 DoS | – | – | – | – |
 | 8 Yerel sunucu | – | – | – | – |
@@ -192,3 +192,18 @@ Dal: `guvenlik-sertlestirme` (worktree: `C:\Users\cbura\Desktop\Conv-guvenlik`).
 - **Adım 5, karar:** A (IP'ye bağlı ve süreli oturum, kendiliğinden kapanma, cihaz yalnızca kendi
   dosyalarını görür, güvenilen ağ uyarısı); HTTPS şimdilik yok. Kullanım: şimdilik arkadaşlar,
   büyütme planlanıyor — müşterilere yayılmadan önce HTTPS yeniden değerlendirilmeli.
+- **Adım 5, yapılan (A):** Cihaz oturumu eşleştiği IP'ye bağlı, 8 saat sonra düşer; QR 10 dakika
+  geçerli (arayüz zaten 3 sn'de bir yeniliyor); bu bilgisayarın oturumu telefon modunda yalnızca
+  loopback'ten geçerli. Yeni `toolia.access`: isteğin sahibi `SessionGuard`'da bağlama yazılır;
+  depo (`get`/`list`) ve işler (`get`/`list`/`submit`) süzer, iş başlatanın kimliğiyle çalışır,
+  çıktılar ona yazılır. Cihaz başkasının dosyasını, imzasını, işini göremez (404 / "İş
+  bulunamadı"); Obsidian kasası cihaza kapalı. Temizlik her zaman tam erişimle çalışır (görünmeyen
+  dosya "kayıtsız klasör" sanılıp silinmesin). Arayüze dokunulmadı: "şifresiz HTTP, yalnızca
+  güvendiğin Wi-Fi" uyarısı Ayarlar'da zaten vardı.
+- **Adım 5, plandan sapma:** "Telefon modu kendiliğinden kapanır" sunucuyu kapatmak yerine
+  oturum ve QR süreleriyle sağlandı: 8 saat sonra hiçbir cihaz erişemez, sunucu yalnızca kilit
+  sayfasını gösterir. Ayar dosyasındaki `lan = true` kullanıcının seçimi olduğu için değiştirilmedi.
+- **Adım 5, kalan:** Trafik hâlâ şifresiz (ağı dinleyen, aktarılan dosyaların içeriğini görebilir;
+  aynı IP'yi taklit edebilen biri 8 saat içinde oturumu kullanabilir). Şablonlar (Markdown
+  "Şablon ekle") cihazlarla ortak kaldı: düşük hassasiyet. Kullanıcı büyütmeyi planlıyor:
+  müşterilere açılmadan önce HTTPS yeniden değerlendirilmeli.

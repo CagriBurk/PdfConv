@@ -22,7 +22,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field, fields
 from pathlib import Path
 
-from toolia import proc
+from toolia import access, proc
 from toolia.errors import TooliaError, error_id, is_disk_full, unexpected_message
 from toolia.jobs import workers
 from toolia.storage import file_ids_in
@@ -57,6 +57,8 @@ class Job:
     warnings: list[str] = field(default_factory=list)
     error: str | None = None
     rev: int = 0  # her değişiklikte artar; canlı izleme (SSE) farkı buradan anlar
+    # None: bu bilgisayar; metin: eşleşmiş cihaz. İş bu kimlikle çalışır (`toolia.access`).
+    owner: str | None = None
     _held: set[str] = field(default_factory=set, repr=False)
 
     @property
@@ -82,11 +84,13 @@ class Job:
             "warnings": warnings,
             "error": self.error,
             "rev": self.rev,
+            "owner": self.owner,
         }
 
     def view(self) -> dict:
         """API yanıtı: büyük istek alanları çıkarılmış."""
         d = self.to_dict()
+        d.pop("owner", None)
         d["request"] = request_summary(d["request"])
         return d
 
@@ -182,8 +186,11 @@ class JobManager:
             raise TooliaError("Sunucu kapanıyor; iş başlatılamadı.")
         dumped = req.model_dump(mode="json")  # şifreler ve not metni `exclude` ile dışarıda
         held = file_ids_in(dumped)  # sıraya girdiği andan itibaren temizlikten korunur
+        if access.is_device():
+            for fid in held:  # başkasının dosyası: iş hiç başlamaz (404)
+                self.store.get(fid)
         job = Job(id=uuid.uuid4().hex, type=req.type, status="bekliyor", created=time.time(),
-                  request=dumped, _held=set(held))
+                  request=dumped, owner=access.current(), _held=set(held))
         self.store.hold(held)
         with self._lock:
             self._jobs[job.id] = job
@@ -202,12 +209,13 @@ class JobManager:
 
     def get(self, job_id: str) -> Job:
         job = self._jobs.get(job_id)
-        if job is None:
+        if job is None or not access.can_see(job.owner):
             raise TooliaError("İş bulunamadı.")
         return job
 
     def list(self, limit: int = 50) -> list[Job]:
-        jobs = sorted(self._jobs.values(), key=lambda j: j.created, reverse=True)
+        jobs = sorted((j for j in self._jobs.values() if access.can_see(j.owner)),
+                      key=lambda j: j.created, reverse=True)
         return jobs[:limit]
 
     def cancel(self, job_id: str) -> Job:
@@ -254,6 +262,12 @@ class JobManager:
     # --- çalıştırma ---
 
     def _run(self, job: Job, req, held: set[str]) -> None:
+        # İş parçacığı havuzu bağlamı taşımaz: iş, başlatanın kimliğiyle çalışır; böylece
+        # yalnızca onun dosyalarını okur ve çıktılar ona yazılır.
+        with access.acting_as(job.owner):
+            self._run_as_owner(job, req, held)
+
+    def _run_as_owner(self, job: Job, req, held: set[str]) -> None:
         event = self._cancel.get(job.id) or threading.Event()
         try:
             with self._lock:

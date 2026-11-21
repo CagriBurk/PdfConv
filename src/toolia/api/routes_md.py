@@ -13,6 +13,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
+from toolia import access
 from toolia.api.security import SANDBOX_CSP
 from toolia.convert.markdown.document import (
     MdOptions,
@@ -63,7 +64,8 @@ def preview(request: Request, body: PreviewBody) -> dict:
     for fid in body.attachments:
         meta = state.store.get(fid)
         attachments[meta.name] = state.store.path(fid)
-    vault = state.settings.vault_path
+    # Kasa bu bilgisayarın: telefon modunda eşleşmiş cihaz ondan resim çekemez (adım 5).
+    vault = None if access.is_device() else state.settings.vault_path
     # Not bir klasörde değil: göreli resimler yalnızca eklerden ve (varsa) kasadan çözülür.
     empty = state.settings.data_dir / "bos"
     parsed = parse_markdown(body.text, base_dir=vault or empty, vault=vault,

@@ -54,8 +54,9 @@ LAN_LOCKED_PAGE = """<!doctype html><html lang="tr"><meta charset="utf-8">
 <body style="font-family:system-ui;max-width:30rem;margin:3rem auto;padding:0 1rem">
 <h1>Toolia</h1>
 <p>Bu bilgisayar telefon modunda. Bağlanmak için bilgisayardaki <b>Ayarlar</b> sayfasındaki QR
-kodu telefonun kamerasıyla okut. QR kod tek kullanımlıktır; önceden okutulmuşsa Ayarlar'daki yeni
-kodu kullan.</p>
+kodu telefonun kamerasıyla okut. QR kod tek kullanımlıktır ve birkaç dakika geçerlidir; önceden
+okutulmuşsa Ayarlar'daki yeni kodu kullan. Bağlantı birkaç saat sonra ya da telefonun ağ adresi
+değişince kendiliğinden kapanır; o zaman QR kodu yeniden okut.</p>
 </body></html>"""
 
 
@@ -132,7 +133,7 @@ def create_app(settings: Settings, *, start_background: bool = True) -> FastAPI:
     store = FileStore(settings.files_dir, settings.max_upload_mb)
     jobs = JobManager(store, settings)
     stop = threading.Event()
-    sessions = Sessions()
+    sessions = Sessions(lan=settings.lan)
     if settings.lan:
         settings.allowed_hosts = list(dict.fromkeys([*settings.allowed_hosts, *lan.lan_ips()]))
 
@@ -278,7 +279,8 @@ def _is_local(request: Request) -> bool:
 
 def _trusted(request: Request, sessions: Sessions) -> bool:
     """Bu bilgisayardan mı, yoksa daha önce eşleşmiş (geçerli çerezli) bir cihazdan mı?"""
-    return _is_local(request) or sessions.is_valid(request.cookies.get(COOKIE))
+    ip = request.client.host if request.client else ""
+    return _is_local(request) or sessions.is_valid(request.cookies.get(COOKIE), ip)
 
 
 def _set_cookie(resp, token: str) -> None:

@@ -5,7 +5,11 @@
    çerezi göndermez → 403.
 3. Origin kontrolü: değiştiren isteklerde (POST/DELETE...) Origin başka bir siteyse → 403.
 4. Güvenlik başlıkları: uygulama yalnızca kendi betiklerini çalıştırır (CSP), türü tahmin edilmez.
-5. Telefon modu: her cihazın kendi oturumu var; QR kod tek kullanımlıktır, oturumlar kesilebilir.
+5. Telefon modu: her cihazın kendi oturumu var; QR kod tek kullanımlıktır ve 10 dakika geçerlidir,
+   oturumlar kesilebilir. Cihaz oturumu eşleştiği IP adresine bağlıdır ve 8 saat sonra düşer; bu
+   bilgisayarın oturumu telefon modunda yalnızca loopback'ten geçerlidir. Cihaz yalnızca kendi
+   dosyalarını ve işlerini görür (`toolia.access`). Bağlantı HTTP'dir (şifresiz): bunlar, Wi-Fi'de
+   ele geçirilen bir çerezin değerini sınırlar (GUVENLIK_PLANI.md, adım 5).
 """
 
 from __future__ import annotations
@@ -13,12 +17,16 @@ from __future__ import annotations
 import secrets
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from urllib.parse import urlparse
 
 from starlette.datastructures import MutableHeaders
 from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
+
+from toolia import access
+from toolia.lan import LOOPBACK_HOSTS
 
 COOKIE = "pa_oturum"
 EXEMPT_PATHS = {"/api/health", "/api/session"}
@@ -56,45 +64,90 @@ def app_csp(inline_script_hash: str) -> str:
     )
 
 
+PAIR_TTL_S = 10 * 60  # QR kodun geçerlilik süresi (arayüz kodu birkaç saniyede bir yeniler)
+DEVICE_TTL_S = 8 * 3600  # eşleşmiş cihaz oturumunun ömrü; sonra QR yeniden okutulur
+
+
 @dataclass
 class Device:
+    id: str  # dosya sahipliği için (belirteç değil; gizli değildir)
     ip: str
     paired_at: float
+    expires: float
 
 
 class Sessions:
-    """Oturum belirteçleri: `local` bu bilgisayarın, `devices` QR ile eşleşen cihazların.
+    """Oturum belirteçleri: `local` bu bilgisayarın, `_devices` QR ile eşleşen cihazların.
 
-    QR'daki eşleştirme belirteci tek kullanımlıktır: kullanılınca yenisi üretilir. Böylece
+    QR'daki eşleştirme belirteci tek kullanımlıktır ve `PAIR_TTL_S` sonra kendiliğinden yenilenir:
     adres çubuğunda, geçmişte ya da ağda görülen eski değer işe yaramaz.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, *, lan: bool = False, clock: Callable[[], float] = time.time) -> None:
         self._lock = threading.Lock()
+        self._clock = clock
+        self.lan = lan
         self.local = new_token()
-        self.pair_token = secrets.token_urlsafe(16)
         self._devices: dict[str, Device] = {}
+        self._rotate_pair()
 
-    def is_valid(self, token: str | None) -> bool:
-        if not token:
-            return False
+    def _rotate_pair(self) -> None:
+        self._pair_token = secrets.token_urlsafe(16)
+        self._pair_created = self._clock()
+
+    def _expire(self) -> None:
+        now = self._clock()
+        if now - self._pair_created > PAIR_TTL_S:
+            self._rotate_pair()
+        for token in [k for k, d in self._devices.items() if d.expires <= now]:
+            del self._devices[token]
+
+    @property
+    def pair_token(self) -> str:
+        """Geçerli eşleştirme belirteci (süresi dolduysa yenisi)."""
         with self._lock:
-            known = [self.local, *self._devices]
-        # Erken çıkmadan hepsi denenir: süre, hangi belirteçle ne kadar eşleştiğini söylemesin.
-        return any([tokens_match(token, k) for k in known])
+            self._expire()
+            return self._pair_token
+
+    def identify(self, token: str | None, ip: str) -> tuple[bool, str | None]:
+        """(geçerli mi, sahip). Sahip None: bu bilgisayar; metin: eşleşmiş cihazın kimliği.
+
+        Cihaz belirteci yalnızca eşleştiği IP'den, bu bilgisayarınki telefon modunda yalnızca
+        loopback'ten geçerlidir."""
+        if not token:
+            return False, None
+        with self._lock:
+            self._expire()
+            local = self.local
+            devices = list(self._devices.items())
+        # Erken çıkmadan hepsi denenir: süre, hangi belirteçle eşleştiğini söylemesin.
+        local_ok = tokens_match(token, local)
+        matched = [d for k, d in devices if tokens_match(token, k)]
+        if local_ok:
+            return (not self.lan or ip in LOOPBACK_HOSTS), None
+        if matched and matched[0].ip == ip:
+            return True, matched[0].id
+        return False, None
+
+    def is_valid(self, token: str | None, ip: str) -> bool:
+        return self.identify(token, ip)[0]
 
     def pair(self, given: str, ip: str) -> str | None:
-        """Belirteç doğruysa cihaza yeni oturum açar ve belirteci yeniler; değilse None."""
+        """Belirteç doğru ve süresi dolmamışsa cihaza yeni oturum açar ve belirteci yeniler;
+        değilse None."""
         with self._lock:
-            if not tokens_match(given, self.pair_token):
+            self._expire()
+            if not tokens_match(given, self._pair_token):
                 return None
-            self.pair_token = secrets.token_urlsafe(16)
+            self._rotate_pair()
             token = new_token()
-            self._devices[token] = Device(ip, time.time())
+            now = self._clock()
+            self._devices[token] = Device(secrets.token_hex(8), ip, now, now + DEVICE_TTL_S)
             return token
 
     def devices(self) -> list[Device]:
         with self._lock:
+            self._expire()
             return sorted(self._devices.values(), key=lambda d: d.paired_at)
 
     def revoke_devices(self) -> int:
@@ -102,7 +155,7 @@ class Sessions:
         with self._lock:
             count = len(self._devices)
             self._devices.clear()
-            self.pair_token = secrets.token_urlsafe(16)
+            self._rotate_pair()
             return count
 
 
@@ -142,9 +195,16 @@ class SessionGuard:
                 if origin and urlparse(origin).hostname not in self.allowed_hosts:
                     await _deny("Başka bir siteden gelen istek reddedildi.")(scope, receive, send)
                     return
-            if not self.sessions.is_valid(_cookie(scope, COOKIE)):
+            client = scope.get("client")
+            valid, owner = self.sessions.identify(_cookie(scope, COOKIE),
+                                                  client[0] if client else "")
+            if not valid:
                 await _deny("Oturum geçersiz; sayfayı yenile.")(scope, receive, send)
                 return
+            # İsteğin sahibi: depo ve işler buna göre süzer (eşzamanlı uçlara da taşınır).
+            with access.acting_as(owner):
+                await self.app(scope, receive, send)
+            return
         await self.app(scope, receive, send)
 
 
