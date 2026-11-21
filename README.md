@@ -11,7 +11,11 @@ Ayrıntılı plan: [PLAN.md](PLAN.md).
 
 Uygulamayı kullanmak için uv, Node, git ya da Python **gerekmez**.
 
-1. `Toolia-<sürüm>.zip` dosyasını indir, sağ tıkla → **Tümünü ayıkla**.
+1. `Toolia-<sürüm>.zip` dosyasını indir, sağ tıkla → **Tümünü ayıkla**. Zip'i yalnızca
+   projenin GitHub sürüm sayfasından (github.com/CagriBurk/Toolia/releases) indir. İstersen
+   doğrula: sürüm sayfasındaki `Toolia-<sürüm>.zip.sha256` dosyasındaki uzun sayı, PowerShell'de
+   `(Get-FileHash .\Toolia-<sürüm>.zip -Algorithm SHA256).Hash` çıktısıyla aynı olmalı (büyük/küçük
+   harf fark etmez). Farklıysa zip bozuk ya da değiştirilmiş: kurma.
 2. Açılan klasördeki **Kur** (`Kur.cmd`) dosyasına çift tıkla. Windows "Windows bilgisayarınızı
    korudu" ya da "yayımcı doğrulanamadı" derse **Daha fazla bilgi → Yine de çalıştır** (kurulum
    dosyası imzalı değil; içinde çalışan Python python.org imzalıdır). Yönetici izni istemez.

@@ -329,6 +329,18 @@ def write_launchers(pkg: Path) -> None:
         (pkg / fname).write_bytes(text.replace("\n", "\r\n").encode("ascii"))
 
 
+def write_checksum(archive: Path) -> Path:
+    """`<zip>.sha256` (sha256sum biçimi: "<özet> *<ad>"). Release'e zip'le birlikte yüklenir;
+    indiren, zip'in değiştirilmediğini `Get-FileHash` ile doğrular (GUVENLIK_PLANI.md, adım 9)."""
+    digest = hashlib.sha256()
+    with archive.open("rb") as f:
+        while chunk := f.read(1024 * 1024):
+            digest.update(chunk)
+    out = archive.with_name(archive.name + ".sha256")
+    out.write_text(f"{digest.hexdigest()} *{archive.name}\n", encoding="ascii", newline="\n")
+    return out
+
+
 def smoke_test(pkg: Path) -> None:
     """Paketin kendi Python'uyla: bütün bağımlılıklar yükleniyor mu, motorlar bulunuyor mu?"""
     py = pkg / "python" / "python.exe"
@@ -413,6 +425,7 @@ def main() -> None:
         archive.unlink(missing_ok=True)
         shutil.make_archive(str(archive.with_suffix("")), "zip", build, name)
         log(f"Zip: {archive} ({archive.stat().st_size / 1024 / 1024:.0f} MB)")
+        log(f"SHA-256: {write_checksum(archive)}")
     shutil.rmtree(work, ignore_errors=True)
 
 

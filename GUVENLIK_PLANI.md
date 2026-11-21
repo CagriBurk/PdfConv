@@ -144,7 +144,7 @@ Dal: `guvenlik-sertlestirme` (worktree: `C:\Users\cbura\Desktop\Conv-guvenlik`).
 | 6 Bağımlılıklar | ✅ çalışma klasöründen motor (yeni bulgu) | ✅ | ✅ `test_guvenlik_motorlar.py` | bu commit |
 | 7 DoS | ✅ Office zip bombası (+401 MB / 398 KB) | ✅ | ✅ `test_guvenlik_dos.py` | bu commit |
 | 8 Yerel sunucu | ✅ Origin portu, başka Windows kullanıcısı | ✅ | ✅ `test_guvenlik_yerel.py` | bu commit |
-| 9 Dağıtım | – | – | – | – |
+| 9 Dağıtım | – (önlem) | ✅ SHA-256 | ✅ `test_guvenlik_dagitim.py` | bu commit |
 
 ## Notlar
 
@@ -245,3 +245,10 @@ Dal: `guvenlik-sertlestirme` (worktree: `C:\Users\cbura\Desktop\Conv-guvenlik`).
   istemci ucundaki sürecin sahibi denetlenir (`native.loopback_peer_is_same_user`, ~2,5 ms);
   başka kullanıcının süreci (sahibi okunamaz) reddedilir. Gerçek soketle ve e2e'de (Edge) denendi.
   (3) Dosya kimliği, sürüm (`v=`) ve ZIP adı oynama denemeleri testlendi; açık bulunmadı.
+- **Adım 9, yapılan:** `paket/derle.py` zip'in yanına `<zip>.sha256` (sha256sum biçimi) yazar;
+  CI artifact'ına da eklenir. README kurulum adımında doğrulama (`Get-FileHash`) anlatılıyor.
+  Sürüm yayımlarken `.sha256` dosyası da Release'e yüklenmeli.
+- **Adım 9, karar (kullanıcının):** Kod imzalama sertifikası. Faydası: Windows'un "yayımcı
+  doğrulanamadı" uyarısı ve Akıllı Uygulama Denetimi engeli (bkz. .exe kararı) kalkar, paketin
+  kimden geldiği kanıtlanır. Maliyeti: yıllık sertifika ücreti ve kimlik doğrulama süreci
+  (bireysel/şirket). Müşterilere yaygın dağıtımdan önce değerlendirilmeli.

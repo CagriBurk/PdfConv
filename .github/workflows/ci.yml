@@ -130,5 +130,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: Toolia-motorsuz
-          path: build/Toolia-*.zip
+          path: |
+            build/Toolia-*.zip
+            build/Toolia-*.zip.sha256
           retention-days: 14
