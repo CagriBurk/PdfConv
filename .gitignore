@@ -17,3 +17,6 @@ SONRAKI_OTURUM.md
 # Gizli bilgiler (projede yok; yanlışlıkla eklenmesin)
 .env
 .env.*
+
+# Eski inceleme notu (yerelde kalir)
+INCELEME_VE_GELISTIRME_PLANI.md
