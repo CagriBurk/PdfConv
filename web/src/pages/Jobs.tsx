@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, errorMessage, formatSize, type FileMeta, type Job } from "../api";
+import { fileTypeTone } from "../components/FilePicker";
 import Icon from "../components/Icon";
 import Modal from "../components/Modal";
 import { splitName } from "../filename";
@@ -294,7 +295,7 @@ export default function Jobs() {
                   <tr key={f.id}>
                     <td>
                       <div className="file-cell">
-                        <span className="ftype" aria-hidden="true">
+                        <span className={`ftype ${fileTypeTone(f.name, f.kind)}`} aria-hidden="true">
                           {typeLabel(f)}
                         </span>
                         {renaming === f.id ? (

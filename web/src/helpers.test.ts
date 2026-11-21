@@ -140,3 +140,29 @@ describe("iş paneli", () => {
     expect(formatElapsed(3600)).toBe("60:00");
   });
 });
+
+describe("dosya rozet tonları ve favoriler", () => {
+  it("dosya türüne göre renk tonu seçer", async () => {
+    const { fileTypeTone } = await import("./components/FilePicker");
+    expect(fileTypeTone("rapor.pdf", "pdf")).toBe("ft-pdf");
+    expect(fileTypeTone("sozlesme.docx", "office")).toBe("ft-doc");
+    expect(fileTypeTone("butce.xlsx", "office")).toBe("ft-sheet");
+    expect(fileTypeTone("sunum.pptx", "office")).toBe("ft-slide");
+    expect(fileTypeTone("foto.png", "image")).toBe("ft-img");
+    expect(fileTypeTone("not.md", "markdown")).toBe("ft-md");
+    expect(fileTypeTone("arsiv.zip", "other")).toBe("ft-other");
+  });
+
+  it("favori araçları ekleyip çıkarır ve depolar", async () => {
+    window.localStorage.removeItem("pa-favoriler");
+    const { toggleFavorite } = await import("./favorites");
+    toggleFavorite("donustur");
+    expect(JSON.parse(window.localStorage.getItem("pa-favoriler") ?? "[]")).toEqual(["donustur"]);
+    toggleFavorite("birlestir");
+    expect(JSON.parse(window.localStorage.getItem("pa-favoriler") ?? "[]")).toEqual(["donustur", "birlestir"]);
+    toggleFavorite("donustur");
+    expect(JSON.parse(window.localStorage.getItem("pa-favoriler") ?? "[]")).toEqual(["birlestir"]);
+    toggleFavorite("birlestir");
+    expect(JSON.parse(window.localStorage.getItem("pa-favoriler") ?? "[]")).toEqual([]);
+  });
+});

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { api, errorMessage, formatSize, type FileMeta } from "../api";
 import { useJobActivity } from "../hooks";
 import { convertTargets } from "../tools";
+import { fileTypeTone } from "./FilePicker";
 import Icon from "./Icon";
 
 const LIMIT = 5;
@@ -92,7 +93,7 @@ export default function RecentFiles({ retentionHours, refreshKey = 0 }: { retent
             const canConvert = f.kind === "pdf" || f.kind === "image" || f.kind === "office" || convertTargets(f.name).length > 0;
             return (
               <li key={f.id} className="recent-row">
-                <span className="ftype" aria-hidden="true">
+                <span className={`ftype ${fileTypeTone(f.name, f.kind)}`} aria-hidden="true">
                   {typeLabel(f)}
                 </span>
                 <div className="recent-text">

@@ -24,9 +24,10 @@
   position: sticky;
   top: 0;
   z-index: 40;
-  background: var(--surface);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: blur(14px) saturate(140%);
   border-bottom: 1px solid var(--border);
-  box-shadow: 0 2px 10px rgb(16 24 40 / 0.05);
+  box-shadow: 0 2px 12px rgb(16 24 40 / 0.05);
 }
 
 .topbar-inner {
@@ -54,6 +55,16 @@
 
 .brand-mark {
   flex: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .brand-mark {
+    transition: transform 0.22s var(--ease-spring);
+  }
+
+  .brand:hover .brand-mark {
+    transform: rotate(-4deg) scale(1.06);
+  }
 }
 
 .nav-tray {
@@ -190,7 +201,22 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: var(--surface);
-  box-shadow: 0 24px 60px rgb(10 14 22 / 0.18);
+  box-shadow:
+    var(--inset-top),
+    0 24px 60px rgb(10 14 22 / 0.18);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .tool-menu-inner {
+    animation: menu-pop 0.18s var(--ease-out) both;
+  }
+
+  @keyframes menu-pop {
+    from {
+      opacity: 0;
+      transform: translateY(-6px) scale(0.985);
+    }
+  }
 }
 
 .tool-menu-head {
@@ -473,17 +499,73 @@
   border-radius: 16px;
   background: var(--surface);
   color: var(--text);
-  box-shadow: 0 24px 64px rgb(0 0 0 / 0.25);
+  box-shadow:
+    var(--inset-top),
+    0 24px 64px rgb(0 0 0 / 0.25);
+  opacity: 0;
+  transition-property: opacity, transform, display, overlay;
+  transition-duration: 0.18s;
+  transition-timing-function: var(--ease-out);
+  transition-behavior: allow-discrete;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .cmd-palette {
+    transform: translateY(-8px) scale(0.97);
+  }
 }
 
 .cmd-palette[open] {
   display: flex;
   flex-direction: column;
   max-height: min(76vh, 560px);
+  opacity: 1;
+}
+
+@starting-style {
+  .cmd-palette[open] {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .cmd-palette[open] {
+    transform: translateY(0) scale(1);
+  }
+
+  @starting-style {
+    .cmd-palette[open] {
+      transform: translateY(-8px) scale(0.97);
+    }
+  }
 }
 
 .cmd-palette::backdrop {
+  background: rgb(10 14 22 / 0);
+  backdrop-filter: blur(0px);
+  transition-property: background-color, backdrop-filter, display, overlay;
+  transition-duration: 0.18s;
+  transition-timing-function: var(--ease-out);
+  transition-behavior: allow-discrete;
+}
+
+.cmd-palette[open]::backdrop {
   background: rgb(10 14 22 / 0.45);
+  backdrop-filter: blur(4px);
+}
+
+@starting-style {
+  .cmd-palette[open]::backdrop {
+    background: rgb(10 14 22 / 0);
+    backdrop-filter: blur(0px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cmd-palette,
+  .cmd-palette::backdrop {
+    transition-duration: 0.1s;
+  }
 }
 
 .cmd-palette-head {
