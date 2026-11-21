@@ -14,15 +14,21 @@ interface Props {
   disabled?: boolean;
 }
 
-/** Ana sayfa bırakma alanının çizimi (iki sayfa ve yükleme oku). */
+/** Ana sayfa bırakma alanının çizimi (iki sayfa ve yükleme oku; üzerine gelince canlanır). */
 function DropArt() {
   return (
-    <svg className="dropzone-art" width="96" height="76" viewBox="0 0 96 76" aria-hidden="true">
-      <rect className="art-sheet" x="22" y="10" width="44" height="56" rx="7" strokeWidth="1.5" transform="rotate(-8 44 38)" />
-      <rect className="art-sheet" x="30" y="6" width="44" height="56" rx="7" strokeWidth="1.5" />
-      <path className="art-lines" d="M39 22h22M39 30h26M39 38h18" strokeWidth="3" strokeLinecap="round" />
-      <circle className="art-badge" cx="70" cy="54" r="15" />
-      <path className="art-arrow" d="M70 61V47M64 53l6-6 6 6" fill="none" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+    <svg className="dropzone-art" width="104" height="80" viewBox="0 0 104 80" aria-hidden="true">
+      <g className="art-sheet-back">
+        <rect className="art-sheet" x="24" y="12" width="44" height="56" rx="7" strokeWidth="1.5" transform="rotate(-9 46 40)" />
+      </g>
+      <g className="art-sheet-front">
+        <rect className="art-sheet" x="34" y="8" width="44" height="56" rx="7" strokeWidth="1.5" />
+        <path className="art-lines" d="M43 24h22M43 32h26M43 40h18" strokeWidth="3" strokeLinecap="round" />
+      </g>
+      <g className="art-badge-group">
+        <circle className="art-badge" cx="74" cy="56" r="15" />
+        <path className="art-arrow" d="M74 63V49M68 55l6-6 6 6" fill="none" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+      </g>
     </svg>
   );
 }

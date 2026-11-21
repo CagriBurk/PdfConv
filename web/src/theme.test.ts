@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { applyTheme, currentTheme, setTheme, storedTheme } from "./theme";
+import { applyTheme, currentTheme, resetTheme, setTheme, storedTheme } from "./theme";
 
 describe("tema", () => {
   afterEach(() => {
@@ -13,6 +13,9 @@ describe("tema", () => {
     expect(document.documentElement.dataset.theme).toBe("dark");
     expect(storedTheme()).toBe("dark");
     expect(currentTheme()).toBe("dark");
+    resetTheme();
+    expect(storedTheme()).toBeNull();
+    expect(document.documentElement.hasAttribute("data-theme")).toBe(false);
     applyTheme(null);
     expect(document.documentElement.hasAttribute("data-theme")).toBe(false);
   });

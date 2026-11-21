@@ -74,6 +74,7 @@ export default function Merge({ route }: { route: Route }) {
             label={files.length < 2 ? "En az iki PDF ekle" : `Birleştir (${totalPages} sayfa)`}
             disabled={files.length < 2 || job.running}
             busy={job.running}
+            done={job.job?.status === "bitti"}
             onRun={() =>
               job.start({
                 type: "merge",

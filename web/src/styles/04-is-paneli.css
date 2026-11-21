@@ -89,10 +89,75 @@
 }
 
 .progress > div {
+  position: relative;
   height: 100%;
   border-radius: inherit;
   background: var(--accent);
+  overflow: hidden;
   transition: width 0.25s;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .status-calisiyor .progress > div::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.35), transparent);
+    animation: progress-sheen 1.4s ease-in-out infinite;
+  }
+
+  .job-check-svg path {
+    stroke-dasharray: 28;
+    stroke-dashoffset: 0;
+    animation: check-draw 0.36s var(--ease-out) both;
+  }
+
+  @keyframes progress-sheen {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(100%);
+    }
+  }
+
+  @keyframes check-draw {
+    from {
+      stroke-dashoffset: 28;
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+}
+
+.savings-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.savings-pct {
+  margin-left: 6px;
+  vertical-align: 1px;
+}
+
+.savings-bar {
+  display: block;
+  height: 6px;
+  width: 100%;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.savings-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--ok);
 }
 
 .job-panel .error-text {
@@ -203,13 +268,8 @@
   padding: 0.45rem 0.85rem;
 }
 
-/* Yalnızca "İndir" varsa (PDF olmayan çıktı) ya da yer genişse tek satır. */
-.output-list li:not(:has(.link-button)) {
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  grid-template-areas: "type text acts";
-}
-
-@container outputs (min-width: 520px) {
+/* Geniş alanda tek satır; dar yan sütunda dosya adı kesilmeden tam genişlikte görünür. */
+@container outputs (min-width: 440px) {
   .output-list li {
     grid-template-columns: auto minmax(0, 1fr) auto;
     grid-template-areas: "type text acts";

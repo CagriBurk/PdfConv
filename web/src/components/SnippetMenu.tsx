@@ -420,7 +420,7 @@ function NameDialog({
           <input
             ref={input}
             className="input"
-            autoFocus
+            data-autofocus
             maxLength={NAME_MAX}
             value={value}
             onChange={(e) => setValue(e.target.value)}
@@ -471,7 +471,7 @@ function ConfirmDialog({
           </p>
         )}
         <div className="modal-actions">
-          <button type="button" autoFocus onClick={onClose}>
+          <button type="button" data-autofocus onClick={onClose}>
             Vazgeç
           </button>
           <button

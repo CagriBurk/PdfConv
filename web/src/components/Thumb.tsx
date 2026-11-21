@@ -39,7 +39,7 @@ export default function Thumb({ file, page, rotate, width = 150 }: Props) {
   }, [visible, file.id, file.version, file.updated, page, width]);
 
   return (
-    <div ref={ref} className="thumb-box">
+    <div ref={ref} className={`thumb-box${!src && !failed ? " loading" : ""}`}>
       {src ? (
         <img src={src} alt="" draggable={false} style={{ transform: `rotate(${rotate}deg)` }} />
       ) : (

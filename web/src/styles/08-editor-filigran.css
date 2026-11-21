@@ -80,6 +80,10 @@ input[type="color"]:disabled {
   color: var(--warn);
 }
 
+.editor-shell {
+  --editor-bar-h: 54px;
+}
+
 .editor-layout {
   display: grid;
   grid-template-columns: 132px minmax(0, 1fr) 300px;
@@ -88,14 +92,14 @@ input[type="color"]:disabled {
   margin-top: 16px;
 }
 
-/* Üst çubuk ve araç çubuğu (~54px) yapışkan: yan sütunlar ikisinin altında durur. */
+/* Üst çubuk ve araç çubuğu yapışkan: yan sütunlar dinamik ölçülen --editor-bar-h'nin altında durur. */
 .editor-pages {
   display: flex;
   flex-direction: column;
   gap: 10px;
   position: sticky;
-  top: calc(var(--topbar-h) + 72px);
-  max-height: calc(100vh - var(--topbar-h) - 88px);
+  top: calc(var(--topbar-h) + var(--editor-bar-h) + 18px);
+  max-height: calc(100vh - var(--topbar-h) - var(--editor-bar-h) - 34px);
   overflow-y: auto;
   padding: 3px 5px 3px 3px;
   scrollbar-width: thin;
@@ -233,11 +237,11 @@ input[type="color"]:disabled {
 
 .editor-side {
   position: sticky;
-  top: calc(var(--topbar-h) + 72px);
+  top: calc(var(--topbar-h) + var(--editor-bar-h) + 18px);
   display: flex;
   flex-direction: column;
   gap: 12px;
-  max-height: calc(100vh - var(--topbar-h) - 88px);
+  max-height: calc(100vh - var(--topbar-h) - var(--editor-bar-h) - 34px);
   overflow-y: auto;
   padding: 3px;
   margin: -3px;
@@ -384,6 +388,12 @@ input[type="color"]:disabled {
   display: grid;
   gap: 4px;
   justify-items: center;
+}
+
+.sig-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 /* İmza mürekkebi koyu: zemini her temada kâğıt beyazı. */

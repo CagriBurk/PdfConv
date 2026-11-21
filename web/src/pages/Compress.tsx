@@ -117,6 +117,7 @@ export default function Compress({ route }: { route: Route }) {
             label={files.length > 1 ? `${files.length} dosyayı sıkıştır` : "Sıkıştır"}
             disabled={!files.length || job.running}
             busy={job.running}
+            done={job.job?.status === "bitti"}
             onRun={() =>
               void job.start({
                 type: "compress",
@@ -133,10 +134,17 @@ export default function Compress({ route }: { route: Route }) {
             summary={
               after !== null &&
               total > 0 && (
-                <>
-                  Toplam: {formatSize(total)} → <strong>{formatSize(after)}</strong>
-                  {after < total && ` (%${Math.round((1 - after / total) * 100)} küçüldü)`}
-                </>
+                <span className="savings-summary">
+                  <span>
+                    {formatSize(total)} → <strong>{formatSize(after)}</strong>
+                    {after < total && (
+                      <span className="chip ok small savings-pct">-%{Math.round((1 - after / total) * 100)}</span>
+                    )}
+                  </span>
+                  <span className="savings-bar" aria-hidden="true">
+                    <span style={{ width: `${Math.min(100, Math.max(6, Math.round((after / total) * 100)))}%` }} />
+                  </span>
+                </span>
               )
             }
           />

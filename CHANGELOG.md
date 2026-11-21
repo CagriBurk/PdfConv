@@ -1,5 +1,21 @@
 # Değişiklikler
 
+## Yaklaşan (`arayuz-revizyon` dalı) — 2026-11-21
+
+Kapsamlı UI/UX denetimi ve "Sıcak Atölye" arayüz yenilemesi (yalnızca ön yüz `web/src/`).
+
+### Eklenenler
+- **Evrensel Biçim Dönüştür**: Tek ekranda PDF (`→ PNG, JPG, Word .docx, Excel .xlsx`), resimler (`JPG/PNG/WEBP/TIFF/HEIC → JPG/PNG/WEBP/TIFF/PDF`) ve Office/HTML/TXT belgeleri (`→ PDF` veya kendi ailesi içi) dönüştürülebiliyor; belge türüne göre hedef sekmesi ve seçenekler kendiliğinden uyarlanıyor.
+- **Sık kullanılanlar (favoriler) & kategori süzgeci**: Ana sayfada araçlar kategori sekmeleriyle (`Tümü | Dönüştür | Düzenle | Ekle | Optimize`) süzülebiliyor; kartlardaki yıldızla sabitlenen araçlar üstte **Sık kullanılanlar** şeridinde (`localStorage`) kalıyor.
+- **Her ekrandan sürükle-bırak**: İşler, Ayarlar ve Ana Sayfa'da dosya pencereye sürüklenince buzlu cam bırakma katmanı açılıyor ve dosya türüne göre doğru araca yönlendiriliyor.
+- **Renk kodlu kıvrık köşeli dosya rozetleri**: PDF, Word, Excel, Sunu, Resim ve Markdown dosyaları tek bakışta renk ve biçimle ayrılıyor.
+- **Modern geçiş ve geri bildirimler**: Bölümler arası `View Transitions API` geçişleri, `<dialog>` ve komut paletinde `@starting-style` + `allow-discrete` animasyonları, yelpaze gibi açılan bırakma illüstrasyonu, çalışan iş çubuğunda parıltı, tamamlanınca çizilerek beliren SVG onay işareti ve Sıkıştır ekranında önce/sonra görsel tasarruf çubuğu.
+
+### İyileştirilenler & Sadeleştirilenler
+- **Sıcak Atölye görsel dili**: Soğuk gri tuval yerine sıcak fildişi zemin (`#f6f4ef`), koyu temada ince üst ışık kenarları, buzlu cam üst çubuk (`backdrop-filter`) ve 3B tuş görünümlü `<kbd>` kısayolları.
+- **Ana sayfa dengesi**: *Dönüştür* grubu tam genişlikte öne çıkarılıp **Biçim Dönüştür** vurgulu ana kart yapıldı; 6 kutuluk statik "Bırakınca ne olur?" bloğu tek satırlık açılır **Akıllı yönlendirme** çekmecesine sadeleştirildi.
+- **Koyu tema & erişilebilirlik**: Önizleme kâğıdı koyu temada göz yormayan yumuşak kreme alındı; tekil odak/hover parlaklıkları, mobil (390 px) ve tablet (900 px) düzenleri sıfır yatay taşmayla doğrulandı.
+
 ## 0.12.2 — 2026-11-21
 
 - **Masaüstü simgesi artık değişiyor**: 0.12.1'i kurunca masaüstünde eski turuncu "PDF" simgesi

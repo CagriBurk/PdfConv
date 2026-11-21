@@ -14,7 +14,7 @@ import { useEffect, useId, useState, type ReactNode } from "react";
 import { api, formatSize, type Job } from "../api";
 import { navigate, useRoute } from "../router";
 import { toolForRoute } from "../tools";
-import { fileType } from "./FilePicker";
+import { fileType, fileTypeTone } from "./FilePicker";
 import Icon from "./Icon";
 
 const STATUS: Record<Job["status"], string> = {
@@ -77,7 +77,13 @@ export default function JobPanel({ job, error, zipName, summary }: Props) {
     <section className={`job-panel status-${job.status}`} aria-live="polite">
       <div className="job-head">
         <span className="tile job-icon">
-          <Icon icon={STATUS_ICON[job.status]} size={20} strokeWidth={job.status === "bitti" ? 2.6 : 2} className={job.status === "calisiyor" ? "spin" : undefined} />
+          {job.status === "bitti" ? (
+            <svg className="job-check-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M5 13l4.5 4.5L19 7.5" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          ) : (
+            <Icon icon={STATUS_ICON[job.status]} size={20} strokeWidth={2} className={job.status === "calisiyor" ? "spin" : undefined} />
+          )}
         </span>
         <div className="job-panel-text">
           <strong>{STATUS[job.status]}</strong>
@@ -129,7 +135,7 @@ export default function JobPanel({ job, error, zipName, summary }: Props) {
           <ul className="output-list">
             {job.files.map((f) => (
               <li key={f.id}>
-                <span className="ftype" aria-hidden="true">
+                <span className={`ftype ${fileTypeTone(f.name, f.kind)}`} aria-hidden="true">
                   {fileType(f.name, f.kind)}
                 </span>
                 <span className="file-text">
@@ -180,6 +186,7 @@ export function ActionCard({
   label,
   disabled,
   busy,
+  done,
   onRun,
 }: {
   rows: [string, ReactNode][];
@@ -187,6 +194,8 @@ export function ActionCard({
   label: string;
   disabled?: boolean;
   busy?: boolean;
+  /** İş tamamlandıysa ana vurgu İndir düğmesine geçer (ekranda çift mavi CTA oluşmasın). */
+  done?: boolean;
   onRun: () => void;
 }) {
   const id = useId();
@@ -203,7 +212,7 @@ export function ActionCard({
         ))}
       </dl>
       {note && <div className="side-note">{note}</div>}
-      <button type="button" className="primary block action" disabled={disabled} onClick={onRun}>
+      <button type="button" className={`${done ? "" : "primary "}block action`} disabled={disabled} onClick={onRun}>
         {busy ? <Icon icon={LoaderCircle} className="spin" /> : tool && <Icon icon={tool.icon} />}
         {label}
       </button>

@@ -25,6 +25,7 @@ export default function SignatureDialog({ onPick, onClose }: Props) {
   const [busy, setBusy] = useState(false);
   const [ink, setInk] = useState(INKS[0].value);
   const [empty, setEmpty] = useState(true);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const padRef = useRef<SignaturePad | null>(null);
 
@@ -83,10 +84,10 @@ export default function SignatureDialog({ onPick, onClose }: Props) {
   };
 
   const remove = async (sig: FileMeta) => {
-    if (!window.confirm(`“${sig.name}” silinsin mi?`)) return;
     try {
       await api.remove(sig.id);
       setList((l) => l?.filter((s) => s.id !== sig.id) ?? null);
+      setConfirmDeleteId(null);
     } catch (e) {
       setError(errorMessage(e));
     }
@@ -124,9 +125,20 @@ export default function SignatureDialog({ onPick, onClose }: Props) {
                   <button type="button" className="signature-tile" onClick={() => onPick(s)} title="Bu imzayı ekle">
                     <img src={api.rawUrl(s.id)} alt={s.name} />
                   </button>
-                  <button type="button" className="link-button danger small" onClick={() => void remove(s)}>
-                    Sil
-                  </button>
+                  {confirmDeleteId === s.id ? (
+                    <span className="sig-confirm">
+                      <button type="button" className="link-button danger small" onClick={() => void remove(s)}>
+                        Silinsin
+                      </button>
+                      <button type="button" className="link-button small" onClick={() => setConfirmDeleteId(null)}>
+                        Vazgeç
+                      </button>
+                    </span>
+                  ) : (
+                    <button type="button" className="link-button danger small" onClick={() => setConfirmDeleteId(s.id)}>
+                      Sil
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>

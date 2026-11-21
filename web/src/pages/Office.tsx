@@ -99,6 +99,7 @@ export default function Office({ route, engines, onEnginesChanged }: Props) {
             label={job.running ? "Dönüştürülüyor…" : files.length > 1 ? `${files.length} dosyayı dönüştür` : "PDF'e dönüştür"}
             disabled={!files.length || job.running}
             busy={job.running}
+            done={job.job?.status === "bitti"}
             onRun={() =>
               job.start({ type: "office_to_pdf", files: files.map((f) => f.id), merge, pdfa, name: name || undefined })
             }

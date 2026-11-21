@@ -1,4 +1,4 @@
-import { Check, ChevronRight, CircleX, FolderOpen, LoaderCircle, RefreshCw, TriangleAlert } from "lucide-react";
+import { Check, ChevronRight, CircleX, FolderOpen, LoaderCircle, Monitor, Moon, RefreshCw, Sun, TriangleAlert } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import {
   api,
@@ -15,6 +15,7 @@ import InstallLibreOffice from "../components/InstallLibreOffice";
 import Modal from "../components/Modal";
 import { useJobActivity } from "../hooks";
 import { restartApp } from "../restart";
+import { resetTheme, setTheme as setAppTheme, useStoredTheme } from "../theme";
 import { toast } from "../toast";
 
 interface Props {
@@ -207,6 +208,7 @@ function GeneralSettings({ settings, onSettings }: { settings: SettingsResponse;
       <div className="setting-row">
         <div className="setting-label">
           <label htmlFor="ayar-tema">Varsayılan tema</label>
+          <p className="muted small">Markdown → PDF belge teması (notun ön bilgisinde belirtilmemişse).</p>
         </div>
         <div className="setting-control">
           <select id="ayar-tema" value={theme} onChange={(e) => setTheme(e.target.value)}>
@@ -573,7 +575,9 @@ export function EngineList({ data, onRefresh }: { data: EnginesResponse; onRefre
                 {s.text}
               </span>
             </div>
-            <p className="muted">{e.needed_for}</p>
+            <p className="muted">
+              {e.key === "libreoffice" ? "Word / Excel / PowerPoint → PDF ve Office biçim dönüştürme" : e.needed_for}
+            </p>
             {e.problems.map((p) => (
               <p key={p} className="warn-line">
                 {p}
@@ -635,17 +639,52 @@ function PortSetting({ settings, onSettings }: { settings: SettingsResponse; onS
   );
 }
 
+function AppearanceSetting() {
+  const stored = useStoredTheme();
+  return (
+    <section className="card settings-card" aria-labelledby="gorunum-baslik">
+      <div className="section-head">
+        <h2 id="gorunum-baslik">Görünüm</h2>
+      </div>
+      <div className="setting-row">
+        <div className="setting-label">
+          <span className="setting-title">Arayüz teması</span>
+          <p className="muted small">
+            Sistem seçiliyse Windows/tarayıcı tercihini izler; bu tarayıcıda saklanır.
+          </p>
+        </div>
+        <div className="setting-control">
+          <div className="segmented seg-track" role="group" aria-label="Arayüz teması">
+            <button type="button" className={stored === null ? "on" : undefined} aria-pressed={stored === null} onClick={resetTheme}>
+              <Icon icon={Monitor} size={16} />
+              Sistem
+            </button>
+            <button type="button" className={stored === "light" ? "on" : undefined} aria-pressed={stored === "light"} onClick={() => setAppTheme("light")}>
+              <Icon icon={Sun} size={16} />
+              Açık
+            </button>
+            <button type="button" className={stored === "dark" ? "on" : undefined} aria-pressed={stored === "dark"} onClick={() => setAppTheme("dark")}>
+              <Icon icon={Moon} size={16} />
+              Koyu
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function Settings({ data, refreshing, onRefresh, settings, onSettings, onShowWelcome }: Props) {
   return (
     <div className="settings">
       <header className="screen-head">
         <h1>Ayarlar</h1>
-        <p>Dosya saklama, Markdown varsayılanları, telefon modu ve motorlar.</p>
+        <p>Dosya saklama, görünüm, Markdown varsayılanları, telefon modu ve motorlar.</p>
       </header>
       {/* Yapışkan: port "Gelişmiş" altında değişse de uyarı ekranda kalır. */}
       {settings && <RestartLine settings={settings} />}
-      {data && <VersionInfo data={data} />}
       {settings && <GeneralSettings key={settings.config_file} settings={settings} onSettings={onSettings} />}
+      <AppearanceSetting />
       {settings && <PhoneMode settings={settings} onSettings={onSettings} />}
 
       <section className="card settings-card" aria-labelledby="motorlar-baslik">
@@ -658,6 +697,8 @@ export default function Settings({ data, refreshing, onRefresh, settings, onSett
         </div>
         {!data ? <p className="muted">Yükleniyor…</p> : <EngineList data={data} onRefresh={onRefresh} />}
       </section>
+
+      {data && <VersionInfo data={data} />}
 
       <p className="settings-more">
         <button type="button" className="link-button" onClick={onShowWelcome}>

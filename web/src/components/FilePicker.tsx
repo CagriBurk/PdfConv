@@ -85,6 +85,19 @@ export function fileType(name: string, kind: FileMeta["kind"]): string {
   return ext.slice(0, 4).toLocaleUpperCase("tr");
 }
 
+/** Dosya türü rozetinin renk sınıfı: göz tek bakışta PDF / Word / Excel / Sunu / Resim / MD ayırır. */
+export function fileTypeTone(name: string, kind: FileMeta["kind"]): string {
+  const dot = name.lastIndexOf(".");
+  const ext = dot > 0 ? name.slice(dot).toLowerCase() : "";
+  if (kind === "pdf" || ext === ".pdf") return "ft-pdf";
+  if (kind === "image") return "ft-img";
+  if (kind === "markdown") return "ft-md";
+  if ([".xlsx", ".xls", ".xlsm", ".ods", ".csv"].includes(ext)) return "ft-sheet";
+  if ([".pptx", ".ppt", ".pptm", ".odp"].includes(ext)) return "ft-slide";
+  if (kind === "office" || [".docx", ".doc", ".docm", ".odt", ".rtf", ".wpd"].includes(ext)) return "ft-doc";
+  return "ft-other";
+}
+
 /** Özet kartı için: "2 PDF · 26.8 MB" (boşsa "—"). */
 export function filesSummary(files: FileMeta[], noun = "dosya"): string {
   if (!files.length) return "—";
@@ -130,7 +143,7 @@ export function FileRow({ file, onRemove, draggable }: { file: FileMeta; onRemov
           <Icon icon={GripVertical} />
         </span>
       )}
-      <span className="ftype" aria-hidden="true">
+      <span className={`ftype ${fileTypeTone(file.name, file.kind)}`} aria-hidden="true">
         {fileType(file.name, file.kind)}
       </span>
       <span className="file-text">

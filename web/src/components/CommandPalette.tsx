@@ -42,9 +42,11 @@ const PDF_ROUTES = new Set([
   "resme",
   "word",
   "excel",
+  "donustur",
 ]);
 
 const NON_PDF_ROUTES = new Set(["md", "office", "resimden", "donustur"]);
+const CONVERT_PEER_ROUTES = new Set(["office", "resimden", "donustur"]);
 
 const QUICK_ACTIONS = [
   { id: "nav-home", title: "Ana Sayfa", subtitle: "Tüm araçlar ve dosya bırakma alanı", route: "araclar", group: "Gezinme", icon: House },
@@ -76,7 +78,10 @@ function extractActiveFiles(route: Route): { section: string; ids: string[] } {
 
 function canHandoffToTool(section: string, ids: string[], targetRoute: string): boolean {
   if (!ids.length) return false;
-  if (NON_PDF_ROUTES.has(section)) return section === targetRoute;
+  if (NON_PDF_ROUTES.has(section)) {
+    if (section === targetRoute) return true;
+    return CONVERT_PEER_ROUTES.has(section) && CONVERT_PEER_ROUTES.has(targetRoute);
+  }
   if (PDF_ROUTES.has(targetRoute)) return true;
   return section === targetRoute;
 }
@@ -195,7 +200,7 @@ function CommandPaletteDialog({
     }
   };
 
-  const hasPdfHandoff = ids.length > 0 && !NON_PDF_ROUTES.has(section);
+  const hasHandoff = ids.length > 0 && (!NON_PDF_ROUTES.has(section) || CONVERT_PEER_ROUTES.has(section));
 
   return (
     <dialog
@@ -233,9 +238,9 @@ function CommandPaletteDialog({
           Esc
         </button>
       </div>
-      {hasPdfHandoff && (
+      {hasHandoff && (
         <div className="cmd-palette-context">
-          Aktif PDF dosyası seçilen araca otomatik aktarılır.
+          Aktif dosyalar uyumlu araca otomatik aktarılır.
         </div>
       )}
       <ul ref={listRef} id={listId} className="cmd-palette-list" role="listbox" aria-label="Sonuçlar">

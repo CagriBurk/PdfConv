@@ -8,7 +8,42 @@
   border-radius: 20px;
   background: var(--surface);
   color: var(--text);
-  box-shadow: 0 24px 64px rgb(0 0 0 / 0.25);
+  box-shadow:
+    var(--inset-top),
+    0 24px 64px rgb(0 0 0 / 0.25);
+  opacity: 0;
+  transition-property: opacity, transform, display, overlay;
+  transition-duration: 0.2s;
+  transition-timing-function: var(--ease-out);
+  transition-behavior: allow-discrete;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .modal {
+    transform: translateY(8px) scale(0.96);
+  }
+}
+
+.modal[open] {
+  opacity: 1;
+}
+
+@starting-style {
+  .modal[open] {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .modal[open] {
+    transform: translateY(0) scale(1);
+  }
+
+  @starting-style {
+    .modal[open] {
+      transform: translateY(8px) scale(0.96);
+    }
+  }
 }
 
 .modal.wide {
@@ -16,7 +51,31 @@
 }
 
 .modal::backdrop {
+  background: rgb(10 14 22 / 0);
+  backdrop-filter: blur(0px);
+  transition-property: background-color, backdrop-filter, display, overlay;
+  transition-duration: 0.2s;
+  transition-timing-function: var(--ease-out);
+  transition-behavior: allow-discrete;
+}
+
+.modal[open]::backdrop {
   background: rgb(10 14 22 / 0.45);
+  backdrop-filter: blur(4px);
+}
+
+@starting-style {
+  .modal[open]::backdrop {
+    background: rgb(10 14 22 / 0);
+    backdrop-filter: blur(0px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal,
+  .modal::backdrop {
+    transition-duration: 0.1s;
+  }
 }
 
 .modal-head {

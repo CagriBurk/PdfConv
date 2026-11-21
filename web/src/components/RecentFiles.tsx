@@ -1,7 +1,9 @@
-import { Download, LayoutGrid } from "lucide-react";
+import { ArrowLeftRight, Download, FolderOpen, LayoutGrid } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api, errorMessage, formatSize, type FileMeta } from "../api";
 import { useJobActivity } from "../hooks";
+import { convertTargets } from "../tools";
+import { fileTypeTone } from "./FilePicker";
 import Icon from "./Icon";
 
 const LIMIT = 5;
@@ -79,41 +81,52 @@ export default function RecentFiles({ retentionHours, refreshKey = 0 }: { retent
       ) : files === null ? (
         <p className="recent-empty muted">Yükleniyor…</p>
       ) : files.length === 0 ? (
-        <p className="recent-empty muted">
-          Henüz dosya yok. İlk dosyanı bırak; en son çalıştıkların burada görünür.
-        </p>
+        <div className="recent-empty-box">
+          <span className="tile">
+            <Icon icon={FolderOpen} size={19} />
+          </span>
+          <p className="muted">Henüz dosya yok. İlk dosyanı bırak; en son çalıştıkların burada görünür.</p>
+        </div>
       ) : (
         <ul className="recent-list">
-          {files.map((f) => (
-            <li key={f.id} className="recent-row">
-              <span className="ftype" aria-hidden="true">
-                {typeLabel(f)}
-              </span>
-              <div className="recent-text">
-                <p className="recent-name" title={f.name}>
-                  {f.name}
-                </p>
-                <p className="recent-meta">
-                  {[
-                    formatSize(f.size),
-                    f.page_count ? `${f.page_count} sayfa` : null,
-                    ago(f.updated),
-                    f.pinned ? "sabitlendi" : null,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </p>
-              </div>
-              {f.kind === "pdf" && (
-                <a className="icon-button" href={`#/duzenle/${f.id}`} aria-label={`${f.name} dosyasını düzenleyicide aç`} title="Düzenleyicide aç">
-                  <Icon icon={LayoutGrid} />
+          {files.map((f) => {
+            const canConvert = f.kind === "pdf" || f.kind === "image" || f.kind === "office" || convertTargets(f.name).length > 0;
+            return (
+              <li key={f.id} className="recent-row">
+                <span className={`ftype ${fileTypeTone(f.name, f.kind)}`} aria-hidden="true">
+                  {typeLabel(f)}
+                </span>
+                <div className="recent-text">
+                  <p className="recent-name" title={f.name}>
+                    {f.name}
+                  </p>
+                  <p className="recent-meta">
+                    {[
+                      formatSize(f.size),
+                      f.page_count ? `${f.page_count} sayfa` : null,
+                      ago(f.updated),
+                      f.pinned ? "sabitlendi" : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </p>
+                </div>
+                {f.kind === "pdf" && (
+                  <a className="icon-button" href={`#/duzenle/${f.id}`} aria-label={`${f.name} dosyasını düzenleyicide aç`} title="Düzenleyicide aç">
+                    <Icon icon={LayoutGrid} />
+                  </a>
+                )}
+                {canConvert && (
+                  <a className="icon-button" href={`#/donustur?dosya=${encodeURIComponent(f.id)}`} aria-label={`${f.name} dosyasını dönüştür`} title="Biçim Dönüştür'de aç">
+                    <Icon icon={ArrowLeftRight} />
+                  </a>
+                )}
+                <a className="icon-button" href={api.downloadUrl(f.id)} aria-label={`${f.name} dosyasını indir`} title="İndir">
+                  <Icon icon={Download} />
                 </a>
-              )}
-              <a className="icon-button" href={api.downloadUrl(f.id)} aria-label={`${f.name} dosyasını indir`} title="İndir">
-                <Icon icon={Download} />
-              </a>
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ul>
       )}
       <p className="recent-note">

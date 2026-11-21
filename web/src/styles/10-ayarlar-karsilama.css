@@ -62,10 +62,24 @@ main:focus {
   background: var(--surface);
   color: var(--text);
   box-shadow:
+    var(--inset-top),
     0 2px 4px rgb(16 24 40 / 0.06),
     0 12px 32px rgb(16 24 40 / 0.14);
   font-size: 14px;
   overflow-wrap: anywhere;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .toast {
+    animation: toast-in 0.24s var(--ease-spring) both;
+  }
+
+  @keyframes toast-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px) scale(0.96);
+    }
+  }
 }
 
 .toast-icon {
@@ -346,7 +360,8 @@ main:focus {
   padding-top: 4px;
 }
 
-.setting-label label {
+.setting-label label,
+.setting-title {
   display: block;
   font-size: 14.5px;
   font-weight: 650;

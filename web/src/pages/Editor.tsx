@@ -122,6 +122,8 @@ export default function Editor({ fileId }: { fileId?: string }) {
   const [signing, setSigning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const mainRef = useRef<HTMLDivElement>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const shellRef = useRef<HTMLDivElement>(null);
   const imageInput = useRef<HTMLInputElement>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
   const { upload, uploading } = useUpload({ toastErrors: true });
@@ -167,6 +169,18 @@ export default function Editor({ fileId }: { fileId?: string }) {
       .then(([f]) => setFonts(f))
       .catch(() => undefined);
   }, []);
+
+  // Yapışkan araç çubuğu iki satıra sarılırsa yan sütunların üstünü örtmesin.
+  useEffect(() => {
+    const bar = toolbarRef.current;
+    const shell = shellRef.current;
+    if (!bar || !shell || typeof ResizeObserver === "undefined") return;
+    const sync = () => shell.style.setProperty("--editor-bar-h", `${Math.ceil(bar.getBoundingClientRect().height)}px`);
+    sync();
+    const ro = new ResizeObserver(sync);
+    ro.observe(bar);
+    return () => ro.disconnect();
+  }, [fileId]);
 
   // Sayfa genişliğine sığdır; pencere boyu değişince yeniden hesapla.
   useEffect(() => {
@@ -346,12 +360,12 @@ export default function Editor({ fileId }: { fileId?: string }) {
   const showJob = job.job && (job.job.status !== "bitti" || job.job.warnings.length > 0);
 
   return (
-    <>
+    <div ref={shellRef} className="editor-shell">
       <PageHeader title="İçerik Ekle">
         {meta && (
           <>
             <span className="chip meta-chip">
-              {meta.name} · {meta.version}. sürüm
+              {meta.name} · sürüm {meta.version}
             </span>
             {meta.version > 1 && (
               <button type="button" onClick={() => void undoVersion()} disabled={dirty}>
@@ -363,15 +377,22 @@ export default function Editor({ fileId }: { fileId?: string }) {
               <Icon icon={LayoutGrid} size={16} />
               Sayfa düzenleyicide aç
             </button>
-            <a className="button" href={api.downloadUrl(meta.id)}>
-              <Icon icon={Download} size={16} />
-              İndir
-            </a>
+            {dirty ? (
+              <button type="button" disabled title="İndirmeden önce değişiklikleri uygula">
+                <Icon icon={Download} size={16} />
+                İndir
+              </button>
+            ) : (
+              <a className="button" href={api.downloadUrl(meta.id)}>
+                <Icon icon={Download} size={16} />
+                İndir
+              </a>
+            )}
           </>
         )}
       </PageHeader>
 
-      <div className="toolbar" role="toolbar" aria-label="Editör araçları">
+      <div ref={toolbarRef} className="toolbar" role="toolbar" aria-label="Editör araçları">
         <div className="tool-groups">
           {TOOL_GROUPS.map((group, i) => (
             <div key={i} className="tool-cluster">
@@ -585,7 +606,7 @@ export default function Editor({ fileId }: { fileId?: string }) {
           }}
         />
       )}
-    </>
+    </div>
   );
 }
 

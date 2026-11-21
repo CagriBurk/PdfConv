@@ -138,7 +138,7 @@ export default function TopBar({ section, lan, onSearch }: Props) {
               <span className="chip-label">Telefon modu açık</span>
             </a>
           ) : (
-            <span className="chip" title="Dosyalar bu bilgisayardan çıkmaz">
+            <span className="chip offline-chip" title="Dosyalar bu bilgisayardan çıkmaz">
               <Icon icon={ShieldCheck} size={15} />
               <span className="chip-label">Çevrimdışı</span>
             </span>

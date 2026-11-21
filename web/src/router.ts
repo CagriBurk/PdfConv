@@ -1,4 +1,5 @@
 import { useEffect, useSyncExternalStore } from "react";
+import { flushSync } from "react-dom";
 
 /** Basit karma (#) yönlendirici: "#/duzenle/abc?x=1" → { path: ["duzenle", "abc"], query }
  *
@@ -35,9 +36,31 @@ export function confirmLeave(): boolean {
 }
 
 function commit(hash: string): void {
-  currentHash = hash;
-  current = parse(hash);
-  listeners.forEach((l) => l());
+  const prevSection = current.path[0] ?? "araclar";
+  const next = parse(hash);
+  const nextSection = next.path[0] ?? "araclar";
+  const apply = () => {
+    currentHash = hash;
+    current = next;
+    listeners.forEach((l) => l());
+  };
+  const doc = document as Document & {
+    startViewTransition?: (cb: () => void) => {
+      ready?: Promise<void>;
+      finished?: Promise<void>;
+      updateCallbackDone?: Promise<void>;
+    };
+  };
+  const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  if (prevSection !== nextSection && typeof doc.startViewTransition === "function" && !reduced) {
+    const vt = doc.startViewTransition(() => flushSync(apply));
+    // Hızlı art arda gezinmede önceki geçiş atlanır; beklenen AbortError'u sustur.
+    vt?.ready?.catch(() => {});
+    vt?.finished?.catch(() => {});
+    vt?.updateCallbackDone?.catch(() => {});
+    return;
+  }
+  apply();
 }
 
 window.addEventListener("hashchange", () => {

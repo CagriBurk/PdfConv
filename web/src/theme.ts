@@ -54,6 +54,17 @@ export function setTheme(theme: Theme): void {
   listeners.forEach((l) => l());
 }
 
+/** Elle seçimi kaldırıp sistem tercihine döner. */
+export function resetTheme(): void {
+  applyTheme(null);
+  try {
+    window.localStorage.removeItem(KEY);
+  } catch {
+    // Saklanamadı: bu oturumda sistem tercihi geçerli.
+  }
+  listeners.forEach((l) => l());
+}
+
 function subscribe(listener: () => void): () => void {
   listeners.add(listener);
   // Seçim yokken sistem teması değişirse düğmenin simgesi de değişsin.
@@ -67,4 +78,8 @@ function subscribe(listener: () => void): () => void {
 
 export function useTheme(): Theme {
   return useSyncExternalStore(subscribe, currentTheme);
+}
+
+export function useStoredTheme(): Theme | null {
+  return useSyncExternalStore(subscribe, storedTheme);
 }
