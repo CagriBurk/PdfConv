@@ -216,3 +216,34 @@ PDF Atölyesi halihazırda teknik temel olarak birçok açık kaynak web aracın
   - **Yerel LLM / Akıllı PDF Asistanı (Opsiyonel Eklenti):** Zaten OCR ve metin çıkarımı yapabilen çekirdeğin üzerine, kullanıcının kendi API anahtarı veya yerel Ollama/LM Studio bağlantısıyla PDF'ten Markdown ders notu çıkarma (`PDF → MD`) döngüsünü tamamlamak.
   - **Tam İki Yönlü Ekosistem:** `Markdown → PDF` ile başlayan projenin `PDF → Markdown (formüllü/tablolu)` + `PDF Karşılaştırma` + `İş Akışı Otomasyonu` ile kendi alanındaki kapalı/ücretli sitelere (ILovePDF, Smallpdf, Adobe Acrobat) olan ihtiyacı %100 ortadan kaldıran açık kaynaklı (`AGPL-3.0`) referans bir masaüstü uygulamasına dönüşmesi.
 
+---
+
+## 7. Arayüz (UI/UX) Denetimi ve Yenilemesi (2026-11-21 — `arayuz-revizyon` Dalı)
+
+> **Oturum Rolü ve Yöntemi:** Bu oturumda **Antigravity** (kıdemli ürün tasarımcısı & ön yüz denetçisi rolünde) hem `web/src/` kaynak kodunu satır satır inceledi hem de uygulamayı yalıtılmış geçici sunucuda ayağa kaldırıp 1440px, 900px ve 390px ekran genişliklerinde açık/koyu temalarda **27 canlı ekran görüntüsü** üzerinden görsel/etkileşimsel denetim yaptı. Arka planda başka bir yapay zekâ `guvenlik-sertlestirme` dalında çalıştığı için tüm uygulama değişiklikleri bilinçli olarak yalnızca `web/src/` altında tutuldu (sıfır çakışma).
+
+### Tespit Edilen Ana Sorunlar
+1. **Kimlik/Mimari Kopukluğu:** Uygulama PDF aracından genel dönüştürücüye (Toolia) geçmiş olmasına rağmen `Biçim Dönüştür` ekranı PDF kabul etmiyor, PDF/resim/Office dönüşümleri ayrı ekranlara bölünüyordu.
+2. **Ana Sayfa Görsel Dengesizliği & Kalabalık:** Hero altındaki 6 kutuluk statik yönlendirme listesi yukarıda fazla yer kaplıyor, 4 araç grubu arasında görsel ağırlık dengesiz kalıyordu.
+3. **Jenerik ("AI Slop") Görsel Dil:** Soğuk düz gri zemin, tek tip gri dosya rozetleri, hareketsiz `<dialog>`/ekran geçişleri ve koyu temada göz alan saf beyaz önizleme kâğıdı.
+
+### Bu Oturumda Yapılanlar (2 Dalga — `9413910` & `b2ce668`)
+- **Eklenenler:**
+  - **Evrensel `Biçim Dönüştür` (Seçenek B):** PDF (`→ PNG, JPG, Word, Excel`), Resim (`→ JPG, PNG, WEBP, TIFF, PDF`) ve Office/HTML/TXT dönüşümlerini tek ekranda birleştiren dinamik akış (`Convert.tsx`, `tools.ts`).
+  - **Kişiselleştirme & Hızlı Erişim:** Kategori süzgeci (`Tümü | Dönüştür | Düzenle | Ekle | Optimize`) ve `localStorage` kalıcı **Sık kullanılanlar** şeridi (`favorites.ts`, `Home.tsx`).
+  - **Genel Sürükle-Bırak Katmanı (`GlobalDropOverlay.tsx`):** Pasif ekranlardan dosya sürüklenince buzlu cam katmanla anında yükleme ve akıllı yönlendirme.
+  - **Kıvrık Köşeli Renk Kodlu Dosya Rozetleri (`fileTypeTone`):** PDF, Word, Excel, Sunu, Resim ve Markdown için ayrı renk kodlaması.
+  - **Modern Hareket ve Geri Bildirimler:** `View Transitions API` (hızlı gezinme `AbortError` korumalı), `@starting-style` + `overlay` + `allow-discrete` `<dialog>`/palet animasyonları, yelpaze açılan `DropArt` illüstrasyonu, iş ilerleme parıltısı, çizilen SVG onay işareti ve `Compress.tsx` görsel tasarruf çubuğu.
+- **Değiştirilenler / İyileştirilenler:**
+  - **Sıcak Atölye Paleti (`01-temel.css`):** Sıcak fildişi tuval (`#f6f4ef`), koyu temada ince üst ışık çizgileri (`--inset-top`), buzlu cam `.topbar`, 3B `<kbd>` tuşları, dokunsal buton basma tepkisi ve koyu temada yumuşak krem önizleme kâğıdı.
+  - **Doğrulama:** `tsc --noEmit`, `eslint --max-warnings 0`, `vitest` (79/79), `vite build`, Python sözleşme + Playwright E2E (86/86) ve 27 canlı ekran görüntüsünde `overflow: 0`, `page_errors: 0`.
+- **Çıkarılanlar / Sadeleştirilenler:**
+  - Ana sayfa hero kartındaki 6 kutuluk daima açık "Bırakınca ne olur?" bloğu kaldırılıp tek satırlık açılır **Akıllı yönlendirme** çekmecesine (`<details class="route-drawer">`) indirgendi.
+  - İki ayrı CTA'nın aynı anda mavi birincil vurgu taşıdığı çakışmalar giderildi.
+
+### Sonraki Sürüme Bırakılan Tavan İyileştirmeleri (bkz. `PLAN.md` §10.2)
+1. Panodan yapıştırma (`Ctrl+V` ile ekran görüntüsü / resim yükleme).
+2. Resim dosyaları için gerçek küçük resim (thumbnail) önizlemeleri.
+3. `JobPanel` çıktılarından tek tıkla "Devam et ▾" iş akışı zincirleme.
+4. `Biçim Dönüştür`'de kalite kaydırıcısına bağlı canlı görsel/boyut önizlemesi.
+
