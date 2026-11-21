@@ -203,13 +203,8 @@
   padding: 0.45rem 0.85rem;
 }
 
-/* Yalnızca "İndir" varsa (PDF olmayan çıktı) ya da yer genişse tek satır. */
-.output-list li:not(:has(.link-button)) {
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  grid-template-areas: "type text acts";
-}
-
-@container outputs (min-width: 520px) {
+/* Geniş alanda tek satır; dar yan sütunda dosya adı kesilmeden tam genişlikte görünür. */
+@container outputs (min-width: 440px) {
   .output-list li {
     grid-template-columns: auto minmax(0, 1fr) auto;
     grid-template-areas: "type text acts";

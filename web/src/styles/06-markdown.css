@@ -65,10 +65,34 @@
 }
 
 .md-tools > button:hover:not(:disabled),
+.md-tools > button.on,
 .snippet-trigger:hover:not(:disabled),
 .snippet-trigger[aria-expanded="true"] {
   border-color: transparent;
   background: var(--surface-2);
+}
+
+.md-tools > button.on {
+  color: var(--accent-text);
+  background: var(--accent-soft);
+}
+
+.md-tools > button .flip {
+  transform: rotate(180deg);
+}
+
+.md-inline-select {
+  display: inline-flex;
+  align-items: center;
+}
+
+.md-inline-select select {
+  min-height: 36px;
+  padding: 0.25rem 0.65rem;
+  border-color: var(--border);
+  background: var(--surface-2);
+  font-size: 13.5px;
+  font-weight: 600;
 }
 
 .md-tools > button .icon,
@@ -262,9 +286,9 @@
   font-size: 14px;
 }
 
-/* İki bölme aynı yükseklikte; birkaç satır kaydırınca ekranı doldurur. */
+/* İki bölme aynı yükseklikte; üst başlık ve tek satır araç çubuğuyla birlikte kaydetme satırı görünür kalır. */
 .md-layout {
-  --md-pane: max(460px, calc(100vh - var(--topbar-h) - 48px));
+  --md-pane: max(420px, calc(100vh - var(--topbar-h) - 180px));
   display: grid;
   grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
   gap: 16px;
@@ -413,6 +437,18 @@
   border-radius: 14px;
   background: var(--surface-2);
   box-shadow: var(--shadow);
+  transition: filter 0.15s;
+}
+
+/* Koyu temada parlak beyaz kağıdın göz yormasını yumuşatır (isteyen "Parlak kağıt" ile kapatır). */
+:root[data-theme="dark"] .md-preview:not(.bright-paper) iframe {
+  filter: brightness(0.86) contrast(0.95);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .md-preview:not(.bright-paper) iframe {
+    filter: brightness(0.86) contrast(0.95);
+  }
 }
 
 @media (max-width: 900px) {

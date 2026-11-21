@@ -124,6 +124,7 @@ export function ImagesToPdf({ route }: { route: Route }) {
             label="PDF oluştur"
             disabled={!files.length || job.running}
             busy={job.running}
+            done={job.job?.status === "bitti"}
             onRun={() =>
               job.start({
                 type: "images_to_pdf",
@@ -203,6 +204,7 @@ export function PdfToImages({ route }: { route: Route }) {
             label="Resimlere dönüştür"
             disabled={!file || job.running}
             busy={job.running}
+            done={job.job?.status === "bitti"}
             onRun={() =>
               file && job.start({ type: "pdf_to_images", file: file.id, dpi, fmt, spec, passwords: passwords.forFiles([file.id]) })
             }

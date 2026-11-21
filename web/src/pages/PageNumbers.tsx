@@ -162,20 +162,20 @@ export default function PageNumbers({ route }: { route: Route }) {
             İlk sayfayı atla (kapak): numaralama ikinci sayfadan başlar
           </label>
           <label className="field">
-            Sayfalar (boş = hepsi)
-            <input className="input" placeholder="1-3, 5, 8-" value={pages} onChange={(e) => setPages(e.target.value)} />
+            Sayfalar
+            <input className="input" placeholder="hepsi (ör. 1-3, 5)" value={pages} onChange={(e) => setPages(e.target.value)} />
+          </label>
+          <label className="field">
+            Font
+            <select className="input" value={font} onChange={(e) => setFont(e.target.value)}>
+              {fonts.map((f) => (
+                <option key={f.key} value={f.key}>
+                  {f.name}
+                </option>
+              ))}
+            </select>
           </label>
           <div className="field-row">
-            <label className="field">
-              Font
-              <select className="input" value={font} onChange={(e) => setFont(e.target.value)}>
-                {fonts.map((f) => (
-                  <option key={f.key} value={f.key}>
-                    {f.name}
-                  </option>
-                ))}
-              </select>
-            </label>
             <label className="field">
               Boyut
               <input className="input narrow" type="number" min={4} max={72} value={size} onChange={(e) => setSize(Number(e.target.value))} />
@@ -185,7 +185,12 @@ export default function PageNumbers({ route }: { route: Route }) {
               <input type="color" value={color} onChange={(e) => setColor(e.target.value)} />
             </label>
           </div>
-          <button type="button" className="primary block action" disabled={!file || !validFormat || job.running} onClick={run}>
+          <button
+            type="button"
+            className={`${job.job?.status === "bitti" ? "" : "primary "}block action`}
+            disabled={!file || !validFormat || job.running}
+            onClick={run}
+          >
             <Icon icon={toolForRoute("sayfa-no")!.icon} />
             Numaraları ekle
           </button>

@@ -1,14 +1,18 @@
 import {
+  ChevronDown,
   CircleDot,
   Download,
   FileDown,
   FileText,
   History,
   Info,
+  Moon,
   PanelLeftClose,
   PanelLeftOpen,
   Paperclip,
   Plus,
+  SlidersHorizontal,
+  Sun,
   WandSparkles,
   X,
 } from "lucide-react";
@@ -26,6 +30,7 @@ import { drafts, draftKey, formatDraftTime, type Draft } from "../drafts";
 import { createSequencer } from "../mdpreview";
 import { idsFrom, LEAVE_MESSAGE, useLeaveGuard, type Route } from "../router";
 import { planInsertion } from "../snippets";
+import { useTheme } from "../theme";
 import { toast } from "../toast";
 import { PAPERS } from "../tools";
 
@@ -78,6 +83,12 @@ export default function Markdown({ route, engines }: { route: Route; engines: En
   const [preview, setPreview] = useState<MdPreview | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [showEditor, setShowEditor] = useState(true);
+  const [showMoreOpts, setShowMoreOpts] = useState(false);
+  const [brightPaper, setBrightPaper] = useState(false);
+  const appTheme = useTheme();
+  const extraOptsCount = (
+    [opts.landscape, opts.toc, opts.cover, opts.page_numbers, opts.margin_mm, opts.font_size_pt] as const
+  ).filter((v) => v !== null).length;
   const { upload, uploading, error: uploadError, setError } = useUpload();
   const job = useJob();
   const timer = useRef<number>(undefined);
@@ -367,6 +378,47 @@ export default function Markdown({ route, engines }: { route: Route; engines: En
                   {FORMULA_FIX_HINT}
                 </span>
                 <SnippetMenu getSource={snippetSource} onInsert={onInsertSnippet} />
+                <label className="md-inline-select">
+                  <span className="sr-only">Tema</span>
+                  <select aria-label="Belge teması" value={opts.theme ?? ""} onChange={(e) => set("theme", e.target.value || null)}>
+                    <option value="">Tema: {effective?.theme ?? "ders"}</option>
+                    <option value="ders">Ders notu</option>
+                    <option value="rapor">Rapor</option>
+                    <option value="sade">Sade</option>
+                  </select>
+                </label>
+                <label className="md-inline-select">
+                  <span className="sr-only">Kağıt</span>
+                  <select aria-label="Kağıt boyutu" value={opts.paper ?? ""} onChange={(e) => set("paper", e.target.value || null)}>
+                    <option value="">Kağıt: {effective?.paper ?? "A4"}</option>
+                    {PAPERS.map((p) => (
+                      <option key={p} value={p}>
+                        {p}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  className={showMoreOpts ? "on" : undefined}
+                  aria-expanded={showMoreOpts}
+                  onClick={() => setShowMoreOpts((v) => !v)}
+                >
+                  <Icon icon={SlidersHorizontal} size={16} />
+                  Belge ayarları
+                  {extraOptsCount > 0 && <span className="chip accent small">{extraOptsCount}</span>}
+                  <Icon icon={ChevronDown} size={15} className={showMoreOpts ? "flip" : undefined} />
+                </button>
+                {appTheme === "dark" && (
+                  <button
+                    type="button"
+                    onClick={() => setBrightPaper((b) => !b)}
+                    title={brightPaper ? "Önizlemeyi koyu tema için yumuşat" : "Gerçek beyaz baskı kağıdı görünümü"}
+                  >
+                    <Icon icon={brightPaper ? Moon : Sun} size={16} />
+                    {brightPaper ? "Yumuşat" : "Parlak kağıt"}
+                  </button>
+                )}
               </div>
               <button
                 type="button"
@@ -388,70 +440,52 @@ export default function Markdown({ route, engines }: { route: Route; engines: En
                 {job.running ? "PDF oluşturuluyor…" : "PDF oluştur"}
               </button>
             </div>
-            <div className="md-options">
-              <label className="field">
-                Tema
-                <select value={opts.theme ?? ""} onChange={(e) => set("theme", e.target.value || null)}>
-                  <option value="">Otomatik ({effective?.theme ?? "ders"})</option>
-                  <option value="ders">Ders notu</option>
-                  <option value="rapor">Rapor</option>
-                  <option value="sade">Sade</option>
-                </select>
-              </label>
-              <label className="field">
-                Kağıt
-                <select value={opts.paper ?? ""} onChange={(e) => set("paper", e.target.value || null)}>
-                  <option value="">Otomatik ({effective?.paper ?? "A4"})</option>
-                  {PAPERS.map((p) => (
-                    <option key={p} value={p}>
-                      {p}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {(
-                [
-                  ["landscape", "Yön", "Yatay", "Dikey"],
-                  ["toc", "İçindekiler", "Var", "Yok"],
-                  ["cover", "Kapak", "Var", "Yok"],
-                  ["page_numbers", "Sayfa no", "Var", "Yok"],
-                ] as const
-              ).map(([key, label, on, off]) => (
-                <label className="field" key={key}>
-                  {label}
-                  <select value={triState(opts[key])} onChange={(e) => set(key, fromTri(e.target.value))}>
-                    <option value="">Otomatik</option>
-                    <option value="1">{on}</option>
-                    <option value="0">{off}</option>
-                  </select>
+            {showMoreOpts && (
+              <div className="md-options">
+                {(
+                  [
+                    ["landscape", "Yön", "Yatay", "Dikey"],
+                    ["toc", "İçindekiler", "Var", "Yok"],
+                    ["cover", "Kapak", "Var", "Yok"],
+                    ["page_numbers", "Sayfa no", "Var", "Yok"],
+                  ] as const
+                ).map(([key, label, on, off]) => (
+                  <label className="field" key={key}>
+                    {label}
+                    <select value={triState(opts[key])} onChange={(e) => set(key, fromTri(e.target.value))}>
+                      <option value="">Otomatik</option>
+                      <option value="1">{on}</option>
+                      <option value="0">{off}</option>
+                    </select>
+                  </label>
+                ))}
+                <label className="field">
+                  Kenar (mm)
+                  <input
+                    className="input"
+                    type="number"
+                    min={0}
+                    max={60}
+                    placeholder="18"
+                    value={opts.margin_mm ?? ""}
+                    onChange={(e) => set("margin_mm", e.target.value === "" ? null : Number(e.target.value))}
+                  />
                 </label>
-              ))}
-              <label className="field">
-                Kenar (mm)
-                <input
-                  className="input"
-                  type="number"
-                  min={0}
-                  max={60}
-                  placeholder="18"
-                  value={opts.margin_mm ?? ""}
-                  onChange={(e) => set("margin_mm", e.target.value === "" ? null : Number(e.target.value))}
-                />
-              </label>
-              <label className="field">
-                Yazı (pt)
-                <input
-                  className="input"
-                  type="number"
-                  min={6}
-                  max={24}
-                  step={0.5}
-                  placeholder="tema"
-                  value={opts.font_size_pt ?? ""}
-                  onChange={(e) => set("font_size_pt", e.target.value === "" ? null : Number(e.target.value))}
-                />
-              </label>
-            </div>
+                <label className="field">
+                  Yazı (pt)
+                  <input
+                    className="input"
+                    type="number"
+                    min={6}
+                    max={24}
+                    step={0.5}
+                    placeholder="tema"
+                    value={opts.font_size_pt ?? ""}
+                    onChange={(e) => set("font_size_pt", e.target.value === "" ? null : Number(e.target.value))}
+                  />
+                </label>
+              </div>
+            )}
           </div>
           <JobPanel job={job.job} error={job.error} />
 
@@ -487,7 +521,7 @@ export default function Markdown({ route, engines }: { route: Route; engines: En
                     ) : (
                       <>
                         <Icon icon={Plus} size={16} />
-                        resim / başka not
+                        Resim / başka not ekle
                       </>
                     )
                   }
@@ -519,7 +553,7 @@ export default function Markdown({ route, engines }: { route: Route; engines: En
               </p>
             </section>
 
-            <section className="md-preview" aria-label="Önizleme">
+            <section className={`md-preview${brightPaper ? " bright-paper" : ""}`} aria-label="Önizleme">
               {previewError && <div className="banner error">{previewError}</div>}
               {preview && preview.warnings.length > 0 && (
                 <details className="warnings">

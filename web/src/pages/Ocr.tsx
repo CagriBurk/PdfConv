@@ -53,7 +53,7 @@ export default function Ocr({ route, engines }: { route: Route; engines: Engines
 
   return (
     <>
-      <PageHeader title="OCR — aranabilir PDF" />
+      <PageHeader title="OCR" />
       <div className="tool-layout">
         <div className="tool-main">
           {missing.length > 0 && (
@@ -116,6 +116,7 @@ export default function Ocr({ route, engines }: { route: Route; engines: Engines
             label="OCR başlat"
             disabled={!file || !langs.length || job.running || missing.some((m) => m.key === "tesseract")}
             busy={job.running}
+            done={job.job?.status === "bitti"}
             onRun={() =>
               file &&
               void job.start({ type: "ocr", file: file.id, mode, langs, passwords: passwords.forFiles([file.id]) })

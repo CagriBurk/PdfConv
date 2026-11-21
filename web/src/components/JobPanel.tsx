@@ -180,6 +180,7 @@ export function ActionCard({
   label,
   disabled,
   busy,
+  done,
   onRun,
 }: {
   rows: [string, ReactNode][];
@@ -187,6 +188,8 @@ export function ActionCard({
   label: string;
   disabled?: boolean;
   busy?: boolean;
+  /** İş tamamlandıysa ana vurgu İndir düğmesine geçer (ekranda çift mavi CTA oluşmasın). */
+  done?: boolean;
   onRun: () => void;
 }) {
   const id = useId();
@@ -203,7 +206,7 @@ export function ActionCard({
         ))}
       </dl>
       {note && <div className="side-note">{note}</div>}
-      <button type="button" className="primary block action" disabled={disabled} onClick={onRun}>
+      <button type="button" className={`${done ? "" : "primary "}block action`} disabled={disabled} onClick={onRun}>
         {busy ? <Icon icon={LoaderCircle} className="spin" /> : tool && <Icon icon={tool.icon} />}
         {label}
       </button>

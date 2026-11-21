@@ -3,6 +3,7 @@ import {
   ArrowLeftRight,
   Ban,
   Check,
+  ChevronRight,
   CircleX,
   Download,
   FolderOpen,
@@ -21,6 +22,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, errorMessage, formatSize, type FileMeta, type Job } from "../api";
 import Icon from "../components/Icon";
+import Modal from "../components/Modal";
 import { splitName } from "../filename";
 import { jobLabel } from "../labels";
 import { navigate } from "../router";
@@ -139,6 +141,7 @@ export default function Jobs() {
   const [retention, setRetention] = useState<number | null>(null);
   const [local, setLocal] = useState(false);
   const [renaming, setRenaming] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<FileMeta | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -210,8 +213,20 @@ export default function Jobs() {
                     <p className="job-title">{jobLabel(j.type, j.request)}</p>
                     <p className="job-meta">
                       {time(j.created)}
-                      {j.warnings.length > 0 && <span className="warn-line">{j.warnings.length} uyarı</span>}
                     </p>
+                    {j.warnings.length > 0 && (
+                      <details className="job-warnings">
+                        <summary className="warn-line">
+                          <Icon icon={ChevronRight} size={14} className="job-warnings-caret" />
+                          {j.warnings.length} uyarı
+                        </summary>
+                        <ul>
+                          {j.warnings.map((w) => (
+                            <li key={w}>{w}</li>
+                          ))}
+                        </ul>
+                      </details>
+                    )}
                     {j.error && <p className="error-text small">{j.error}</p>}
                     <span className="job-files">
                       {j.files.slice(0, 4).map((f) => (
@@ -309,7 +324,7 @@ export default function Jobs() {
                       {formatSize(f.size)}
                     </td>
                     <td className="muted" data-label="Sürüm">
-                      {f.version}
+                      {f.kind === "pdf" || f.version > 1 ? f.version : "—"}
                     </td>
                     <td className="muted" data-label="Tarih">
                       {time(f.updated)}
@@ -318,27 +333,35 @@ export default function Jobs() {
                       {f.kind === "pdf" && (
                         <button
                           type="button"
-                          className="icon-button"
+                          className="icon-button row-primary-action"
                           aria-label="Düzenle"
                           title="Düzenleyicide aç"
                           onClick={() => navigate(`duzenle/${f.id}`)}
                         >
                           <Icon icon={LayoutGrid} />
+                          <span className="action-mobile-label" aria-hidden="true">Düzenle</span>
                         </button>
                       )}
                       {convertTargets(f.name).length > 0 && (
                         <button
                           type="button"
-                          className="icon-button"
+                          className="icon-button row-primary-action"
                           aria-label={`${f.name} dönüştür`}
                           title="Başka biçime dönüştür…"
                           onClick={() => navigate("donustur", { dosya: f.id })}
                         >
                           <Icon icon={ArrowLeftRight} />
+                          <span className="action-mobile-label" aria-hidden="true">Dönüştür</span>
                         </button>
                       )}
-                      <a className="icon-button" href={api.downloadUrl(f.id)} aria-label={`${f.name} indir`} title="İndir">
+                      <a
+                        className="icon-button row-primary-action"
+                        href={api.downloadUrl(f.id)}
+                        aria-label={`${f.name} indir`}
+                        title="İndir"
+                      >
                         <Icon icon={Download} />
+                        <span className="action-mobile-label" aria-hidden="true">İndir</span>
                       </a>
                       <button
                         type="button"
@@ -374,9 +397,7 @@ export default function Jobs() {
                         className="icon-button file-delete"
                         aria-label="Sil"
                         title="Sil"
-                        onClick={() =>
-                          window.confirm(`'${f.name}' silinsin mi?`) && act(() => api.remove(f.id), `'${f.name}' silindi.`)
-                        }
+                        onClick={() => setDeleting(f)}
                       >
                         <Icon icon={Trash2} />
                       </button>
@@ -388,6 +409,30 @@ export default function Jobs() {
           </div>
         )}
       </section>
+      {deleting && (
+        <Modal title="Dosya silinsin mi?" onClose={() => setDeleting(null)}>
+          <p>
+            <strong className="break">{deleting.name}</strong> kalıcı olarak silinecek; geri alınamaz.
+          </p>
+          <div className="modal-actions">
+            <button type="button" data-autofocus onClick={() => setDeleting(null)}>
+              Vazgeç
+            </button>
+            <button
+              type="button"
+              className="danger"
+              onClick={() => {
+                const target = deleting;
+                setDeleting(null);
+                void act(() => api.remove(target.id), `'${target.name}' silindi.`);
+              }}
+            >
+              <Icon icon={Trash2} size={17} />
+              Sil
+            </button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

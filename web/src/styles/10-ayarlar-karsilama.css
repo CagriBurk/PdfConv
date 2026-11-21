@@ -346,7 +346,8 @@ main:focus {
   padding-top: 4px;
 }
 
-.setting-label label {
+.setting-label label,
+.setting-title {
   display: block;
   font-size: 14.5px;
   font-weight: 650;

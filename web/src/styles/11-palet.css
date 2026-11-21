@@ -232,6 +232,13 @@
   background: var(--accent-soft);
 }
 
+/* Dar ve orta ekranda tıklanamayan "Çevrimdışı" rozeti sahte ikon düğme gibi durmasın. */
+@media (max-width: 1000px) {
+  .topbar .offline-chip {
+    display: none;
+  }
+}
+
 /* Orta genişlikte çubuk tek satırda kalsın (sarılınca 123px oluyordu): arama ve rozet yalnız ikon,
  * menü adı kısa. Adlar ekran okuyucuda kalır. */
 @media (min-width: 761px) and (max-width: 1000px) {

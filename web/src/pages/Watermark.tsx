@@ -192,10 +192,15 @@ export default function Watermark({ route }: { route: Route }) {
             </label>
           </fieldset>
           <label className="field">
-            Sayfalar (boş = hepsi)
-            <input className="input" placeholder="1-3, 5, 8-" value={pages} onChange={(e) => setPages(e.target.value)} />
+            Sayfalar
+            <input className="input" placeholder="hepsi (ör. 1-3, 5)" value={pages} onChange={(e) => setPages(e.target.value)} />
           </label>
-          <button type="button" className="primary block action" disabled={!ready || job.running} onClick={start}>
+          <button
+            type="button"
+            className={`${job.job?.status === "bitti" ? "" : "primary "}block action`}
+            disabled={!ready || job.running}
+            onClick={start}
+          >
             <Icon icon={toolForRoute("filigran")!.icon} />
             Filigran ekle
           </button>

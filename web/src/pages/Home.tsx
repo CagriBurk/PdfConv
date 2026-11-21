@@ -32,7 +32,7 @@ export function homeRoute(files: Dropped[]): HomeRoute {
     return ids.length === 1 ? { type: "go", path: `duzenle/${ids[0]}` } : { type: "go", path: "birlestir", query: { dosya: ids } };
   }
   const pdfPath = all("image") ? "resimden" : all("office", "html", "text") ? "office" : null;
-  if (!pdfPath) return { type: "error", message: "Bu dosya türleri birlikte işlenemiyor. PDF, resim ya da Markdown bırak." };
+  if (!pdfPath) return { type: "error", message: "Bu dosya türleri birlikte işlenemiyor. PDF, resim, Office belgesi ya da Markdown bırak." };
   // HTML / TXT'nin dönüştürme hedefi yok; yalnız saf resim ya da saf Office seçimi sorulur.
   const targets = pdfPath === "resimden" || all("office") ? commonConvertTargets(files.map((f) => f.name)) : [];
   if (!targets.length) return { type: "go", path: pdfPath, query: { dosya: ids } };
@@ -122,7 +122,7 @@ export default function Home({ engines, onSearch }: { engines: EnginesResponse |
       <div className="home-top">
         <section ref={hero} className="card home-hero" aria-labelledby="home-baslik">
           <div>
-            <h1 id="home-baslik">Ne yapmak istersin?</h1>
+            <h1 id="home-baslik">Dönüştür veya düzenle</h1>
             <p className="home-lead">Dosyayı bırak, uygun araç kendiliğinden açılsın. Hiçbir dosya bu bilgisayardan çıkmaz.</p>
           </div>
           <DropZone
@@ -162,9 +162,19 @@ export default function Home({ engines, onSearch }: { engines: EnginesResponse |
                   Başka biçime dönüştür
                 </button>
               </div>
-              <p id="home-secim-hedef" className="muted small">
-                Başka biçim: {targetNames(choice.targets)}
-              </p>
+              <div id="home-secim-hedef" className="home-choice-quick">
+                <span className="muted small">Hızlı hedef:</span>
+                {choice.targets.map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    className="small"
+                    onClick={() => navigate("donustur", { dosya: choice.ids, hedef: t })}
+                  >
+                    {t.replace(/^\./, "").toUpperCase()}
+                  </button>
+                ))}
+              </div>
             </section>
           )}
           {(error || notice) && (
@@ -205,8 +215,9 @@ export default function Home({ engines, onSearch }: { engines: EnginesResponse |
           {GROUPS.map((group) => {
             const tools = TOOLS.filter((t) => t.group === group);
             const tone = GROUP_TONE[group];
+            const featured = group === "Dönüştür";
             return (
-              <div key={group} className="card tool-group">
+              <div key={group} className={`card tool-group${featured ? " featured" : ""}`}>
                 <div className="tool-group-head">
                   <span className={`dot ${tone}`} aria-hidden="true" />
                   <h3 id={`grup-${tone}`}>{group}</h3>
@@ -214,17 +225,20 @@ export default function Home({ engines, onSearch }: { engines: EnginesResponse |
                     {tools.length}
                   </span>
                 </div>
-                <ul className="tool-list" aria-labelledby={`grup-${tone}`}>
+                <ul className={`tool-list${featured ? " featured-grid" : ""}`} aria-labelledby={`grup-${tone}`}>
                   {tools.map((t) => {
                     const lacking = missing(t.needs);
                     return (
-                      <li key={t.id}>
+                      <li key={t.id} className={t.id === "convert" ? "tool-card-lead" : undefined}>
                         <a className="tool-card active" href={`#/${t.route}`}>
                           <span className={`tile ${t.tone}`}>
                             <Icon icon={t.icon} size={19} strokeWidth={1.9} />
                           </span>
                           <span className="tool-card-text">
-                            <span className="tool-card-title">{t.title}</span>
+                            <span className="tool-card-title">
+                              {t.title}
+                              {t.id === "convert" && <span className="chip accent small">Tümü tek yerde</span>}
+                            </span>
                             <span className="tool-card-desc">{t.description}</span>
                             {lacking.length > 0 && <span className="chip warn small">Eksik: {lacking.join(", ")}</span>}
                           </span>

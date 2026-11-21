@@ -219,6 +219,7 @@ button,
   transition:
     border-color 0.12s,
     background-color 0.12s,
+    color 0.12s,
     filter 0.12s;
 }
 
@@ -247,6 +248,14 @@ button.primary:hover:not(:disabled),
 .button.primary:hover {
   border-color: var(--accent);
   filter: brightness(1.08);
+}
+
+button.primary:disabled {
+  background: var(--surface-2);
+  border-color: var(--border);
+  color: var(--muted);
+  box-shadow: none;
+  opacity: 0.85;
 }
 
 /* Geri alınamaz eylem (ör. "Hepsinin bağlantısını kes"). */
@@ -810,7 +819,7 @@ kbd,
   display: flex;
   flex-wrap: wrap;
   gap: 24px;
-  align-items: stretch;
+  align-items: start;
 }
 
 .home-hero {
@@ -877,6 +886,13 @@ kbd,
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+.home-choice-quick {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
 }
 
 .home-sub {
@@ -984,6 +1000,22 @@ kbd,
   font-size: 14px;
 }
 
+.recent-empty-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 4px 8px 16px;
+  padding: 14px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.recent-empty-box p {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+
 .recent-note {
   margin: auto 8px 0;
   padding-top: 14px;
@@ -1023,13 +1055,17 @@ kbd,
 
 .tool-groups {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
-  align-items: start;
+  align-items: stretch;
 }
 
 .card.tool-group {
   padding: 12px;
+}
+
+.card.tool-group.featured {
+  grid-column: 1 / -1;
 }
 
 .tool-group-head {
@@ -1058,6 +1094,25 @@ kbd,
   gap: 2px;
 }
 
+.tool-list.featured-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px 10px;
+}
+
+.tool-card-lead {
+  grid-column: 1 / -1;
+}
+
+.tool-card-lead .tool-card {
+  background: var(--accent-faint);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+}
+
+.tool-card-lead .tool-card:hover {
+  background: var(--accent-soft);
+}
+
 .tool-card {
   display: flex;
   align-items: flex-start;
@@ -1080,9 +1135,27 @@ kbd,
 }
 
 .tool-card-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
   font-size: 14.5px;
   font-weight: 650;
   line-height: 1.35;
+}
+
+.tool-card-title .chip {
+  margin-top: 0;
+}
+
+@media (max-width: 860px) {
+  .tool-groups {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tool-list.featured-grid {
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  }
 }
 
 .tool-card-desc {

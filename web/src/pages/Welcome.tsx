@@ -12,10 +12,10 @@ interface Props {
 }
 
 const TOUR: readonly (readonly [LucideIcon, string, string])[] = [
-  [Upload, "Dosyayı bırak", "Ana sayfadaki alana bir ya da birkaç dosya bırak; türüne göre doğru araç açılır (PDF, Word, Markdown, fotoğraf)."],
+  [Upload, "Dosyayı bırak", "Ana sayfadaki alana bir ya da birkaç dosya bırak; türüne göre doğru araç açılır (PDF, Word, Excel, Markdown, fotoğraf)."],
   [History, "Orijinaline dokunulmaz", "Her işlem yeni bir sürüm oluşturur. Beğenmezsen “Önceki sürüme dön” ile geri alırsın."],
   [HardDrive, "Dosyalar bu bilgisayarda kalır", "Hiçbir şey internete gönderilmez. Dosyalar bir süre sonra kendiliğinden silinir; saklamak istediklerini İşler ve dosyalar'da sabitle."],
-  [Keyboard, "Klavyeyle de olur", "Sayfa düzenleyicide oklarla gez, Boşluk ile seç, Delete ile sil, R ile döndür, Ctrl+Z ile geri al."],
+  [Keyboard, "Klavyeyle hızlan", "Her yerden Ctrl+K ya da / ile araç ara; sayfa düzenleyicide oklarla gez, Boşluk ile seç, R ile döndür, Delete ile sil."],
 ];
 
 /** İlk açılış: motorların durumu (eksikse ne yapılacağı) ve kısa tanıtım. */
@@ -32,8 +32,8 @@ export default function Welcome({ engines, onRefresh, onDone }: Props) {
           Toolia'ya hoş geldin
         </h1>
         <p className="lead">
-          PDF birleştirme, sayfa düzenleme, imza ve yazı ekleme, sıkıştırma, OCR, Word/Markdown → PDF: hepsi bu bilgisayarda,
-          kayıt ve reklam olmadan.
+          Resim, Office ve PDF biçim dönüştürme, sayfa düzenleme, imza ve yazı ekleme, sıkıştırma, OCR, Markdown → PDF:
+          hepsi bu bilgisayarda, kayıt ve reklam olmadan.
         </p>
       </div>
 

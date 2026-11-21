@@ -117,6 +117,7 @@ export default function Compress({ route }: { route: Route }) {
             label={files.length > 1 ? `${files.length} dosyayı sıkıştır` : "Sıkıştır"}
             disabled={!files.length || job.running}
             busy={job.running}
+            done={job.job?.status === "bitti"}
             onRun={() =>
               void job.start({
                 type: "compress",

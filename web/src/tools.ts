@@ -44,18 +44,18 @@ export interface Tool {
 }
 
 const DEFS: Omit<Tool, "tone">[] = [
-  { id: "organize", title: "Sayfa Düzenle", description: "Sürükleyerek sırala, sil, döndür, başka PDF'ten sayfa ekle", route: "duzenle", group: "Düzenle", icon: LayoutGrid },
-  { id: "merge", title: "Birleştir", description: "Birden fazla PDF'i tek dosyada topla", route: "birlestir", group: "Düzenle", icon: Layers },
-  { id: "split", title: "Böl", description: "Aralıklara, her N sayfaya veya yer imlerine göre ayır", route: "bol", group: "Düzenle", icon: Scissors },
-  { id: "layout", title: "Sayfa Düzeni ve Yazdırma", description: "N-up çoklu sayfa, ders slayt not alanı, kenar kırpma, poster bölme", route: "yazdirma", group: "Düzenle", icon: Printer },
+  // `needs` yok: resimler ve PDF dönüştürmeleri LibreOffice olmadan çalışır; uyarı Office seçilince çıkar.
+  { id: "convert", title: "Biçim Dönüştür", description: "PDF, resim ve Office dosyalarını tek ekranda dönüştür (JPG ↔ PNG ↔ PDF, DOCX ↔ ODT, XLSX ↔ CSV…)", route: "donustur", group: "Dönüştür", icon: ArrowLeftRight },
   { id: "md", title: "Markdown → PDF", description: "Formüller, Obsidian callout'ları, kod renklendirme", route: "md", group: "Dönüştür", icon: FileCode, needs: ["browser"] },
   { id: "office", title: "Office → PDF", description: "Word, Excel, PowerPoint, ODT, RTF, HTML, TXT", route: "office", group: "Dönüştür", icon: FileText, needs: ["libreoffice"] },
   { id: "img2pdf", title: "Resim → PDF", description: "JPG, PNG, HEIC fotoğraflardan PDF", route: "resimden", group: "Dönüştür", icon: ImageIcon },
   { id: "pdf2img", title: "PDF → Resim", description: "Sayfaları PNG / JPG olarak çıkar", route: "resme", group: "Dönüştür", icon: Images },
   { id: "pdf2word", title: "PDF → Word", description: "Düzenlenebilir Word belgesi (.docx)", route: "word", group: "Dönüştür", icon: FileIcon },
   { id: "pdf2excel", title: "PDF → Excel", description: "Tabloları Excel'e aktar (.xlsx)", route: "excel", group: "Dönüştür", icon: Table },
-  // `needs` yok: resimler motorsuz çevrilir; LibreOffice uyarısını ekran Office dosyası seçilince gösterir.
-  { id: "convert", title: "Biçim Dönüştür", description: "Resim ve Office dosyalarını başka biçime çevir (JPG ↔ PNG, DOCX ↔ ODT, XLSX ↔ CSV…)", route: "donustur", group: "Dönüştür", icon: ArrowLeftRight },
+  { id: "organize", title: "Sayfa Düzenle", description: "Sürükleyerek sırala, sil, döndür, başka PDF'ten sayfa ekle", route: "duzenle", group: "Düzenle", icon: LayoutGrid },
+  { id: "merge", title: "Birleştir", description: "Birden fazla PDF'i tek dosyada topla", route: "birlestir", group: "Düzenle", icon: Layers },
+  { id: "split", title: "Böl", description: "Aralıklara, her N sayfaya veya yer imlerine göre ayır", route: "bol", group: "Düzenle", icon: Scissors },
+  { id: "layout", title: "Sayfa Düzeni ve Yazdırma", description: "N-up çoklu sayfa, ders slayt not alanı, kenar kırpma, poster bölme", route: "yazdirma", group: "Düzenle", icon: Printer },
   { id: "edit", title: "İçerik Ekle", description: "Yazı, resim, imza, vurgu, şekil, karartma", route: "editor", group: "Ekle", icon: PenLine },
   { id: "watermark", title: "Filigran", description: "Yazı veya resim filigranı", route: "filigran", group: "Ekle", icon: Droplet },
   { id: "pagenum", title: "Sayfa Numarası", description: "\"Sayfa 3 / 10\" biçiminde numaralandır", route: "sayfa-no", group: "Ekle", icon: Hash },
@@ -66,7 +66,7 @@ const DEFS: Omit<Tool, "tone">[] = [
 
 export const TOOLS: Tool[] = DEFS.map((t) => ({ ...t, tone: GROUP_TONE[t.group] }));
 
-export const GROUPS: ToolGroup[] = ["Düzenle", "Dönüştür", "Ekle", "Optimize ve güvenlik"];
+export const GROUPS: ToolGroup[] = ["Dönüştür", "Düzenle", "Ekle", "Optimize ve güvenlik"];
 
 /** Rotanın ilk parçasından araç ("duzenle" → Sayfa Düzenle). */
 export function toolForRoute(section: string | undefined): Tool | undefined {
