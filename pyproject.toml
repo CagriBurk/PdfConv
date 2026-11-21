@@ -1,6 +1,6 @@
 [project]
 name = "toolia"
-version = "0.12.2"
+version = "0.13.0"
 description = "Yerel, çevrimdışı PDF araç seti"
 readme = "README.md"
 license = "AGPL-3.0-only"
