@@ -4,6 +4,12 @@
 documents on your own machine: no sign-up, no upload limits, and files never leave the computer.
 The interface is in Turkish; Türkçe açıklama aşağıda.
 
+![Toolia home screen](docs/img/home.png)
+
+| Markdown → PDF with live preview | Annotation editor |
+|---|---|
+| ![Markdown editor](docs/img/markdown.png) | ![Annotation editor](docs/img/editor.png) |
+
 ## What it does
 
 - **Convert:** Markdown / Word / Excel / PowerPoint / HTML → PDF, PDF → Word / Excel / images,
