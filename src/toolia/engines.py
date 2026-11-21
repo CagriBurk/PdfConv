@@ -11,7 +11,6 @@ from __future__ import annotations
 import glob
 import os
 import re
-import shutil
 import subprocess
 from dataclasses import asdict, dataclass, field
 from importlib.metadata import PackageNotFoundError, version
@@ -24,6 +23,13 @@ from toolia.settings import Settings
 SUBPROCESS_TIMEOUT = 20
 REQUIRED_OCR_LANGS = ("tur", "eng")
 
+# Bunlardan eski sürümler güvenlik güncellemesi almıyor ya da bilinen açıklar içeriyor; motor
+# çalışır ama Ayarlar'da uyarı çıkar (GUVENLIK_PLANI.md, adım 6). Ghostscript 10.06.0 Eylül
+# 2025'te birkaç bellek bozulması açığını (CVE-2025-59798…59801) kapattı. LibreOffice'in her
+# sürüm dalı ~9 ay güncellenir; 2026 sonunda desteklenen en eski dal 26.2.
+MIN_GHOSTSCRIPT = (10, 6, 0)
+MIN_LIBREOFFICE = (26, 2)
+
 
 @dataclass
 class EngineStatus:
@@ -33,15 +39,19 @@ class EngineStatus:
     needed_for: str
     path: str | None = None
     version: str | None = None
-    problems: list[str] = field(default_factory=list)
+    problems: list[str] = field(default_factory=list)  # motor kullanılamaz ("hazır değil")
     install_hint: str | None = None
+    warnings: list[str] = field(default_factory=list)  # çalışır ama dikkat (ör. eski sürüm)
 
     @property
     def ok(self) -> bool:
         return self.available and not self.problems
 
     def to_dict(self) -> dict:
-        return asdict(self) | {"ok": self.ok}
+        d = asdict(self)
+        # Arayüz sorunları ve uyarıları aynı satırlarda gösterir; uyarı motoru "eksik" yapmaz.
+        d["problems"] = d["problems"] + d.pop("warnings")
+        return d | {"ok": self.ok}
 
 
 def _program_files() -> list[Path]:
@@ -67,6 +77,31 @@ def _bundled(*rel: str) -> list[Path]:
     return [root / r for r in rel] if root else []
 
 
+def find_on_path(name: str) -> Path | None:
+    """PATH'te arar ama `shutil.which`'ten farklı olarak ÇALIŞMA KLASÖRÜNE BAKMAZ. Windows'ta
+    `shutil.which` (Python 3.11) önce o anki klasörü dener: komut satırı İndirilenler'de
+    çalışırken oraya bırakılmış sahte bir `soffice.com` gerçek LibreOffice'in önüne geçiyordu
+    (GUVENLIK_PLANI.md, adım 6). Göreli PATH girdileri de (`.`) atlanır."""
+    exts = [""]
+    if os.name == "nt" and not Path(name).suffix:
+        exts = [e.lower() for e in os.environ.get("PATHEXT", ".COM;.EXE;.BAT;.CMD").split(";")
+                if e]
+    for entry in os.environ.get("PATH", "").split(os.pathsep):
+        entry = entry.strip().strip('"')
+        if not entry or not os.path.isabs(entry):
+            continue
+        for ext in exts:
+            candidate = Path(entry) / (name + ext)
+            if candidate.is_file() and (os.name == "nt" or os.access(candidate, os.X_OK)):
+                return candidate
+    return None
+
+
+def _version_tuple(text: str | None) -> tuple[int, ...] | None:
+    m = re.match(r"\s*(\d+(?:\.\d+)*)", text or "")
+    return tuple(int(x) for x in m.group(1).split(".")) if m else None
+
+
 def _find_executable(override: str, names: list[str], relative_paths: list[str],
                      bundled: list[Path] | None = None) -> Path | None:
     if override:
@@ -76,8 +111,8 @@ def _find_executable(override: str, names: list[str], relative_paths: list[str],
         if p.is_file():
             return p
     for name in names:
-        if found := shutil.which(name):
-            return Path(found)
+        if found := find_on_path(name):
+            return found
     # Önce yol sırası: listede önde olan (ör. Edge) hangi klasörde olursa olsun kazanır.
     for rel in relative_paths:
         for base in _program_files():
@@ -149,6 +184,12 @@ def detect_libreoffice(settings: Settings) -> EngineStatus:
     status.path = str(exe)
     # soffice.com'un sürüm kaynağı yok; aynı klasördeki soffice.exe'ninkini oku.
     status.version = _file_version(exe.with_name("soffice.exe"))
+    v = _version_tuple(status.version)
+    if v and v[:2] < MIN_LIBREOFFICE:
+        status.warnings.append(
+            f"Bu LibreOffice sürümü ({status.version}) artık güvenlik güncellemesi almıyor; "
+            "başkasından gelen belgeleri çevirmeden önce güncelle"
+            + (": winget upgrade TheDocumentFoundation.LibreOffice" if on_windows() else "."))
     return status
 
 
@@ -202,6 +243,11 @@ def detect_ghostscript(settings: Settings) -> EngineStatus:
     status.path = str(exe)
     if out := _run([str(exe), "--version"]):
         status.version = out.strip().splitlines()[0] if out.strip() else None
+    v = _version_tuple(status.version)
+    if v and v < MIN_GHOSTSCRIPT:
+        status.warnings.append(
+            f"Ghostscript {status.version} bilinen güvenlik açıkları içeren eski bir sürüm "
+            f"({'.'.join(map(str, MIN_GHOSTSCRIPT))} ya da yenisini kur).")
     return status
 
 

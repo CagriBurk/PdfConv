@@ -460,7 +460,7 @@ def test_libreoffice_install_job(tmp_path, monkeypatch):
         calls.append(args)
         return subprocess.CompletedProcess(args, 0, b"Successfully installed", b"")
 
-    monkeypatch.setattr(workers.shutil, "which", lambda name: r"C:\winget.exe")
+    monkeypatch.setattr(workers.engines, "find_on_path", lambda name: r"C:\winget.exe")
     from toolia import proc
     monkeypatch.setattr(proc, "run", fake_run)
     with _client(tmp_path, monkeypatch) as c:
@@ -475,7 +475,7 @@ def test_libreoffice_install_job(tmp_path, monkeypatch):
 
 def test_libreoffice_install_failure_is_reported(tmp_path, monkeypatch):
     from toolia import proc
-    monkeypatch.setattr(workers.shutil, "which", lambda name: r"C:\winget.exe")
+    monkeypatch.setattr(workers.engines, "find_on_path", lambda name: r"C:\winget.exe")
     monkeypatch.setattr(proc, "run", lambda args, **kw: subprocess.CompletedProcess(
         args, 5, b"", b"Installer failed with exit code: 1603"))
     with _client(tmp_path, monkeypatch) as c:

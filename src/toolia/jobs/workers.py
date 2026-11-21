@@ -595,7 +595,7 @@ def install_engine(store, settings, req, report, tmp: Path, job_id) -> WorkResul
     (UAC) isteyebilir. Kurulum bitince motorlar yeniden taranır."""
     from toolia import proc
 
-    winget = shutil.which("winget")
+    winget = engines.find_on_path("winget")  # çalışma klasörüne bakmaz
     if not winget:
         raise TooliaError("winget bulunamadı. Microsoft Store'dan \"Uygulama Yükleyicisi\"ni "
                              "güncelle ya da LibreOffice'i libreoffice.org'dan indirip kur.")

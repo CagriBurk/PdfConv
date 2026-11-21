@@ -45,6 +45,28 @@ jobs:
       - name: Testler
         run: uv run python -m pytest --tb=short -rs
 
+  # Bilinen açık taraması (GUVENLIK_PLANI.md, adım 6): Python bağımlılıkları (kilit dosyasından)
+  # ve arayüzün pakete giren çalışma bağımlılıkları. Yeni bir açık yayımlanınca bu iş kırmızı
+  # olur: ilgili sürümü yükselt. Geliştirme araçları (eslint...) pakete girmez, yalnızca raporlanır.
+  guvenlik:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Python bağımlılık açıkları (pip-audit)
+        run: |
+          uv export --locked --no-dev --no-emit-project --format requirements-txt --no-hashes > req.txt
+          uvx pip-audit@2.10.1 -r req.txt --no-deps --disable-pip --progress-spinner off
+
+      - name: Arayüz çalışma bağımlılıkları (npm audit)
+        run: npm --prefix web audit --omit=dev --audit-level=moderate
+
+      - name: Arayüz geliştirme araçları (yalnızca rapor)
+        run: npm --prefix web audit || true
+
   # Linux'ta kaynak koddan çalıştırma (masaüstü paketi yalnızca Windows). Motorlar dağıtımın
   # paketlerinden; tarayıcı çalıştırıcıdaki Google Chrome.
   linux:

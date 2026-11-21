@@ -141,7 +141,7 @@ Dal: `guvenlik-sertlestirme` (worktree: `C:\Users\cbura\Desktop\Conv-guvenlik`).
 | 3 HTML file://host | ✅ doğrulandı (SMB SYN → 192.0.2.1:445) | ✅ | ✅ `test_guvenlik_html.py` | bu commit |
 | 4 Ağ çıkışı | ⚠️ belge içeriği çıkmıyor; Edge'in kendi Microsoft trafiği var | kabul + belgelendi (README, OKUBENI) | `tests/guvenlik/ag_cikisi.py` | bu commit |
 | 5 Telefon modu | ✅ (testler eski kodda kalıyor) | ✅ A | ✅ `test_guvenlik_lan.py` | bu commit |
-| 6 Bağımlılıklar | – | – | – | – |
+| 6 Bağımlılıklar | ✅ çalışma klasöründen motor (yeni bulgu) | ✅ | ✅ `test_guvenlik_motorlar.py` | bu commit |
 | 7 DoS | – | – | – | – |
 | 8 Yerel sunucu | – | – | – | – |
 | 9 Dağıtım | – | – | – | – |
@@ -209,3 +209,22 @@ Dal: `guvenlik-sertlestirme` (worktree: `C:\Users\cbura\Desktop\Conv-guvenlik`).
   müşterilere açılmadan önce HTTPS yeniden değerlendirilmeli.
 - **Adım 4, karar (2026-11-21):** Edge trafiği kabul edildi ve belgelendi (README "Bilinen
   istisna", paket OKUBENI). Pakete kendi Chromium'unu eklemek sonra konuşulacak.
+- **Adım 6, tarama (2026-11-21):** `pip-audit` (kilit dosyası, 220 paket): bilinen açık yok.
+  `npm audit --omit=dev`: yok. Geliştirme araçlarında (eslint zinciri, `minimatch`) 9 orta düzey;
+  pakete girmez. `package-lock.json` arayüz dalıyla birleştirmeden sonra güncellenecek (çakışma
+  olmasın). CI'a `guvenlik` işi eklendi (pip-audit 2.10.1 sabit sürüm + npm audit).
+- **Adım 6, yeni bulgu ve düzeltme:** Python 3.11'de Windows'ta `shutil.which` önce çalışma
+  klasörüne bakıyor: oraya bırakılmış sahte `soffice.com` / `gswin64c.exe` gerçek motorun önüne
+  geçti (doğrulandı). Etkisi: komut satırı İndirilenler gibi bir klasörde çalıştırılırsa sahte
+  program çalışır; kurulu uygulamada çalışma klasörü kurulum klasörü olduğu için düşük. Motorlar
+  ve LibreOffice kurulumundaki `winget` artık `engines.find_on_path` ile yalnızca PATH'teki mutlak
+  klasörlerde aranıyor.
+- **Adım 6, sürüm uyarısı:** LibreOffice < 26.2 (desteklenmeyen dal) ve Ghostscript < 10.06.0
+  (CVE-2025-59798…59801) için Ayarlar'da uyarı. Motoru "eksik" yapmaz (yeni `warnings` alanı,
+  API'de `problems` ile birlikte gösterilir; arayüz değişmedi). Eşikler `engines.py` başında.
+- **Adım 6, açık karar — paketteki Python 3.11.9:** İkili güvenlik sürümü almayan dal. 3.11.9'dan
+  sonra kapatılan açıklar ağırlıkla `tarfile`, `email`, `http.cookies`, `zipfile.Path`, `urllib`
+  içinde; Toolia güvenilmeyen girdide yalnızca `urlparse` kullanıyor ve adım 3'teki denetim
+  sunucu adlı her `file:` adresini reddettiği için etkilenmiyor. Öneri: bir sonraki büyük paket
+  değişikliğinde gömülü Python'u desteklenen bir dala (3.13/3.14) taşı; bütün bağımlılıkların
+  tekerlekleri ve Akıllı Uygulama Denetimi yeniden denenmeli.
