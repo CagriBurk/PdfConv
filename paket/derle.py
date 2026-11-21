@@ -8,7 +8,7 @@
                  (kilit dosyasındaki çalışma bağımlılıkları + toolia; arayüz paketin içinde)
 - motorlar/      tesseract/ (yalnızca gereken DLL'ler + tur, eng, osd), ghostscript/
 - simgeler/      uygulama simgesi
-- Kur.cmd, Kaldir.cmd, pdfe-cevir.cmd, jpge-cevir.cmd, OKUBENI.txt, LISANSLAR.txt,
+- Kur.cmd, Kaldir.cmd, OKUBENI.txt, LISANSLAR.txt,
   LICENSE.txt (AGPL-3.0), toolia-kurulum.json
 
 Neden PyInstaller / Inno Setup değil: bkz. PLAN.md tuzak #52 (Akıllı Uygulama Denetimi).
@@ -38,29 +38,20 @@ TESSERACT = Path(r"C:\Program Files\Tesseract-OCR")
 GS_GLOB = r"C:\Program Files\gs\gs*"
 OCR_LANGS = ("tur", "eng", "osd")
 
+# .cmd başlatıcıları hiçbir argüman aktarmaz (`%*` yok): cmd.exe argümandaki `&`'den sonrasını
+# komut olarak çalıştırır (GUVENLIK_PLANI.md, adım 1). Başka hedef klasöre kurmak için:
+# python\python.exe -I -m toolia.kurulum kur <hedef>. Gönder menüsü .cmd kullanmaz; kısayolu
+# doğrudan python.exe'yi çalıştırır (`kurulum.SENDTO_COMMANDS`).
 KUR_CMD = """@echo off
 chcp 65001 >nul
 rem Toolia kurulumu: imzali Python ile kurar (yonetici izni gerekmez).
-"%~dp0python\\python.exe" -I -m toolia.kurulum kur %*
+"%~dp0python\\python.exe" -I -m toolia.kurulum kur
 """
 KALDIR_CMD = """@echo off
 chcp 65001 >nul
 "%~dp0python\\python.exe" -I -m toolia.kurulum kaldir
 """
-PDFE_CEVIR_CMD = """@echo off
-chcp 65001 >nul
-rem Sag tik > Gonder > "PDF'e cevir": dosyalari turune gore PDF'e cevirir.
-"%~dp0python\\python.exe" -I -m toolia gonder %*
-if errorlevel 1 pause
-"""
-JPGE_CEVIR_CMD = """@echo off
-chcp 65001 >nul
-rem Sag tik > Gonder > "JPG'ye cevir": resimleri (HEIC, PNG, WEBP...) JPG'ye cevirir.
-"%~dp0python\\python.exe" -I -m toolia donustur --hedef jpg %*
-if errorlevel 1 pause
-"""
-LAUNCHERS = {"Kur.cmd": KUR_CMD, "Kaldir.cmd": KALDIR_CMD, "pdfe-cevir.cmd": PDFE_CEVIR_CMD,
-             "jpge-cevir.cmd": JPGE_CEVIR_CMD}
+LAUNCHERS = {"Kur.cmd": KUR_CMD, "Kaldir.cmd": KALDIR_CMD}
 OKUBENI = """Toolia {version} — kurulum
 =================================
 

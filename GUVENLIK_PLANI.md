@@ -136,7 +136,7 @@ Dal: `guvenlik-sertlestirme` (worktree: `C:\Users\cbura\Desktop\Conv-guvenlik`).
 
 | Adım | Kanıt | Düzeltme | Test | Commit |
 |---|---|---|---|---|
-| 1 Gönder menüsü | bekliyor (kullanıcı denemesi) | – | – | – |
+| 1 Gönder menüsü | ✅ doğrulandı (calc açıldı) | ✅ | ✅ `test_guvenlik_gonder.py` | bu commit; Gezgin'de yeniden deneme bekliyor |
 | 2 LibreOffice | – | – | – | – |
 | 3 HTML file://host | – | – | – | – |
 | 4 Ağ çıkışı | – | – | – | – |
@@ -145,3 +145,14 @@ Dal: `guvenlik-sertlestirme` (worktree: `C:\Users\cbura\Desktop\Conv-guvenlik`).
 | 7 DoS | – | – | – | – |
 | 8 Yerel sunucu | – | – | – | – |
 | 9 Dağıtım | – | – | – | – |
+
+## Notlar
+
+- **Adım 1, kalan küçük risk:** Geliştirici kurulumundaki `baslat.bat` hâlâ `%*` aktarıyor; README
+  `baslat.bat --lan` / `--port` kullanımını belgeliyor. Yalnızca geliştirme kurulumunda (paket
+  değil) ve masaüstündeki "Toolia" simgesinin üstüne bir dosya sürüklenirse etkili. Paketteki
+  masaüstü kısayolu doğrudan `pythonw.exe`'yi çalıştırır, bu sorundan etkilenmez.
+- **Adım 1, güncellemeye etkisi:** Kurulum her güncellemede klasörü silip yeniden kopyalar ve
+  kısayolları baştan yazar. Bu yüzden eski `pdfe-cevir.cmd` / `jpge-cevir.cmd` dosyaları ve onlara
+  giden kısayollar 0.13.0'a güncellenince kendiliğinden gider. **0.12.x kullanan herkes
+  güncellemeli;** o zamana kadar Gönder menüsü yalnızca güvenilen dosyalarda kullanılmalı.
