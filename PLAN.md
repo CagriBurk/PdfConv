@@ -549,6 +549,11 @@ Bu kararlar verilene kadar yapılan, maddede yazılı; hiçbiri ücretli bir şe
 Form doldurma (AcroForm alanları), iki PDF'i karşılaştırma, not gömme (`![[Not]]`), Pandoc/LaTeX alternatif MD motoru, PDF/A doğrulama, İngilizce arayüz.
 Biçim dönüştürme için önerilip seçilmeyenler: dönüştürürken küçültme (uzun kenar en fazla N px), SVG → PNG (yazdırmadaki ağ yalıtımıyla), sunum → slayt resimleri. Ses/video bilinçli olarak yok.
 Güvenlikte açık kalanlar (2026-11-21 durumu): dışarıdan güvenlik testi yok; CI'da bağımlılık açığı taraması yok (`npm ci --no-audit`, pip-audit yok) ve kod tarayıcı (CodeQL) yok; telefon modu yerel ağda HTTP.
+Arayüz / UX adayları (2026-11-21 `arayuz-revizyon` sonrası, yalnızca `web/src/` ile yapılabilir):
+- **Panodan yapıştırma (`Ctrl+V`):** Ekran görüntüsü (`Win+Shift+S`) veya panodaki resmi doğrudan bırakma alanı/global yapıştırma ile yükleyip `Biçim Dönüştür` veya `Resim → PDF` akışına yönlendirmek.
+- **Gerçek küçük resim önizlemeleri (thumbnails):** `Biçim Dönüştür`, `Resim → PDF` ve `Son dosyalar` listesinde resim dosyalarında yalnız renkli uzantı rozeti yerine dosyanın gerçek minik görsel önizlemesini göstermek.
+- **Çıktıdan iş akışı zincirleme (`JobPanel`):** Tamamlanan çıktılarda mevcut *Düzenle / İçerik ekle* yanına kompakt bir *"Devam et ▾"* menüsü eklemek (PDF için *Sıkıştır, Filigran, Biçim Dönüştür, Güvenlik*; resim çıktısı için *PDF'e çevir, Başka biçime dönüştür*).
+- **Görsel dönüştürmede canlı kalite / boyut önizlemesi:** `Biçim Dönüştür`'de kalite kaydırıcısını oynatırken sonucun görsel farkını ve yaklaşık boyutunu (önce/sonra karşılaştırmalı) dönüştürmeden önce gösterebilmek.
 
 ---
 
