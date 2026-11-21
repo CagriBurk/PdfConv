@@ -201,8 +201,23 @@ yalnızca güvendiğin Wi-Fi'de kullan, işin bitince telefon modunu kapat. `--l
 Şifreli PDF'lerin şifresi yalnızca açık sekmenin belleğinde tutulur, hiçbir yere kaydedilmez.
 
 **Güvenilmeyen dosyalar**: Markdown ve HTML baskısında ağ tamamen kapalıdır; belge internete bir şey
-gönderemez, diskteki başka dosyaları PDF'e gömemez. Markdown notlarındaki betikler çalışmaz; HTML
-dosyalarındaki betikler çalışır (JS ile üretilen raporlar için) ama dışarı çıkamaz.
+gönderemez, diskteki başka dosyaları PDF'e gömemez, başka bir bilgisayara (`file://sunucu/...`, SMB)
+bağlanamaz. Markdown notlarındaki betikler çalışmaz; HTML dosyalarındaki betikler çalışır (JS ile
+üretilen raporlar için) ama dışarı çıkamaz. LibreOffice her dönüşümde makroları kapalı, dış
+bağlantıları güncellemeyen taze bir profille çalışır. Ölçüm için:
+`uv run python tests/guvenlik/ag_cikisi.py` (bütün dönüşümleri çalıştırıp ağ bağlantılarını izler).
+
+**Bilinen istisna (Edge)**: Markdown / HTML / metin baskısında kullanılan Microsoft Edge, kendi
+Microsoft hizmetlerine (`outlook.office365.com`, `substrate.office.com`) bağlanabiliyor. Bu
+bağlantı Windows'un ağ katmanından gider, uygulamanın kapattığı tarayıcı ağından değil; belgenin
+içeriği ve belgenin istekleri bu bağlantıda yoktur (ölçüldü). Edge'i normal kullanırken de olan
+bir davranıştır. Diğer bütün motorlar (LibreOffice, Ghostscript, Tesseract, PyMuPDF) hiç
+bağlanmaz.
+
+**Telefon modu güvenliği**: Bağlantı yerel ağda şifresizdir (HTTP); yalnızca güvendiğin Wi-Fi'de
+aç. QR kodu tek kullanımlık ve 10 dakika geçerlidir. Telefonun oturumu eşleştiği ağ adresine
+bağlıdır ve 8 saat sonra kapanır. Telefon yalnızca kendi yüklediği dosyaları, onlardan üretilenleri
+ve kendi işlerini görür; bilgisayardaki belgeler, imzalar ve Obsidian kasası ona kapalıdır.
 
 ## Komut satırı
 

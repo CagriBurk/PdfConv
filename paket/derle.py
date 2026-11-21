@@ -68,7 +68,8 @@ Güncellemek: yeni sürümün paketinde yine "Kur"a çift tıkla; belgelerin ve 
 Word / Excel / PowerPoint → PDF için LibreOffice gerekir; uygulamanın Ayarlar sayfasındaki
 "LibreOffice'i kur" düğmesi kurar (ya da: winget install TheDocumentFoundation.LibreOffice).
 Dosyaların bilgisayarından çıkmaz; uygulama internete bağlanmaz (yalnızca sen "Güncellemeleri
-denetle" dersen GitHub'a sorar).
+denetle" dersen GitHub'a sorar). Tek istisna: Markdown / HTML baskısında kullanılan Microsoft
+Edge kendi Microsoft hizmetlerine bağlanabilir; belgenin içeriği bu bağlantıda yoktur.
 """
 LISANSLAR = """Toolia paketindeki bileşenler ve lisansları
 =================================================

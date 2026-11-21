@@ -139,7 +139,7 @@ Dal: `guvenlik-sertlestirme` (worktree: `C:\Users\cbura\Desktop\Conv-guvenlik`).
 | 1 Gönder menüsü | ✅ doğrulandı (calc açıldı) | ✅ | ✅ `test_guvenlik_gonder.py` | f21010b; Gezgin'de yeniden denendi ✅ |
 | 2 LibreOffice | ❌ doğrulanmadı (26.8 sızdırmadı) | derinlemesine savunma | ✅ `test_guvenlik_office.py` | bu commit |
 | 3 HTML file://host | ✅ doğrulandı (SMB SYN → 192.0.2.1:445) | ✅ | ✅ `test_guvenlik_html.py` | bu commit |
-| 4 Ağ çıkışı | ⚠️ belge içeriği çıkmıyor; Edge'in kendi Microsoft trafiği var | karar bekliyor | `tests/guvenlik/ag_cikisi.py` | bu commit |
+| 4 Ağ çıkışı | ⚠️ belge içeriği çıkmıyor; Edge'in kendi Microsoft trafiği var | kabul + belgelendi (README, OKUBENI) | `tests/guvenlik/ag_cikisi.py` | bu commit |
 | 5 Telefon modu | ✅ (testler eski kodda kalıyor) | ✅ A | ✅ `test_guvenlik_lan.py` | bu commit |
 | 6 Bağımlılıklar | – | – | – | – |
 | 7 DoS | – | – | – | – |
@@ -207,3 +207,5 @@ Dal: `guvenlik-sertlestirme` (worktree: `C:\Users\cbura\Desktop\Conv-guvenlik`).
   aynı IP'yi taklit edebilen biri 8 saat içinde oturumu kullanabilir). Şablonlar (Markdown
   "Şablon ekle") cihazlarla ortak kaldı: düşük hassasiyet. Kullanıcı büyütmeyi planlıyor:
   müşterilere açılmadan önce HTTPS yeniden değerlendirilmeli.
+- **Adım 4, karar (2026-11-21):** Edge trafiği kabul edildi ve belgelendi (README "Bilinen
+  istisna", paket OKUBENI). Pakete kendi Chromium'unu eklemek sonra konuşulacak.
