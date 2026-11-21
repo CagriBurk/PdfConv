@@ -142,7 +142,7 @@ Dal: `guvenlik-sertlestirme` (worktree: `C:\Users\cbura\Desktop\Conv-guvenlik`).
 | 4 Ağ çıkışı | ⚠️ belge içeriği çıkmıyor; Edge'in kendi Microsoft trafiği var | kabul + belgelendi (README, OKUBENI) | `tests/guvenlik/ag_cikisi.py` | bu commit |
 | 5 Telefon modu | ✅ (testler eski kodda kalıyor) | ✅ A | ✅ `test_guvenlik_lan.py` | bu commit |
 | 6 Bağımlılıklar | ✅ çalışma klasöründen motor (yeni bulgu) | ✅ | ✅ `test_guvenlik_motorlar.py` | bu commit |
-| 7 DoS | – | – | – | – |
+| 7 DoS | ✅ Office zip bombası (+401 MB / 398 KB) | ✅ | ✅ `test_guvenlik_dos.py` | bu commit |
 | 8 Yerel sunucu | – | – | – | – |
 | 9 Dağıtım | – | – | – | – |
 
@@ -228,3 +228,13 @@ Dal: `guvenlik-sertlestirme` (worktree: `C:\Users\cbura\Desktop\Conv-guvenlik`).
   sunucu adlı her `file:` adresini reddettiği için etkilenmiyor. Öneri: bir sonraki büyük paket
   değişikliğinde gömülü Python'u desteklenen bir dala (3.13/3.14) taşı; bütün bağımlılıkların
   tekerlekleri ve Akıllı Uygulama Denetimi yeniden denenmeli.
+- **Adım 7, kanıt:** 398 KB'lık docx'in belgeye bağlı olmayan `word/header9.xml` parçası (400 MB
+  boşluk) font denetiminde Toolia sürecinde belleğe açıldı (+401 MB; LibreOffice dönüşümü bittikten
+  SONRA). xlsx sayfa sayımında aynısı. Düzeltme: zip parçaları en fazla 64 MB okunur (büyük parça
+  atlanır); açılınca 1 GB'ı ve 100:1 oranı aşan Office dosyası LibreOffice'e verilmeden reddedilir.
+  Ölçüm sonrası: 0 MB.
+- **Adım 7, korunan:** Resim bombası (20000×20000 PNG) Pillow sınırıyla anında reddediliyor (0 MB).
+- **Adım 7, kalan (düşük):** 400 MB'a açılan PDF içerik akışı bellek kullanmıyor (MuPDF akışla
+  işler) ama küçük resim / inceleme başına ~15 sn işlemci harcatıyor (399 KB dosya). Yalnızca o
+  dosyanın önizlemesi yavaşlar; MuPDF çağrısı Python'dan kesilemez. Tam çözüm PDF'leri ayrı
+  süreçte açmak (büyük mimari değişiklik); şimdilik kabul.
