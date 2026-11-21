@@ -138,7 +138,7 @@ Dal: `guvenlik-sertlestirme` (worktree: `C:\Users\cbura\Desktop\Conv-guvenlik`).
 |---|---|---|---|---|
 | 1 Gönder menüsü | ✅ doğrulandı (calc açıldı) | ✅ | ✅ `test_guvenlik_gonder.py` | f21010b; Gezgin'de yeniden denendi ✅ |
 | 2 LibreOffice | ❌ doğrulanmadı (26.8 sızdırmadı) | derinlemesine savunma | ✅ `test_guvenlik_office.py` | bu commit |
-| 3 HTML file://host | – | – | – | – |
+| 3 HTML file://host | ✅ doğrulandı (SMB SYN → 192.0.2.1:445) | ✅ | ✅ `test_guvenlik_html.py` | bu commit |
 | 4 Ağ çıkışı | – | – | – | – |
 | 5 Telefon modu | – | karar bekliyor | – | – |
 | 6 Bağımlılıklar | – | – | – | – |
@@ -169,3 +169,9 @@ Dal: `guvenlik-sertlestirme` (worktree: `C:\Users\cbura\Desktop\Conv-guvenlik`).
   makrolar kapalı, `BlockUntrustedRefererLinks`, Writer/Calc bağlantı güncelleme "asla", Calc
   açılışta yeniden hesaplama "asla". Kalan önlem adım 6'da: en düşük güvenli LibreOffice sürümü
   denetimi. Belgedeki dış hedefleri çeviriden önce temizleme (planlanan 2. katman) gerekmedi.
+- **Adım 3, kanıt (Edge, `print_html(confine=True)` — arayüzün kullandığı yol):** Betik
+  `file://192.0.2.1` + `location.pathname` istedi; denetim izin verdi; Windows (System, PID 4)
+  192.0.2.1:445'e SMB bağlantısı açmaya çalıştı (`SYN_SENT`). Markdown baskısı da aynı açığı
+  taşıyordu (ham `<img src="file://SUNUCU/<notun resminin yolu>">`; testle gösterildi).
+  Düzeltme: sunucu adı boş ya da `localhost` olmayan `file:` adresleri reddedilir. Testler eski
+  kodda kalıyor, yeni kodda geçiyor; 192.0.2.1'e bağlantı yok.
