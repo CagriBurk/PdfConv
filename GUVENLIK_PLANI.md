@@ -1,22 +1,20 @@
 # Güvenlik sertleştirme planı (2026-11-21)
 
-Dal: `guvenlik-sertlestirme` (worktree: `C:\Users\cbura\Desktop\Conv-guvenlik`). `main` ve
-`C:\Users\cbura\Desktop\Conv` klasörüne dokunulmaz: orada başka bir ajan arayüz üzerinde çalışıyor.
+Dal: `guvenlik-sertlestirme`. Arayüz yenilemesi aynı anda `arayuz-revizyon` dalında sürdü.
 
 ## Çalışma kuralları
 
 1. **Önce kanıt, sonra düzeltme.** Her adım zararsız bir kavram kanıtıyla (PoC) başlar. Açık
    doğrulanmazsa düzeltme yazılmaz, adım "doğrulanmadı" diye kapanır.
 2. Her düzeltmenin PoC'yi otomatikleştiren bir **regresyon testi** olur (`tests/test_guvenlik_*.py`).
-3. Denemeler yalnızca geçici klasörde yapılır (`LOCALAPPDATA` scratchpad'e yönlendirilir). Gerçek
+3. Denemeler yalnızca geçici klasörde yapılır (`LOCALAPPDATA` geçici bir klasöre yönlendirilir). Gerçek
    `%LOCALAPPDATA%\Toolia` klasörüne dokunulmaz. Ağ denemeleri yalnızca 127.0.0.1 üzerindeki
    dinleyiciyle yapılır.
 4. Her adım ayrı commit olur. Commit'ten önce şunlar çalışır: ruff, tam pytest, vitest (arayüz
    değiştiyse) ve build.
 5. **Arayüz (`web/`) dosyalarına en az dokunulur.** Dokunmak gerekirse adımda ayrıca yazılır;
-   birleştirmeden önce diğer ajanın değişiklikleriyle çakışma kontrol edilir.
-6. Dal bitince `main`'e `--no-ff` ile birleştirilir ve yeni sürüm (0.13.0) çıkar. Kullanıcı onay
-   vermeden birleştirme yapılmaz.
+   birleştirmeden önce `arayuz-revizyon` dalıyla çakışma kontrol edilir.
+6. Dal bitince `main`'e `--no-ff` ile birleştirilir ve yeni sürüm (0.13.0) çıkar.
 
 ## Adımlar (önem sırasıyla)
 
