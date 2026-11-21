@@ -1,5 +1,54 @@
 # Değişiklikler
 
+## 0.13.0 — 2026-11-21
+
+Güvenlik sürümü ve arayüz yenilemesi. **0.12.x kullanan herkesin güncellemesi önerilir**: özellikle
+sağ tık → Gönder menüsündeki açık, dışarıdan gelen bir dosyanın adıyla bilgisayarda komut
+çalıştırılmasına izin veriyordu.
+
+### Güvenlik
+- **Gönder → PDF'e çevir / JPG'ye çevir**: adında `&` olan bir dosya (ör. `fatura&calc&.pdf`)
+  bilgisayarda komut çalıştırabiliyordu. Gönder menüsü artık komut istemini (cmd) hiç kullanmıyor;
+  dosya adındaki hiçbir karakter komut olarak yorumlanamaz.
+- **HTML / Markdown → PDF**: kötü niyetli bir HTML ya da not, baskı sırasında bilgisayarı başka bir
+  sunucuya (Windows dosya paylaşımı, SMB) bağlatabiliyordu; bu, Windows oturum parolasının
+  özetini sızdırabilirdi. Artık başka bilgisayarı gösteren adresler hiç açılmıyor.
+- **Telefon modu**: telefonun oturumu eşleştiği ağ adresine bağlı ve 8 saat sonra kapanıyor;
+  QR kodu 10 dakika geçerli. Telefon yalnızca kendi yüklediği dosyaları ve işlerini görüyor:
+  bilgisayardaki belgeler, imzalar ve Obsidian kasası ona kapalı. Böylece aynı Wi-Fi'de oturumu
+  ele geçiren biri bilgisayardaki belgelere ulaşamıyor.
+- **Sıkıştırma bombası**: birkaç MB'lık özel hazırlanmış bir Word/Excel dosyası uygulamanın
+  gigabaytlarca bellek tüketmesine yol açabiliyordu; artık sınırlı okunuyor, aşırı sıkıştırılmış
+  dosya "sıkıştırma bombası olabilir" diye reddediliyor.
+- **Paylaşılan bilgisayar**: aynı bilgisayardaki başka bir Windows kullanıcısı uygulamaya
+  bağlanıp dosyalarını göremiyor. Aynı bilgisayardaki başka bir yerel web sitesi uygulamaya
+  istek gönderemiyor.
+- **LibreOffice**: her dönüşümde makrolar kapalı, dış bağlantılar güncellenmiyor (sürümün
+  varsayılanlarına güvenilmiyor). LibreOffice ya da Ghostscript güvenlik güncellemesi almayan
+  eski bir sürümse Ayarlar'da uyarı çıkıyor.
+- **Motorların bulunması**: komut satırı bir klasörde çalıştırıldığında o klasöre bırakılmış
+  sahte bir `soffice` / `gswin64c` / `winget` artık gerçek programın yerine geçmiyor.
+- **İndirilen paketi doğrulama**: sürüm sayfasında zip'in SHA-256 özeti (`.sha256`) var; README
+  `Get-FileHash` ile nasıl doğrulanacağını anlatıyor.
+- **Bilinen istisna**: Markdown / HTML baskısında kullanılan Microsoft Edge kendi Microsoft
+  hizmetlerine bağlanabiliyor; belgelerin içeriği bu bağlantıda yok (ölçüldü). README'de yazıyor.
+
+### Arayüz
+
+Kapsamlı UI/UX denetimi ve "Sıcak Atölye" arayüz yenilemesi (yalnızca ön yüz `web/src/`).
+
+### Eklenenler
+- **Evrensel Biçim Dönüştür**: Tek ekranda PDF (`→ PNG, JPG, Word .docx, Excel .xlsx`), resimler (`JPG/PNG/WEBP/TIFF/HEIC → JPG/PNG/WEBP/TIFF/PDF`) ve Office/HTML/TXT belgeleri (`→ PDF` veya kendi ailesi içi) dönüştürülebiliyor; belge türüne göre hedef sekmesi ve seçenekler kendiliğinden uyarlanıyor.
+- **Sık kullanılanlar (favoriler) & kategori süzgeci**: Ana sayfada araçlar kategori sekmeleriyle (`Tümü | Dönüştür | Düzenle | Ekle | Optimize`) süzülebiliyor; kartlardaki yıldızla sabitlenen araçlar üstte **Sık kullanılanlar** şeridinde (`localStorage`) kalıyor.
+- **Her ekrandan sürükle-bırak**: İşler, Ayarlar ve Ana Sayfa'da dosya pencereye sürüklenince buzlu cam bırakma katmanı açılıyor ve dosya türüne göre doğru araca yönlendiriliyor.
+- **Renk kodlu kıvrık köşeli dosya rozetleri**: PDF, Word, Excel, Sunu, Resim ve Markdown dosyaları tek bakışta renk ve biçimle ayrılıyor.
+- **Modern geçiş ve geri bildirimler**: Bölümler arası `View Transitions API` geçişleri, `<dialog>` ve komut paletinde `@starting-style` + `allow-discrete` animasyonları, yelpaze gibi açılan bırakma illüstrasyonu, çalışan iş çubuğunda parıltı, tamamlanınca çizilerek beliren SVG onay işareti ve Sıkıştır ekranında önce/sonra görsel tasarruf çubuğu.
+
+### İyileştirilenler & Sadeleştirilenler
+- **Sıcak Atölye görsel dili**: Soğuk gri tuval yerine sıcak fildişi zemin (`#f6f4ef`), koyu temada ince üst ışık kenarları, buzlu cam üst çubuk (`backdrop-filter`) ve 3B tuş görünümlü `<kbd>` kısayolları.
+- **Ana sayfa dengesi**: *Dönüştür* grubu tam genişlikte öne çıkarılıp **Biçim Dönüştür** vurgulu ana kart yapıldı; 6 kutuluk statik "Bırakınca ne olur?" bloğu tek satırlık açılır **Akıllı yönlendirme** çekmecesine sadeleştirildi.
+- **Koyu tema & erişilebilirlik**: Önizleme kâğıdı koyu temada göz yormayan yumuşak kreme alındı; tekil odak/hover parlaklıkları, mobil (390 px) ve tablet (900 px) düzenleri sıfır yatay taşmayla doğrulandı.
+
 ## 0.12.2 — 2026-11-21
 
 - **Masaüstü simgesi artık değişiyor**: 0.12.1'i kurunca masaüstünde eski turuncu "PDF" simgesi

@@ -76,6 +76,7 @@ function SinglePdfTool({
             label={action}
             disabled={!file || job.running}
             busy={job.running}
+            done={job.job?.status === "bitti"}
             onRun={() => file && job.start({ ...request(file), file: file.id, spec, passwords: passwords.forFiles([file.id]) })}
           />
           <JobPanel job={job.job} error={job.error ?? initial.error} />

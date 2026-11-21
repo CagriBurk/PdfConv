@@ -2,6 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react"
 import { api, errorMessage, type EnginesResponse, type SettingsResponse } from "./api";
 import CommandPalette from "./components/CommandPalette";
 import ErrorBoundary from "./components/ErrorBoundary";
+import GlobalDropOverlay from "./components/GlobalDropOverlay";
 import Toaster from "./components/Toaster";
 import TopBar from "./components/TopBar";
 import Home from "./pages/Home";
@@ -203,6 +204,7 @@ export default function App() {
         </ErrorBoundary>
       </main>
       <CommandPalette open={cmdOpen} onOpenChange={setCmdOpen} route={route} engines={engines} />
+      <GlobalDropOverlay section={section} />
       <Toaster />
     </div>
   );

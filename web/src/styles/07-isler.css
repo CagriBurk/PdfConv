@@ -101,6 +101,43 @@
   font-weight: 650;
 }
 
+.job-warnings {
+  margin-top: 6px;
+  font-size: 13px;
+}
+
+.job-warnings summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  list-style: none;
+  cursor: pointer;
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 650;
+}
+
+.job-warnings summary::-webkit-details-marker {
+  display: none;
+}
+
+.job-warnings-caret {
+  transition: transform 0.15s;
+}
+
+.job-warnings[open] .job-warnings-caret {
+  transform: rotate(90deg);
+}
+
+.job-warnings ul {
+  margin: 6px 0 0;
+  padding: 8px 12px 8px 26px;
+  border-radius: var(--radius-sm);
+  background: var(--warn-soft);
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
 .job-text .error-text {
   margin: 4px 0 0;
   overflow-wrap: anywhere;
@@ -232,6 +269,10 @@
   vertical-align: middle;
 }
 
+.action-mobile-label {
+  display: none;
+}
+
 .row-actions .icon-button.pinned {
   color: var(--accent-text);
 }
@@ -345,5 +386,25 @@
 
   .rename-form button {
     min-height: 40px;
+  }
+
+  .file-table .row-actions {
+    gap: 4px;
+    margin-left: 0;
+  }
+
+  .row-actions .row-primary-action {
+    width: auto;
+    padding: 0 10px;
+    gap: 6px;
+    border-color: var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .action-mobile-label {
+    display: inline;
   }
 }

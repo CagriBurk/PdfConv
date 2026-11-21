@@ -103,11 +103,18 @@ def shortcut_paths() -> dict[str, Path]:
             "eski_baslat": start / f"{OLD_APP_NAME}.lnk"}
 
 
-# Gönder menüsü kısayolları: anahtar → (paketteki başlatıcı, açıklama)
-SENDTO_LAUNCHERS = {
-    "gonder": ("pdfe-cevir.cmd", "Seçili dosyaları Toolia ile PDF'e çevirir"),
-    "gonder_jpg": ("jpge-cevir.cmd", "Seçili resimleri JPG'ye çevirir"),
+# Gönder menüsü kısayolları: anahtar → (`toolia.gonder_menu` türü, açıklama). Kısayol doğrudan
+# python.exe'yi çalıştırır, .cmd değil: Gezgin boşluksuz yolları tırnaklamaz ve cmd.exe dosya
+# adındaki `&`'den sonrasını komut olarak çalıştırırdı (GUVENLIK_PLANI.md, adım 1).
+SENDTO_COMMANDS = {
+    "gonder": ("pdf", "Seçili dosyaları Toolia ile PDF'e çevirir"),
+    "gonder_jpg": ("jpg", "Seçili resimleri JPG'ye çevirir"),
 }
+
+
+def sendto_arguments(kind: str) -> str:
+    """Gönder kısayolunun argümanları; Gezgin seçili dosyaların yollarını sonuna ekler."""
+    return f"-I -m toolia.gonder_menu {kind}"
 
 
 def icon_path(target: Path) -> Path:
@@ -130,6 +137,7 @@ def create_shortcuts(target: Path) -> None:
     """Her kurulumda (güncelleme dahil) baştan yazılır: eski sürümün üzerine kurulunca yeni
     eklenen kısayollar da oluşur, eski addaki kısayollar silinir."""
     pyw = target / "python" / "pythonw.exe"
+    py = target / "python" / "python.exe"  # Gönder: konsollu, ilerleme ve hata görünsün
     icon = icon_path(target)
     links = shortcut_paths()
     for key, path in links.items():
@@ -144,9 +152,10 @@ def create_shortcuts(target: Path) -> None:
                   f"$l.IconLocation = {_ps_str(str(icon) + ',0')}",
                   "$l.Description = 'Toolia: çevrimdışı PDF ve dosya araçları'",
                   "$l.Save()"]
-    for key, (launcher, description) in SENDTO_LAUNCHERS.items():
+    for key, (kind, description) in SENDTO_COMMANDS.items():
         lines += [f"$l = $s.CreateShortcut({_ps_str(links[key])})",
-                  f"$l.TargetPath = {_ps_str(target / launcher)}",
+                  f"$l.TargetPath = {_ps_str(py)}",
+                  f"$l.Arguments = {_ps_str(sendto_arguments(kind))}",
                   f"$l.WorkingDirectory = {_ps_str(target)}",
                   f"$l.IconLocation = {_ps_str(str(icon) + ',0')}",
                   "$l.WindowStyle = 7",

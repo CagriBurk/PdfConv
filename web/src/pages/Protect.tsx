@@ -1,6 +1,8 @@
+import { Eye, EyeOff } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { FileMeta } from "../api";
 import FilePicker, { FileRow, FilesCard, fileSummary } from "../components/FilePicker";
+import Icon from "../components/Icon";
 import JobPanel, { ActionCard } from "../components/JobPanel";
 import PageHeader from "../components/PageHeader";
 import PasswordDialog from "../components/PasswordDialog";
@@ -35,6 +37,7 @@ export default function Protect({ route }: { route: Route }) {
   const [pw, setPw] = useState("");
   const [pw2, setPw2] = useState("");
   const [owner, setOwner] = useState("");
+  const [showPw, setShowPw] = useState(false);
   const [allow, setAllow] = useState({ print: true, copy: true, modify: true });
   const job = useJob();
 
@@ -99,7 +102,7 @@ export default function Protect({ route }: { route: Route }) {
 
   return (
     <>
-      <PageHeader title="Güvenlik ve bakım" />
+      <PageHeader title="Güvenlik ve Bakım" />
       <div className="tool-layout">
         <div className="tool-main">
           <FilesCard title="Dosya">{file ? <FileRow file={file} onRemove={() => (setFile(null), job.reset())} /> : picker}</FilesCard>
@@ -125,15 +128,39 @@ export default function Protect({ route }: { route: Route }) {
           </section>
           {action === "encrypt" && (
             <section className="card">
-              <h2>Seçenekler</h2>
+              <div className="section-head">
+                <h2>Seçenekler</h2>
+                <button
+                  type="button"
+                  className="small"
+                  aria-pressed={showPw}
+                  onClick={() => setShowPw((v) => !v)}
+                >
+                  <Icon icon={showPw ? EyeOff : Eye} size={15} />
+                  {showPw ? "Şifreleri gizle" : "Şifreleri göster"}
+                </button>
+              </div>
               <div className="fields">
                 <label className="field">
                   Açılış şifresi
-                  <input className="input" type="password" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} />
+                  <input
+                    className="input"
+                    type={showPw ? "text" : "password"}
+                    autoComplete="new-password"
+                    placeholder="En az 4 karakter"
+                    value={pw}
+                    onChange={(e) => setPw(e.target.value)}
+                  />
                 </label>
                 <label className="field">
                   Şifre (tekrar)
-                  <input className="input" type="password" autoComplete="new-password" value={pw2} onChange={(e) => setPw2(e.target.value)} />
+                  <input
+                    className="input"
+                    type={showPw ? "text" : "password"}
+                    autoComplete="new-password"
+                    value={pw2}
+                    onChange={(e) => setPw2(e.target.value)}
+                  />
                 </label>
               </div>
               {pwError && <p className="error-text">{pwError}</p>}
@@ -154,7 +181,14 @@ export default function Protect({ route }: { route: Route }) {
               </fieldset>
               <label className="field">
                 Sahip şifresi (isteğe bağlı)
-                <input className="input" type="password" autoComplete="new-password" placeholder={restricted ? "boşsa rastgele üretilir" : "boşsa açılış şifresiyle aynı"} value={owner} onChange={(e) => setOwner(e.target.value)} />
+                <input
+                  className="input"
+                  type={showPw ? "text" : "password"}
+                  autoComplete="new-password"
+                  placeholder={restricted ? "boşsa rastgele üretilir" : "boşsa açılış şifresiyle aynı"}
+                  value={owner}
+                  onChange={(e) => setOwner(e.target.value)}
+                />
               </label>
             </section>
           )}
@@ -169,6 +203,7 @@ export default function Protect({ route }: { route: Route }) {
             label={label}
             disabled={!ready || job.running}
             busy={job.running}
+            done={job.job?.status === "bitti"}
             onRun={run}
           />
           <JobPanel job={job.job} error={job.error ?? initial.error} />

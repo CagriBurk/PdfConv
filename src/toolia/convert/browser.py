@@ -7,6 +7,8 @@
    Playwright'ın eşzamanlı API'sinde sayfa açılışını kilitliyor.)
 2. `page.route` her isteği denetler: yalnızca `allow_file`'ın izin verdiği yerel dosyalar açılır.
    Bir belge `<iframe src="file:///...">` ile diskteki başka bir dosyayı PDF'e gömemez.
+   Sunucu adlı `file://SUNUCU/...` adresleri hiç yerel sayılmaz: tarayıcı onları UNC yolu
+   olarak açar ve SMB bağlantısı proxy'den geçmez (`file_url_path`).
 """
 
 from __future__ import annotations
@@ -130,12 +132,31 @@ class OfflineBrowser:
         self.stop()
 
 
+LOCAL_FILE_HOSTS = ("", "localhost")
+
+
 def file_url_path(url: str) -> Path | None:
-    """file: adresinin yerel yolu; çözülemezse None."""
+    """file: adresinin yerel yolu; çözülemezse ya da adres başka bir bilgisayarı gösteriyorsa
+    (`file://SUNUCU/...`) None.
+
+    Sunucu adı atılıp yalnızca yola bakılırsa betik, kendi yolunu (`location.pathname`) bir
+    sunucu adının arkasına ekleyerek denetimi geçerdi: `file://saldirgan/C:/.../belge.html`
+    "belgenin kendisi" sayılır, tarayıcı ise onu UNC yolu olarak açıp proxy'yi atlayarak SMB ile
+    bağlanırdı (NTLM özeti sızar; GUVENLIK_PLANI.md, adım 3)."""
     try:
-        return Path(url2pathname(urlparse(url).path))
+        parsed = urlparse(url)
+        if parsed.netloc.lower() not in LOCAL_FILE_HOSTS:
+            return None
+        return Path(url2pathname(parsed.path))
     except (ValueError, OSError):
         return None
+
+
+def is_remote_file_url(url: str) -> bool:
+    try:
+        return url.startswith("file:") and urlparse(url).netloc.lower() not in LOCAL_FILE_HOSTS
+    except ValueError:
+        return True
 
 
 def new_offline_page(browser, allow_file: Callable[[Path], bool], blocked: list[str]):
@@ -170,7 +191,9 @@ def blocked_warnings(blocked: list[str], prefix: str = "") -> list[str]:
     """Engellenen adresler için kullanıcıya gösterilecek uyarılar."""
     out = []
     for url in dict.fromkeys(blocked):
-        if url.startswith("file:"):
+        if is_remote_file_url(url):
+            out.append(f"{prefix}Başka bir bilgisayardaki dosya güvenlik için açılmadı: {url}")
+        elif url.startswith("file:"):
             path = file_url_path(url)
             name = path.name if path is not None else url
             out.append(f"{prefix}Belgenin dışındaki yerel dosya güvenlik için açılmadı: {name}")

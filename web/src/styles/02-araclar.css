@@ -72,6 +72,12 @@
   top: calc(var(--topbar-h) + 16px);
 }
 
+.tool-layout > .options {
+  max-height: calc(100vh - var(--topbar-h) - 32px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
 .tool-side > .options {
   position: static;
 }
@@ -408,7 +414,7 @@ button.action {
 
 .radio-card-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
 }
@@ -622,6 +628,54 @@ button.action {
   justify-self: stretch;
 }
 
+.convert-targets.seg-track {
+  flex-wrap: wrap;
+}
+
+.convert-targets.seg-track button {
+  flex: 1 1 auto;
+  min-width: 72px;
+}
+
+.color-control {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+}
+
+.color-presets {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.color-presets button.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.thumb-box.loading {
+  animation: thumb-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes thumb-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thumb-box.loading {
+    animation: none;
+  }
+}
+
 @media (max-width: 900px) {
   .tool-layout {
     grid-template-columns: minmax(0, 1fr);
@@ -630,6 +684,11 @@ button.action {
   .tool-side,
   .options {
     position: static;
+  }
+
+  .tool-layout > .options {
+    max-height: none;
+    overflow-y: visible;
   }
 }
 

@@ -21,7 +21,7 @@ const MODES: { value: LayoutMode; label: string; hint: string; icon: LucideIcon 
   {
     value: "nup",
     icon: LayoutGrid,
-    label: "Çoklu Sayfa (N-up)",
+    label: "Çoklu Sayfa (N\u2011up)",
     hint: "Birden fazla sayfayı ya da ders slaytını tek kağıda sığdır; istersen sağda not çizgileri aç.",
   },
   {
@@ -147,6 +147,7 @@ export default function LayoutTool({ route }: { route: Route }) {
           </FilesCard>
 
           <section className="card layout-card">
+            <h2>Mod</h2>
             <div className="tabs layout-tabs" role="tablist" aria-label="Sayfa düzeni modları">
               {MODES.map((m) => (
                 <button
@@ -409,7 +410,7 @@ export default function LayoutTool({ route }: { route: Route }) {
                 </label>
               )}
               <label className="field">
-                Sayfalar (isteğe bağlı)
+                Sayfalar
                 <input
                   className="input"
                   placeholder="hepsi (ör. 1-3, 5)"
@@ -431,6 +432,7 @@ export default function LayoutTool({ route }: { route: Route }) {
             label={job.running ? "İşleniyor…" : "Uygula"}
             disabled={!file || job.running}
             busy={job.running}
+            done={job.job?.status === "bitti"}
             onRun={start}
           />
           <JobPanel

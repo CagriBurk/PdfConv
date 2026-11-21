@@ -12,6 +12,12 @@ Sağlamlık önlemleri (PLAN.md §5.2, tuzaklar #6, #17, #26):
 - Çıkış kodu 0 olsa bile çıktı PDF'i açılıp sayfası olduğu doğrulanır.
 - Belgede istenen ama bu bilgisayarda olmayan fontlar uyarı olarak bildirilir.
 
+Güvenlik (GUVENLIK_PLANI.md, adım 2): belge güvenilir değildir. Taze profile LibreOffice
+açılmadan önce ayar dosyası yazılır (`harden_profile`): makrolar tümüyle kapalı, güvenilmeyen
+belgelerden bağlantı izlenmez, Writer/Calc bağlantıları ve Calc formülleri açılışta
+güncellenmez/yeniden hesaplanmaz (WEBSERVICE gibi). 26.8 bunları varsayılan ayarlarıyla da
+yapmıyor (denendi); ama kullanıcının kurduğu sürümün varsayılanlarına güvenilmez.
+
 Biçim dönüştürme (`convert_office_format`) aynı çağrı düzenini kullanır; ayrıntılar o bölümde.
 """
 
@@ -37,6 +43,14 @@ _CALC = {".xlsx", ".xls", ".ods", ".csv", ".xlsm"}
 _IMPRESS = {".pptx", ".ppt", ".odp", ".pptm"}
 DEFAULT_TIMEOUT_S = 120
 BATCH_TIMEOUT_PER_FILE_S = 60
+
+# Sıkıştırma bombası (GUVENLIK_PLANI.md, adım 7): 398 KB'lık bir docx'in tek parçası belleğe
+# 400 MB açılıyordu (font denetimi, sayfa sayımı). Parçalar sınırlı okunur; açılınca aşırı büyüyen
+# dosya LibreOffice'e hiç verilmez. Gerçek belgelerde resimler zaten sıkıştırılmıştır, XML
+# ~10–20 kat sıkışır; 100 katı aşan ve açılınca 1 GB'ı geçen dosya olağan değildir.
+MAX_XML_MEMBER = 64 * 1024 * 1024
+MAX_UNPACKED = 1024 ** 3
+MAX_RATIO = 100
 
 
 class LibreOfficeNotFoundError(TooliaError):
@@ -80,11 +94,46 @@ def _filter_group(ext: str) -> str:
     return "calc" if ext in _CALC else "impress" if ext in _IMPRESS else "writer"
 
 
+# Taze profilin ayarları: (yol, ad, tür, değer). Writer'da bağlantı güncelleme 0 her zaman,
+# 1 sor, 2 asla; Calc'ta 0 her zaman, 1 asla, 2 sor. Calc yeniden hesaplama: 1 asla.
+HARDENING: tuple[tuple[str, str, str, str], ...] = (
+    ("/org.openoffice.Office.Common/Security/Scripting", "DisableMacrosExecution",
+     "xs:boolean", "true"),
+    ("/org.openoffice.Office.Common/Security/Scripting", "MacroSecurityLevel", "xs:int", "3"),
+    ("/org.openoffice.Office.Common/Security/Scripting", "BlockUntrustedRefererLinks",
+     "xs:boolean", "true"),
+    ("/org.openoffice.Office.Writer/Content/Update", "Link", "xs:int", "2"),
+    ("/org.openoffice.Office.Calc/Content/Update", "Link", "xs:int", "1"),
+    ("/org.openoffice.Office.Calc/Formula/Load", "OOXMLRecalcMode", "xs:int", "1"),
+    ("/org.openoffice.Office.Calc/Formula/Load", "ODFRecalcMode", "xs:int", "1"),
+)
+
+
+def harden_profile(profile: Path) -> Path:
+    """Henüz açılmamış (boş) profil klasörüne güvenlik ayarlarını yazar."""
+    items = "\n".join(
+        f'<item oor:path="{path}"><prop oor:name="{name}" oor:op="fuse" oor:type="{typ}">'
+        f"<value>{value}</value></prop></item>"
+        for path, name, typ, value in HARDENING)
+    user = Path(profile) / "user"
+    user.mkdir(parents=True, exist_ok=True)
+    xcu = user / "registrymodifications.xcu"
+    xcu.write_text(
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<oor:items xmlns:oor="http://openoffice.org/2001/registry" '
+        'xmlns:xs="http://www.w3.org/2001/XMLSchema" '
+        'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">\n'
+        f"{items}\n</oor:items>\n", encoding="utf-8")
+    return xcu
+
+
 def _run_soffice(soffice: str, inputs: list[Path], outdir: Path, export: str,
                  timeout: float, *, infilter: str | None = None) -> str:
-    """Girdileri tek çağrıda çevirir (taze profil). LibreOffice'in çıktı metnini döndürür.
-    `infilter` verilirse bütün girdiler o içe aktarma filtresiyle açılır (CSV okuma ayarları)."""
+    """Girdileri tek çağrıda çevirir (taze, sertleştirilmiş profil). LibreOffice'in çıktı
+    metnini döndürür. `infilter` verilirse bütün girdiler o içe aktarma filtresiyle açılır
+    (CSV okuma ayarları)."""
     with tempfile.TemporaryDirectory(prefix="pa-lo-profil-", ignore_cleanup_errors=True) as profile:
+        harden_profile(Path(profile))
         uri = Path(profile).resolve().as_uri()
         args = [soffice, f"-env:UserInstallation={uri}", "--headless", "--norestore",
                 "--nolockcheck", "--nodefault", "--nologo",
@@ -119,12 +168,41 @@ def _check_pdf(produced: Path, item: OfficeItem) -> OfficeResult:
     return OfficeResult(item.output, pages, warnings)
 
 
+def check_not_zip_bomb(path: Path, name: str) -> None:
+    """Zip tabanlı Office dosyası (docx, xlsx, odt...) açılınca aşırı büyüyorsa reddeder."""
+    try:
+        if not zipfile.is_zipfile(path):
+            return
+        with zipfile.ZipFile(path) as zf:
+            total = sum(i.file_size for i in zf.infolist())
+        packed = max(Path(path).stat().st_size, 1)
+    except (OSError, zipfile.BadZipFile):
+        return  # bozuk dosya: LibreOffice kendi hatasını verir
+    if total > MAX_UNPACKED and total / packed > MAX_RATIO:
+        raise OfficeConversionError(
+            f"'{name}' açıldığında {total / 1024 ** 3:.1f} GB'a çıkan, aşırı sıkıştırılmış bir "
+            "dosya (sıkıştırma bombası olabilir); güvenlik için çevrilmedi.")
+
+
+def _read_member(zf: zipfile.ZipFile, name: str, limit: int | None = None) -> bytes | None:
+    """Zip parçasını en fazla `limit` (varsayılan `MAX_XML_MEMBER`) bayt okur; daha büyükse
+    None (belleğe açılmaz)."""
+    limit = MAX_XML_MEMBER if limit is None else limit
+    info = zf.getinfo(name)
+    if info.file_size > limit:
+        return None
+    with zf.open(info) as f:
+        data = f.read(limit + 1)
+    return None if len(data) > limit else data
+
+
 def _validate(soffice: str | None, item: OfficeItem) -> str:
     if not soffice or not Path(soffice).is_file():
         raise LibreOfficeNotFoundError()
     ext = item.source.suffix.lower()
     if ext not in OFFICE_EXTS:
         raise OfficeConversionError(f"'{item.name}' desteklenen bir Office biçimi değil.")
+    check_not_zip_bomb(item.source, item.name)
     return ext
 
 
@@ -306,7 +384,8 @@ def is_password_protected(path: Path) -> bool:
             return _file_contains(path, _ENCRYPTED_STREAM)
         if ext in _ODF_EXTS:
             with zipfile.ZipFile(path) as zf:
-                return b"encryption-data" in zf.read("META-INF/manifest.xml")
+                manifest = _read_member(zf, "META-INF/manifest.xml", 1024 * 1024)
+                return manifest is not None and b"encryption-data" in manifest
     except (OSError, zipfile.BadZipFile, KeyError):
         return False
     return False
@@ -357,9 +436,11 @@ def _sheet_count(path: Path) -> int | None:
     try:
         with zipfile.ZipFile(path) as zf:
             if ext in (".xlsx", ".xlsm"):
-                return len(re.findall(rb"<(?:\w+:)?sheet[\s/>]", zf.read("xl/workbook.xml")))
+                xml = _read_member(zf, "xl/workbook.xml")
+                return None if xml is None else len(re.findall(rb"<(?:\w+:)?sheet[\s/>]", xml))
             if ext == ".ods":
-                return len(re.findall(rb"<table:table[\s>]", zf.read("content.xml")))
+                xml = _read_member(zf, "content.xml")
+                return None if xml is None else len(re.findall(rb"<table:table[\s>]", xml))
     except (OSError, zipfile.BadZipFile, KeyError):
         return None
     return None
@@ -377,6 +458,7 @@ def _format_check(item: OfficeItem, sources: frozenset[str], target: str) -> str
     ext = item.source.suffix.lower()
     if ext not in sources:
         raise OfficeConversionError(f"'{item.name}' {_label(target)} biçimine çevrilemez.")
+    check_not_zip_bomb(item.source, item.name)
     if is_password_protected(item.source):
         raise OfficeConversionError(
             f"'{item.name}' parola korumalı; LibreOffice parolalı belgeyi açamaz. Belgeyi "
@@ -542,8 +624,9 @@ def _norm(name: str) -> str:
 
 
 def _read(zf: zipfile.ZipFile, pattern: str) -> str:
-    return "\n".join(zf.read(n).decode("utf-8", "ignore") for n in zf.namelist()
-                     if re.fullmatch(pattern, n))
+    """Desene uyan parçalar; çok büyük parça atlanır (font denetimi yalnızca bir uyarıdır)."""
+    parts = (_read_member(zf, n) for n in zf.namelist() if re.fullmatch(pattern, n))
+    return "\n".join(p.decode("utf-8", "ignore") for p in parts if p is not None)
 
 
 def requested_fonts(path: Path) -> set[str]:

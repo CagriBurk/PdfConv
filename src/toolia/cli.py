@@ -201,7 +201,8 @@ def _print_lan(port: int, pair_token: str) -> None:
     with contextlib.suppress(UnicodeEncodeError):
         typer.echo(qr_text(link))
     typer.echo(f"ya da adresi yaz: {link}")
-    typer.secho("Bu kod tek kullanımlık; sonraki cihazlar için Ayarlar sayfasında yenisi çıkar. "
+    typer.secho("Bu kod tek kullanımlık ve 10 dakika geçerli; sonraki cihazlar için Ayarlar "
+                "sayfasında yenisi çıkar. Telefonun bağlantısı 8 saat sonra kapanır. "
                 "Bağlantı yerel ağda şifresizdir: yalnızca güvendiğin Wi-Fi'de kullan, işin "
                 "bitince Ayarlar'dan telefon modunu kapat. Windows güvenlik duvarı ilk seferde "
                 "izin isteyebilir.", fg="yellow")

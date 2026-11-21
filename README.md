@@ -11,13 +11,17 @@ Ayrıntılı plan: [PLAN.md](PLAN.md).
 
 Uygulamayı kullanmak için uv, Node, git ya da Python **gerekmez**.
 
-1. `Toolia-<sürüm>.zip` dosyasını indir, sağ tıkla → **Tümünü ayıkla**.
+1. `Toolia-<sürüm>.zip` dosyasını indir, sağ tıkla → **Tümünü ayıkla**. Zip'i yalnızca
+   projenin GitHub sürüm sayfasından (github.com/CagriBurk/Toolia/releases) indir. İstersen
+   doğrula: sürüm sayfasındaki `Toolia-<sürüm>.zip.sha256` dosyasındaki uzun sayı, PowerShell'de
+   `(Get-FileHash .\Toolia-<sürüm>.zip -Algorithm SHA256).Hash` çıktısıyla aynı olmalı (büyük/küçük
+   harf fark etmez). Farklıysa zip bozuk ya da değiştirilmiş: kurma.
 2. Açılan klasördeki **Kur** (`Kur.cmd`) dosyasına çift tıkla. Windows "Windows bilgisayarınızı
    korudu" ya da "yayımcı doğrulanamadı" derse **Daha fazla bilgi → Yine de çalıştır** (kurulum
    dosyası imzalı değil; içinde çalışan Python python.org imzalıdır). Yönetici izni istemez.
 3. Kurulum bir iki dakika sürer, bitince uygulama penceresi açılır. İlk açılışta kısa bir tanıtım
-   ve eksik bir şey varsa (ör. LibreOffice) ne yapılacağı gösterilir. Sonra masaüstündeki **PDF
-   Atölyesi** simgesini kullan. İndirdiğin zip'i ve ayıkladığın klasörü silebilirsin.
+   ve eksik bir şey varsa (ör. LibreOffice) ne yapılacağı gösterilir. Sonra masaüstündeki **Toolia**
+   simgesini kullan. İndirdiğin zip'i ve ayıkladığın klasörü silebilirsin.
 
 - Kurulum yeri: `%LOCALAPPDATA%\Programs\Toolia`; belgeler ve ayarlar:
   `%LOCALAPPDATA%\Toolia` (ayrı tutulur, güncellemede korunur).
@@ -149,14 +153,18 @@ yalnızca güvendiğin Wi-Fi'de kullan, işin bitince telefon modunu kapat. `--l
 
 ## Web arayüzü
 
-- **Ana sayfa**: dosyayı bırak; türüne göre doğru araç açılır (tek PDF → sayfa düzenleyici,
-  birden çok PDF → birleştir, Markdown + resimleri → MD → PDF). Resim ya da Office belgesi
-  bırakınca "PDF'e çevir" mi "Başka biçime dönüştür" mü diye sorar.
-- **Biçim Dönüştür**: resimler JPG, PNG, WEBP ya da TIFF'e (HEIC dahil; telefon fotoğrafı doğru
-  yönde, saydam alanlar JPG'de seçilen renkle dolar); Word belgeleri DOCX, ODT, RTF ya da TXT'ye;
-  tablolar XLSX, ODS ya da CSV'ye (CSV Türkçe Excel'de çift tıkla doğru açılır: `;` ayraç, UTF-8);
-  sunumlar PPTX ya da ODP'ye. Office dönüşümü LibreOffice ister. Karışık seçimde zaten hedef
-  biçimde olan dosya olduğu gibi alınır. İşler ve dosyalar'daki her uygun dosyada "Dönüştür…".
+- **Ana sayfa**: dosyayı bırak (veya İşler/Ayarlar ekranlarında pencerenin herhangi bir yerine
+  sürükle); türüne göre doğru araç açılır (tek PDF → sayfa düzenleyici, birden çok PDF → birleştir,
+  Markdown + resimleri → MD → PDF). Resim ya da Office belgesi bırakınca "PDF'e çevir" mi "Başka
+  biçime dönüştür" mü diye sorar. Araçlar kategoriye göre süzülebilir ve yıldızla **Sık kullanılanlar**
+  şeridine sabitlenebilir; `Ctrl+K` veya `/` komut paletini açar.
+- **Biçim Dönüştür**: PDF, resim ve Office/HTML/TXT belgelerini tek ekranda dönüştürür.
+  PDF → PNG, JPG, Word (`.docx`) ya da Excel (`.xlsx`); resimler → JPG, PNG, WEBP, TIFF ya da PDF
+  (HEIC dahil; telefon fotoğrafı doğru yönde, saydam alanlar JPG'de seçilen renkle dolar); Word
+  belgeleri → DOCX, ODT, RTF, TXT ya da PDF; tablolar → XLSX, ODS, CSV ya da PDF (CSV Türkçe
+  Excel'de çift tıkla doğru açılır: `;` ayraç, UTF-8); sunumlar → PPTX, ODP ya da PDF. Office
+  dönüşümü LibreOffice ister. Karışık seçimde zaten hedef biçimde olan dosya olduğu gibi alınır.
+  İşler ve dosyalar'daki her uygun dosyada "Dönüştür…".
 - **Sayfa düzenleyici**: sürükleyerek sırala (seçili sayfalar blok hâlinde taşınır), Ctrl/Shift
   ile çoklu seçim, `R` / `Shift+R` döndür, `Delete` sil, `Ctrl+Z` / `Ctrl+Y` geri/ileri,
   başka PDF'leri alana bırakarak sayfalarını ekle, çift tıkla büyüt. "Kaydet" yeni sürüm oluşturur,
@@ -201,8 +209,23 @@ yalnızca güvendiğin Wi-Fi'de kullan, işin bitince telefon modunu kapat. `--l
 Şifreli PDF'lerin şifresi yalnızca açık sekmenin belleğinde tutulur, hiçbir yere kaydedilmez.
 
 **Güvenilmeyen dosyalar**: Markdown ve HTML baskısında ağ tamamen kapalıdır; belge internete bir şey
-gönderemez, diskteki başka dosyaları PDF'e gömemez. Markdown notlarındaki betikler çalışmaz; HTML
-dosyalarındaki betikler çalışır (JS ile üretilen raporlar için) ama dışarı çıkamaz.
+gönderemez, diskteki başka dosyaları PDF'e gömemez, başka bir bilgisayara (`file://sunucu/...`, SMB)
+bağlanamaz. Markdown notlarındaki betikler çalışmaz; HTML dosyalarındaki betikler çalışır (JS ile
+üretilen raporlar için) ama dışarı çıkamaz. LibreOffice her dönüşümde makroları kapalı, dış
+bağlantıları güncellemeyen taze bir profille çalışır. Ölçüm için:
+`uv run python tests/guvenlik/ag_cikisi.py` (bütün dönüşümleri çalıştırıp ağ bağlantılarını izler).
+
+**Bilinen istisna (Edge)**: Markdown / HTML / metin baskısında kullanılan Microsoft Edge, kendi
+Microsoft hizmetlerine (`outlook.office365.com`, `substrate.office.com`) bağlanabiliyor. Bu
+bağlantı Windows'un ağ katmanından gider, uygulamanın kapattığı tarayıcı ağından değil; belgenin
+içeriği ve belgenin istekleri bu bağlantıda yoktur (ölçüldü). Edge'i normal kullanırken de olan
+bir davranıştır. Diğer bütün motorlar (LibreOffice, Ghostscript, Tesseract, PyMuPDF) hiç
+bağlanmaz.
+
+**Telefon modu güvenliği**: Bağlantı yerel ağda şifresizdir (HTTP); yalnızca güvendiğin Wi-Fi'de
+aç. QR kodu tek kullanımlık ve 10 dakika geçerlidir. Telefonun oturumu eşleştiği ağ adresine
+bağlıdır ve 8 saat sonra kapanır. Telefon yalnızca kendi yüklediği dosyaları, onlardan üretilenleri
+ve kendi işlerini görür; bilgisayardaki belgeler, imzalar ve Obsidian kasası ona kapalıdır.
 
 ## Komut satırı
 

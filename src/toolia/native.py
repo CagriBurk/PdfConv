@@ -111,3 +111,30 @@ def export_copy(store, data_dir: Path, file_id: str) -> Path:
     target = target_dir / meta.name
     shutil.copyfile(store.path(file_id), target)
     return target
+
+
+def loopback_peer_is_same_user(ip: str, port: int) -> bool:
+    """127.0.0.1'e bağlanan süreç bu Windows kullanıcısına mı ait?
+
+    Sunucu loopback'te dinler; aynı bilgisayardaki BAŞKA bir Windows kullanıcısı (paylaşılan ya
+    da uzak masaüstü bilgisayarı) da 127.0.0.1:8790'a bağlanıp oturum çerezini alabilirdi
+    (GUVENLIK_PLANI.md, adım 8). Bağlantının istemci ucu tabloda aranır; sahibi bu kullanıcı
+    değilse ya da okunamıyorsa (başka kullanıcının süreci: erişim reddedilir) False.
+    Bağlantı tabloda yoksa (gerçek soket değil: testler) True. Windows dışında her zaman True.
+    """
+    if os.name != "nt":
+        return True
+    import psutil
+
+    try:
+        conns = psutil.net_connections(kind="tcp")
+    except psutil.Error:
+        return False
+    owners = {c.pid for c in conns if c.laddr and c.laddr.ip == ip and c.laddr.port == port}
+    if not owners:
+        return True
+    try:
+        me = psutil.Process().username()
+        return all(pid and psutil.Process(pid).username() == me for pid in owners)
+    except psutil.Error:
+        return False

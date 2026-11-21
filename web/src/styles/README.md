@@ -1,7 +1,10 @@
-# Arayüz stil kılavuzu ("Ferah" yenilemesi)
+# Arayüz stil kılavuzu ("Sıcak Atölye" yenilemesi — 2026-11-21)
 
 Bağlayıcı kurallar tasarım sözleşmesinde; bu belge ortak temelin kullanım kılavuzudur. Burada
-yazan her sınıf, belirteç ve bileşen kodda gerçekten var.
+yazılan her sınıf, belirteç ve bileşen kodda gerçekten var. 2026-11-21 `arayuz-revizyon` dalında
+önceki "Ferah" temeli üzerine sıcak malzeme paleti, buzlu cam üst çubuk, renk kodlu dosya rozetleri,
+kategori süzgeci/favoriler, genel sürükle-bırak katmanı ve `prefers-reduced-motion` uyumlu modern
+geçişler eklendi.
 
 ## Dosyalar ve basamak sırası
 
@@ -43,11 +46,20 @@ Değerler sözleşmede. Bileşene sabit renk gömme; hep `var(--…)`. İstisnal
 | `--accent-faint` | Çok hafif vurgu zemini (bırakma alanı, seçili kart) |
 | `--ok` `--warn` `--bad` + `-soft` | Durum yazısı + aynı tonun zemini; hep çift kullan (`.chip.ok` gibi) |
 | `--g1-bg/fg` … `--g4-bg/fg` | Araç grubu tonu; doğrudan değil `.g1`…`.g4` ile |
-| `--paper` `--paper-ink` `--paper-shadow` | Kâğıt: PDF sayfası, imza, karekod zemini. Her temada beyaz (koyu blokta tanımlı değil) |
-| `--shadow` | Kart gölgesi (`.card` zaten kullanır) |
+| `--paper` `--paper-ink` `--paper-shadow` | Kâğıt: PDF sayfası, imza, karekod zemini. Açık temada saf beyaz, koyu temada göz yormayan yumuşak krem (`#f3f1eb`) |
+| `--shadow` / `--inset-top` | Kart gölgesi ve ince üst yüzey ışığı (koyu temada derinlik hissi verir) |
+| `--ease-spring` / `--ease-out` | Dokunsal mikro-etkileşim ve üst katman geçiş eğrileri (yalnızca `prefers-reduced-motion: no-preference` altında etkin) |
 
 Diğerleri: `--radius-sm` 8px, `--radius` 12px, `--radius-lg` 18px, `--page-max` (1240px; geniş
 çalışma ekranlarında 1500px), `--topbar-h` (aşağıda), `--font`, `--mono`.
+
+## Yeni ortak bileşen ve geçiş kalıpları (`arayuz-revizyon`)
+
+- **Buzlu cam üst çubuk (`.topbar`)**: `backdrop-filter: blur(14px) saturate(140%)`; `theme-color` meta rengi yine `--surface` (`#ffffff` / `#161a22`) ile eşleşir.
+- **Renk kodlu kıvrık köşeli dosya rozeti (`.ftype.ft-*`)**: `fileTypeTone()` (`FilePicker.tsx`) ile `ft-pdf`, `ft-doc`, `ft-sheet`, `ft-slide`, `ft-img`, `ft-md`, `ft-other` sınıfları verilir.
+- **Ana sayfa kontrolleri**: `.route-drawer` (açılır akıllı yönlendirme çekmecesi), `.home-filter` (kategori süzgeci), `.fav-strip` / `.fav-pill` / `.tool-fav` (sık kullanılan araçlar).
+- **Genel sürükle-bırak katmanı (`.global-drop`)**: Pasif ekranlarda pencereye dosya sürüklenince açılan tam ekran buzlu cam katman (`GlobalDropOverlay.tsx`).
+- **Üst katman & sayfa geçişleri**: `<dialog class="modal">` (`05-modal.css`) ve `<dialog class="cmd-palette">` (`11-palet.css`) `@starting-style`, `overlay` ve ayrı `transition-behavior: allow-discrete` ile animasyonlanır; bölüm geçişleri `router.ts` içinde `document.startViewTransition` kullanır (hızlı geçiş `AbortError` bastırılır, `prefers-reduced-motion: reduce` altında devre dışıdır).
 
 ## Yapışkan üst çubuk ve sayfa içi yapışkanlar
 

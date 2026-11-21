@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { alreadyNote, noTargetReason } from "./pages/Convert";
+import { alreadyNote, noTargetReason, universalTargets } from "./pages/Convert";
 import { ACCEPT, commonConvertTargets, convertTargets, familyTargets, sameFormat } from "./tools";
 
 describe("biçim dönüştürme hedefleri", () => {
@@ -56,5 +56,22 @@ describe("biçim dönüştürme hedefleri", () => {
     expect(ACCEPT.convert.split(",")).toContain(".heif");
     expect(ACCEPT.convert.split(",")).toContain(".wpd");
     expect(ACCEPT.convert.split(",")).not.toContain(".txt");
+  });
+
+  it("evrensel hedefler: resim ve Office için PDF dahil, tek PDF için resim/Word/Excel", () => {
+    expect(universalTargets([{ name: "foto.png", kind: "image" }])).toEqual([".jpg", ".webp", ".tiff", ".pdf"]);
+    expect(universalTargets([{ name: "a.png", kind: "image" }, { name: "b.jpg", kind: "image" }])).toEqual([
+      ".jpg",
+      ".png",
+      ".webp",
+      ".tiff",
+      ".pdf",
+    ]);
+    expect(universalTargets([{ name: "rapor.docx", kind: "office" }])).toEqual([".odt", ".rtf", ".txt", ".pdf"]);
+    expect(universalTargets([{ name: "a.docx", kind: "office" }, { name: "b.xlsx", kind: "office" }])).toEqual([".pdf"]);
+    expect(universalTargets([{ name: "sayfa.html", kind: "html" }])).toEqual([".pdf"]);
+    expect(universalTargets([{ name: "belge.pdf", kind: "pdf" }])).toEqual([".png", ".jpg", ".docx", ".xlsx"]);
+    expect(universalTargets([{ name: "a.pdf", kind: "pdf" }, { name: "b.pdf", kind: "pdf" }])).toEqual([]);
+    expect(universalTargets([{ name: "a.png", kind: "image" }, { name: "t.csv", kind: "office" }])).toEqual([]);
   });
 });

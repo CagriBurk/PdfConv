@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from functools import partial
 from pathlib import Path
 
-from toolia import engines
+from toolia import access, engines
 from toolia.convert.markdown.render import BrowserNotFoundError
 from toolia.core import compress as compresslib
 from toolia.core import content, images, pages, security
@@ -263,7 +263,8 @@ def md_to_pdf(store, settings, req, report, tmp: Path, job_id) -> WorkResult:
     browser = engines.detect_browser(settings).path
     report(0.15, "Tarayıcı başlatılıyor")
     defaults = MdOptions(theme=settings.default_theme, paper=settings.default_paper)
-    with MarkdownPrinter(browser, settings.vault_path, confine=True,
+    vault = None if access.is_device() else settings.vault_path  # kasa yalnızca bu bilgisayarın
+    with MarkdownPrinter(browser, vault, confine=True,
                          user_defaults=defaults) as printer:
         report(0.4, "Basılıyor")
         result = printer.convert(source, tmp / "cikti.pdf",
@@ -594,7 +595,7 @@ def install_engine(store, settings, req, report, tmp: Path, job_id) -> WorkResul
     (UAC) isteyebilir. Kurulum bitince motorlar yeniden taranır."""
     from toolia import proc
 
-    winget = shutil.which("winget")
+    winget = engines.find_on_path("winget")  # çalışma klasörüne bakmaz
     if not winget:
         raise TooliaError("winget bulunamadı. Microsoft Store'dan \"Uygulama Yükleyicisi\"ni "
                              "güncelle ya da LibreOffice'i libreoffice.org'dan indirip kur.")

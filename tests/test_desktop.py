@@ -355,7 +355,7 @@ def test_shortcut_paths_include_sendto_jpg():
     assert links["gonder"].name == "PDF'e çevir.lnk"
     assert links["gonder_jpg"].name == "JPG'ye çevir.lnk"
     assert links["gonder_jpg"].parent == links["gonder"].parent  # ikisi de Gönder menüsünde
-    assert set(kurulum.SENDTO_LAUNCHERS) <= set(links)
+    assert set(kurulum.SENDTO_COMMANDS) <= set(links)
 
 
 def _fake_links(root: Path) -> dict[str, Path]:
@@ -386,12 +386,15 @@ def test_create_and_remove_shortcuts(tmp_path, monkeypatch):
     script = (f"$l = (New-Object -ComObject WScript.Shell).CreateShortcut("
               f"{kurulum._ps_str(links['gonder_jpg'])}); "
               "[Console]::OutputEncoding = [Text.Encoding]::UTF8; "
-              "\"$($l.TargetPath)|$($l.WindowStyle)|$($l.IconLocation)|$($l.Description)\"")
+              "\"$($l.TargetPath)|$($l.Arguments)|$($l.WindowStyle)|$($l.IconLocation)|"
+              "$($l.Description)\"")
     env = {k: v for k, v in os.environ.items() if k.upper() != "PSMODULEPATH"}
     out = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
                          capture_output=True, encoding="utf-8", check=True, env=env).stdout
-    lnk_target, style, icon, desc = out.strip().split("|")
-    assert lnk_target == str(target / "jpge-cevir.cmd")
+    lnk_target, args, style, icon, desc = out.strip().split("|")
+    # .cmd değil, doğrudan python.exe: dosya yolları cmd.exe'den geçmez (güvenlik adım 1)
+    assert lnk_target == str(target / "python" / "python.exe")
+    assert args == "-I -m toolia.gonder_menu jpg"
     assert style == "7"
     assert icon == str(versioned) + ",0"
     assert desc == "Seçili resimleri JPG'ye çevirir"
@@ -414,22 +417,23 @@ def test_update_install_recreates_shortcuts(tmp_path, monkeypatch):
     assert calls == [("kisayol", target), ("kayit", "0.9.0")]
 
 
-def test_package_writes_send_to_launchers(tmp_path):
+def test_package_writes_launchers(tmp_path):
     import importlib.util
 
     spec = importlib.util.spec_from_file_location("derle", ROOT / "paket" / "derle.py")
     derle = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(derle)
     derle.write_launchers(tmp_path)
-    # Kurulumun Gönder kısayollarının hedeflediği her başlatıcı pakette var
-    for launcher, _desc in kurulum.SENDTO_LAUNCHERS.values():
-        assert (tmp_path / launcher).is_file(), launcher
-    raw = (tmp_path / "jpge-cevir.cmd").read_bytes()
+    assert {p.name for p in tmp_path.iterdir()} == {"Kur.cmd", "Kaldir.cmd"}
+    raw = (tmp_path / "Kur.cmd").read_bytes()
     text = raw.decode("ascii")  # cmd.exe için ASCII, BOM'suz
     assert "\r\n" in text and "\n" not in text.replace("\r\n", "")
     assert text.startswith("@echo off\r\nchcp 65001 >nul\r\n")
-    assert '"%~dp0python\\python.exe" -I -m toolia donustur --hedef jpg %*' in text
-    assert "if errorlevel 1 pause" in text
+    assert '"%~dp0python\\python.exe" -I -m toolia.kurulum kur\r\n' in text
+    # Hiçbir başlatıcı argüman aktarmaz: cmd.exe argümandaki `&`'yi komut ayırıcı sayar
+    for name in ("Kur.cmd", "Kaldir.cmd"):
+        body = (tmp_path / name).read_text(encoding="ascii")
+        assert "%*" not in body and "%1" not in body, name
 
 
 # --- LibreOffice kurulumu ve güncelleme ----------------------------------------------------------
@@ -456,7 +460,7 @@ def test_libreoffice_install_job(tmp_path, monkeypatch):
         calls.append(args)
         return subprocess.CompletedProcess(args, 0, b"Successfully installed", b"")
 
-    monkeypatch.setattr(workers.shutil, "which", lambda name: r"C:\winget.exe")
+    monkeypatch.setattr(workers.engines, "find_on_path", lambda name: r"C:\winget.exe")
     from toolia import proc
     monkeypatch.setattr(proc, "run", fake_run)
     with _client(tmp_path, monkeypatch) as c:
@@ -471,7 +475,7 @@ def test_libreoffice_install_job(tmp_path, monkeypatch):
 
 def test_libreoffice_install_failure_is_reported(tmp_path, monkeypatch):
     from toolia import proc
-    monkeypatch.setattr(workers.shutil, "which", lambda name: r"C:\winget.exe")
+    monkeypatch.setattr(workers.engines, "find_on_path", lambda name: r"C:\winget.exe")
     monkeypatch.setattr(proc, "run", lambda args, **kw: subprocess.CompletedProcess(
         args, 5, b"", b"Installer failed with exit code: 1603"))
     with _client(tmp_path, monkeypatch) as c:

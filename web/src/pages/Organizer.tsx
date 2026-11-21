@@ -418,11 +418,11 @@ export default function Organizer({ fileId }: { fileId?: string }) {
 
   return (
     <>
-      <PageHeader title={base?.name ?? "Sayfa Düzenle"}>
+      <PageHeader title="Sayfa Düzenle">
         {base && (
           <>
             <span className="chip meta-chip">
-              {items.length} sayfa · sürüm {base.version}
+              {base.name} · {items.length} sayfa · sürüm {base.version}
             </span>
             {base.version > 1 && (
               <button type="button" onClick={undoVersion} disabled={dirty}>

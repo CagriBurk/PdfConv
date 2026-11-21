@@ -94,6 +94,7 @@ export default function Split({ route }: { route: Route }) {
             label={parts ? `Böl (${parts} dosya)` : "Böl"}
             disabled={!file || job.running || (mode === "aralik" && !spec.trim())}
             busy={job.running}
+            done={job.job?.status === "bitti"}
             onRun={() =>
               file &&
               job.start({
