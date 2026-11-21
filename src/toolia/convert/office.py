@@ -12,6 +12,12 @@ Sağlamlık önlemleri (PLAN.md §5.2, tuzaklar #6, #17, #26):
 - Çıkış kodu 0 olsa bile çıktı PDF'i açılıp sayfası olduğu doğrulanır.
 - Belgede istenen ama bu bilgisayarda olmayan fontlar uyarı olarak bildirilir.
 
+Güvenlik (GUVENLIK_PLANI.md, adım 2): belge güvenilir değildir. Taze profile LibreOffice
+açılmadan önce ayar dosyası yazılır (`harden_profile`): makrolar tümüyle kapalı, güvenilmeyen
+belgelerden bağlantı izlenmez, Writer/Calc bağlantıları ve Calc formülleri açılışta
+güncellenmez/yeniden hesaplanmaz (WEBSERVICE gibi). 26.8 bunları varsayılan ayarlarıyla da
+yapmıyor (denendi); ama kullanıcının kurduğu sürümün varsayılanlarına güvenilmez.
+
 Biçim dönüştürme (`convert_office_format`) aynı çağrı düzenini kullanır; ayrıntılar o bölümde.
 """
 
@@ -80,11 +86,46 @@ def _filter_group(ext: str) -> str:
     return "calc" if ext in _CALC else "impress" if ext in _IMPRESS else "writer"
 
 
+# Taze profilin ayarları: (yol, ad, tür, değer). Writer'da bağlantı güncelleme 0 her zaman,
+# 1 sor, 2 asla; Calc'ta 0 her zaman, 1 asla, 2 sor. Calc yeniden hesaplama: 1 asla.
+HARDENING: tuple[tuple[str, str, str, str], ...] = (
+    ("/org.openoffice.Office.Common/Security/Scripting", "DisableMacrosExecution",
+     "xs:boolean", "true"),
+    ("/org.openoffice.Office.Common/Security/Scripting", "MacroSecurityLevel", "xs:int", "3"),
+    ("/org.openoffice.Office.Common/Security/Scripting", "BlockUntrustedRefererLinks",
+     "xs:boolean", "true"),
+    ("/org.openoffice.Office.Writer/Content/Update", "Link", "xs:int", "2"),
+    ("/org.openoffice.Office.Calc/Content/Update", "Link", "xs:int", "1"),
+    ("/org.openoffice.Office.Calc/Formula/Load", "OOXMLRecalcMode", "xs:int", "1"),
+    ("/org.openoffice.Office.Calc/Formula/Load", "ODFRecalcMode", "xs:int", "1"),
+)
+
+
+def harden_profile(profile: Path) -> Path:
+    """Henüz açılmamış (boş) profil klasörüne güvenlik ayarlarını yazar."""
+    items = "\n".join(
+        f'<item oor:path="{path}"><prop oor:name="{name}" oor:op="fuse" oor:type="{typ}">'
+        f"<value>{value}</value></prop></item>"
+        for path, name, typ, value in HARDENING)
+    user = Path(profile) / "user"
+    user.mkdir(parents=True, exist_ok=True)
+    xcu = user / "registrymodifications.xcu"
+    xcu.write_text(
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<oor:items xmlns:oor="http://openoffice.org/2001/registry" '
+        'xmlns:xs="http://www.w3.org/2001/XMLSchema" '
+        'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">\n'
+        f"{items}\n</oor:items>\n", encoding="utf-8")
+    return xcu
+
+
 def _run_soffice(soffice: str, inputs: list[Path], outdir: Path, export: str,
                  timeout: float, *, infilter: str | None = None) -> str:
-    """Girdileri tek çağrıda çevirir (taze profil). LibreOffice'in çıktı metnini döndürür.
-    `infilter` verilirse bütün girdiler o içe aktarma filtresiyle açılır (CSV okuma ayarları)."""
+    """Girdileri tek çağrıda çevirir (taze, sertleştirilmiş profil). LibreOffice'in çıktı
+    metnini döndürür. `infilter` verilirse bütün girdiler o içe aktarma filtresiyle açılır
+    (CSV okuma ayarları)."""
     with tempfile.TemporaryDirectory(prefix="pa-lo-profil-", ignore_cleanup_errors=True) as profile:
+        harden_profile(Path(profile))
         uri = Path(profile).resolve().as_uri()
         args = [soffice, f"-env:UserInstallation={uri}", "--headless", "--norestore",
                 "--nolockcheck", "--nodefault", "--nologo",

@@ -136,8 +136,8 @@ Dal: `guvenlik-sertlestirme` (worktree: `C:\Users\cbura\Desktop\Conv-guvenlik`).
 
 | Adım | Kanıt | Düzeltme | Test | Commit |
 |---|---|---|---|---|
-| 1 Gönder menüsü | ✅ doğrulandı (calc açıldı) | ✅ | ✅ `test_guvenlik_gonder.py` | bu commit; Gezgin'de yeniden deneme bekliyor |
-| 2 LibreOffice | – | – | – | – |
+| 1 Gönder menüsü | ✅ doğrulandı (calc açıldı) | ✅ | ✅ `test_guvenlik_gonder.py` | f21010b; Gezgin'de yeniden denendi ✅ |
+| 2 LibreOffice | ❌ doğrulanmadı (26.8 sızdırmadı) | derinlemesine savunma | ✅ `test_guvenlik_office.py` | bu commit |
 | 3 HTML file://host | – | – | – | – |
 | 4 Ağ çıkışı | – | – | – | – |
 | 5 Telefon modu | – | karar bekliyor | – | – |
@@ -156,3 +156,16 @@ Dal: `guvenlik-sertlestirme` (worktree: `C:\Users\cbura\Desktop\Conv-guvenlik`).
   kısayolları baştan yazar. Bu yüzden eski `pdfe-cevir.cmd` / `jpge-cevir.cmd` dosyaları ve onlara
   giden kısayollar 0.13.0'a güncellenince kendiliğinden gider. **0.12.x kullanan herkes
   güncellemeli;** o zamana kadar Gönder menüsü yalnızca güvenilen dosyalarda kullanılmalı.
+- **Adım 2, kanıt sonucu (LibreOffice 26.8.2.2):** Uzak resimli ODT, yerel dosyaya bağlı
+  bölümlü ODT, WEBSERVICE'li ODS ve XLSX, LibreOffice'in kendi ürettiği dış ilişkili
+  (`TargetMode="External"`) resimli DOCX, `INCLUDEPICTURE`'lı DOCX ve RTF: 127.0.0.1'deki
+  dinleyiciye **sıfır istek**, kanarya metni PDF'e **girmedi**. Bağlantılar `.fodt` çıktısında
+  duruyordu, yani belgeler geçerliydi; LibreOffice başsız dönüşümde onları yüklemiyor (yerel
+  resmi bile). `INCLUDEPICTURE` alanını hiç içe almıyor. Açılışta çalışan Basic makrosu
+  çalışmadı; ancak makro güvenliği düşük profilde de çalışmadığı için bu kontrol **belirsiz**
+  kaldı (`--convert-to` açılış olaylarını tetiklemiyor olabilir).
+- **Adım 2, yapılan:** Bulgu doğrulanmadığı hâlde, ucuz olduğu ve kullanıcının kurduğu LibreOffice
+  sürümünün varsayılanlarına güvenilemeyeceği için taze profile ayarlar açıkça yazılıyor:
+  makrolar kapalı, `BlockUntrustedRefererLinks`, Writer/Calc bağlantı güncelleme "asla", Calc
+  açılışta yeniden hesaplama "asla". Kalan önlem adım 6'da: en düşük güvenli LibreOffice sürümü
+  denetimi. Belgedeki dış hedefleri çeviriden önce temizleme (planlanan 2. katman) gerekmedi.
