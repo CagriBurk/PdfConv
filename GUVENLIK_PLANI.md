@@ -139,8 +139,8 @@ Dal: `guvenlik-sertlestirme` (worktree: `C:\Users\cbura\Desktop\Conv-guvenlik`).
 | 1 Gönder menüsü | ✅ doğrulandı (calc açıldı) | ✅ | ✅ `test_guvenlik_gonder.py` | f21010b; Gezgin'de yeniden denendi ✅ |
 | 2 LibreOffice | ❌ doğrulanmadı (26.8 sızdırmadı) | derinlemesine savunma | ✅ `test_guvenlik_office.py` | bu commit |
 | 3 HTML file://host | ✅ doğrulandı (SMB SYN → 192.0.2.1:445) | ✅ | ✅ `test_guvenlik_html.py` | bu commit |
-| 4 Ağ çıkışı | – | – | – | – |
-| 5 Telefon modu | – | karar bekliyor | – | – |
+| 4 Ağ çıkışı | ⚠️ belge içeriği çıkmıyor; Edge'in kendi Microsoft trafiği var | karar bekliyor | `tests/guvenlik/ag_cikisi.py` | bu commit |
+| 5 Telefon modu | – | karar: A (2026-11-21) | – | – |
 | 6 Bağımlılıklar | – | – | – | – |
 | 7 DoS | – | – | – | – |
 | 8 Yerel sunucu | – | – | – | – |
@@ -175,3 +175,20 @@ Dal: `guvenlik-sertlestirme` (worktree: `C:\Users\cbura\Desktop\Conv-guvenlik`).
   taşıyordu (ham `<img src="file://SUNUCU/<notun resminin yolu>">`; testle gösterildi).
   Düzeltme: sunucu adı boş ya da `localhost` olmayan `file:` adresleri reddedilir. Testler eski
   kodda kalıyor, yeni kodda geçiyor; 192.0.2.1'e bağlantı yok.
+- **Adım 4, ölçüm (`tests/guvenlik/ag_cikisi.py`, 12 dönüşüm türü):** PyMuPDF, Ghostscript,
+  OCR (ocrmypdf + Tesseract), pdf2docx, openpyxl, Pillow ve LibreOffice **hiç dışarı
+  bağlanmadı**. Belgenin kendi dış istekleri (HTML'de http/https resim, CSS, fetch, WebSocket,
+  sendBeacon, `file://SUNUCU`; Markdown'da uzak resimler) **engellendi**.
+  **Ama Edge, her baskıda ana süreçten `outlook.office365.com` / `substrate.office.com`
+  (40.101.x, 40.104.x, 52.97.x) adreslerine HTTPS bağlantısı açıyor**; düz metin baskısında da.
+  Bu trafik Chromium'un ağ katmanında görünmüyor (ayrıntılı günlükte yok), Windows'un sistem
+  ağ katmanından gidiyor; bu yüzden ölü proxy onu durdurmuyor. `--inprivate`, `--guest` ve
+  `--disable-features=msImplicitSignin` işe yaramadı. Belge içeriği bu bağlantıda değil
+  (belgenin bütün istekleri engelli), ama "uygulama internete bağlanmaz" vaadi Edge kullanıldığında
+  tam değil. Edge'in ağ katmanından geçen kendi arka plan istekleri (Bing, `edge.microsoft.com`)
+  proxy'de düşüyor. Karar kullanıcıda (seçenekler sohbette).
+- **Adım 4, not:** İkinci bir `--disable-features` bayrağı Playwright'ın kendi listesini ezer
+  (Chromium son değeri alır); Edge bayrağı eklenecekse iki liste birleştirilmeli.
+- **Adım 5, karar:** A (IP'ye bağlı ve süreli oturum, kendiliğinden kapanma, cihaz yalnızca kendi
+  dosyalarını görür, güvenilen ağ uyarısı); HTTPS şimdilik yok. Kullanım: şimdilik arkadaşlar,
+  büyütme planlanıyor — müşterilere yayılmadan önce HTTPS yeniden değerlendirilmeli.
